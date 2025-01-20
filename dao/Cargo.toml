@@ -1,0 +1,11 @@
+[package]
+name = "dao"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anndists = "0.1.2"
+anyhow = "1.0.95"
+rayon = "1.10.0"
+tracing = "0.1.41"
+csv = "1.3.1"

@@ -7,15 +7,16 @@ mod class_labels;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{anyhow, Result};
+use ndarray::{Array, Array1, Array2, Ix1, Ix2};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+//#[derive(Debug,Serialize,Deserialize)]
 pub struct Dao {
     pub num_data: usize,
     pub num_queries: usize,
-    pub data: Vec<f32>,
-    queries: Vec<f32>,
-    nns: Vec<Vec<usize>>,
+    pub data: Array2<f32>,
+    pub queries: Array2<f32>,
     dim: usize,
 }
 
@@ -36,19 +37,11 @@ impl Dao {
         self.num_queries
     }
 
-    pub fn get(&self, id: usize) -> Result<&[f32]> {
-        if id > self.num_data {
-            Err(anyhow!("Data index out of bounds requested {id} data range is 0..{}",self.num_data))
-        } else {
-            Ok(&self.data.as_slice()[id * self.dim..(id + 1) * self.dim])
-        }
+    pub fn get(&self, id: usize) -> Array1<f32> { // TODO this should return a view?
+        self.data.row(id).into_owned()   // this costs us!! TODO
     }
 
-    pub fn query(&self, id: usize) -> Result<&[f32]> {
-        if id > self.num_queries {
-            Err(anyhow!("Data index out of bounds requested {id} data range is 0..{}",self.num_queries))
-        } else {
-            Ok(&self.queries.as_slice()[id*self.dim .. (id+1) *self.dim])
-        }
+    pub fn query(&self, id: usize) -> Array1<f32> {
+        self.queries.row(id).into_owned()
     }
 }

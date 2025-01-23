@@ -1,7 +1,8 @@
 use crate::Dao;
 use anyhow::anyhow;
+use ndarray::Array;
 
-pub fn csv_loader(data_path: &str, num_data: usize, num_queries: usize) -> anyhow::Result<(Dao)> {
+pub fn csv_loader(data_path: &str, num_data: usize, num_queries: usize) -> anyhow::Result<Dao> {
     // returns a tuple stores data in single Vector
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
@@ -25,16 +26,17 @@ pub fn csv_loader(data_path: &str, num_data: usize, num_queries: usize) -> anyho
         Err(anyhow!("Requested data {num_data} and query {num_queries} sizes cannot be satisfied: in data of length {}", all_data.len()))
     } else {
         let dim = all_data.len() / count;
-        let data = all_data[0..num_data * dim].to_vec();
-        let queries = all_data[num_data * dim..].to_vec();
+
+        let (data_slice, queries_slice) = all_data.split_at(num_data*dim);
+
+        let data = Array::from_iter(data_slice.iter().map(|x| *x )).to_shape((num_data,dim)).unwrap().into_owned();
+        let queries = Array::from_iter(queries_slice.iter().map(|x| *x )).to_shape((num_queries,dim)).unwrap().into_owned();
 
         Ok(Dao {
             num_data,
             num_queries,
             data,
             queries,
-            //nns: load_mf_nns(nn_path),
-            nns: Vec::new(), // should be like above
             dim,
         })
     }

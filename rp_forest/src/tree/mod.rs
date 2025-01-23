@@ -1,7 +1,7 @@
 // RPTree impl
 // al
 
-use crate::dao::Dao;
+use dao::Dao;
 use itertools::Itertools;
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
@@ -9,6 +9,7 @@ use rand_chacha::ChaCha8Rng;
 use rand_distr::{Distribution, Normal};
 use std::cmp::max;
 use std::rc::Rc;
+use ndarray::{Array, Array1, Ix1};
 
 const SEED: [u8; 32] = [
     1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
@@ -21,7 +22,7 @@ const SEED: [u8; 32] = [
 
 //#[derive(Debug)]
 pub struct RpNode {
-    pub pivot: Vec<f32>,     // The pivot for this node
+    pub pivot: Array1<f32>,   // The pivot for this node
     pub payload: Vec<usize>, // A vec of indices into the vectors structure
     pub split_value: f32,    // the split value that is used to subdivide the data into children
     pub left: Option<Box<Self>>,
@@ -78,10 +79,8 @@ impl RpNode {
             }
         }
         // Walk the tree to get to the leaves
-        let Ok(data_to_add) = dao.get(index) else {
-            panic!("Illegal index in iterator")
-        };
-        let dist = dot_product(&self.pivot, data_to_add);
+        let data_to_add = dao.get(index);
+        let dist = dot_product(&self.pivot, &data_to_add);
         if dist <= self.split_value {
             if let Some(left) = self.left.as_mut() {
                 left.do_insert(index, max_load, dim, dao.clone(), rng);
@@ -105,11 +104,11 @@ impl RpNode {
         1 + max(right_depth, left_depth)
     }
 
-    pub fn do_lookup(&self, query: &[f32], dao: Rc<Dao>) -> Option<Vec<usize>> {
+    pub fn do_lookup(&self, query: &Array1<f32>, dao: Rc<Dao>) -> Option<Vec<usize>> {
         if self.is_leaf() {
             Some(self.payload.clone())
         } else {
-            let dp = dot_product(&self.pivot, query);
+            let dp = dot_product(&self.pivot, &query);
             if dp <= self.split_value {
                 if let Some(left) = &self.left {
                     left.do_lookup(query, dao)
@@ -146,7 +145,7 @@ impl RpNode {
             .map(|id| {
                 dot_product(
                     &self.pivot,
-                    dao.get(*id).ok().expect("None in redistribute"),
+                    &dao.get(*id),
                 )
             })
             .collect::<Vec<f32>>(); // calculate the dot products to each data from the pivot
@@ -206,10 +205,10 @@ impl std::fmt::Debug for RpNode {
     }
 }
 
-pub fn make_pivot2(dao: Rc<Dao>, rng: &mut ChaCha8Rng) -> Vec<f32> {
+pub fn make_pivot2(dao: Rc<Dao>, rng: &mut ChaCha8Rng) -> Array1<f32> {
     let index = rng.gen_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
-    dao.get(index).unwrap().to_vec()
+    dao.get(index)
 }
 
 fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
@@ -267,7 +266,7 @@ impl RPTree {
         }
     }
 
-    pub fn lookup(&self, query: &[f32]) -> Option<Vec<usize>> {
+    pub fn lookup(&self, query: &Array1<f32>) -> Option<Vec<usize>> {
         self.root
             .as_ref()
             .and_then(|node| node.do_lookup(query, self.dao.clone()))
@@ -374,7 +373,7 @@ impl RPForest {
         self.trees.iter_mut().for_each(|tree| tree.add(index));
     }
 
-    pub fn lookup(&self, query: &[f32]) -> Vec<usize> {
+    pub fn lookup(&self, query: &Array1<f32>) -> Vec<usize> {
         self.trees
             .iter()
             .filter_map(|tree| tree.lookup(query))
@@ -388,7 +387,7 @@ impl RPForest {
                                              Utility functions
 ***************************************************************************************************/
 
-fn dot_product(p0: &[f32], p1: &[f32]) -> f32 {
+fn dot_product(p0: &Array1<f32>, p1: &Array1<f32>) -> f32 {
     assert!(p0.len() == p1.len());
     p0.iter().zip(p1.iter()).map(|(x, y)| x * y).sum()
 

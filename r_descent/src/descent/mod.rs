@@ -15,47 +15,25 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter;
 use std::rc::Rc;
 use itertools::Itertools;
+use ndarray::Array;
+use metrics::euc;
+use rp_forest::tree::RPForest;
+use utils::{arg_sort, arg_sort_2D};
 
 pub struct Descent {
     pub current_graph: Heap,
 }
 
-impl Debug for Descent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "indices:\n{}\n\ndistances:{}",
-        to_string_indices(&self.current_graph.indices),
-         to_string_distances(&self.current_graph.distances) )
-    }
-}
-
-fn to_string_indices(indices: &Vec<Vec<i32>>) -> String {
-    indices
-        .iter()
-        .map(|row| format!("[{}]", {
-            row.iter()
-            .map(|&x| x.to_string())
-                .join(", ")} ))
-        .join("\n")
-}
-
-fn to_string_distances(indices: &Vec<Vec<NonNan>>) -> String {
-    indices
-        .iter()
-        .map(|row| format!("[{}]", {
-            row.iter()
-                .map(|nn| nn)
-                .join(", ")} ))
-        .join("\n")
-}
-
-
 impl Descent {
-    pub fn new(dao: Rc<Dao>, num_neighbours: usize) -> Descent {
+    pub fn new(dao: Rc<Dao>, num_neighbours: usize, use_rp_tree: bool) -> Descent {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); // random number
-        let mut current_graph = init_random(dao.clone(), num_neighbours,&mut rng);
-        let max_candidates = 50;
+        let mut current_graph = if use_rp_tree {
+            init_rp_forest(dao.clone(), num_neighbours)
+        } else {
+            init_random(dao.clone(), num_neighbours, &mut rng)
+        };
+    let max_candidates = 50;
         let num_iters = 10;
-        // TODO init with RP tree or random
         nn_descent(
             &mut current_graph,
             dao,
@@ -120,6 +98,42 @@ fn nn_descent(
     }
 }
 
+fn init_rp_forest(dao: Rc<Dao>, num_neighbours: usize) -> Heap {
+    println!("init_rp_forest");
+    let forest = RPForest::new(30, 40, dao.clone() );
+    let mut current_graph = Heap::new(dao.num_data, num_neighbours);
+
+    for row in 0..dao.num_data {
+        if row % 1_000 == 0 {
+            print!(".");
+        }
+        if row % 10_000 == 0 {
+            println!( "\nInitialised {} rows", row);
+        }
+        let neighbour_indices = forest.lookup(&dao.get(row));
+
+        let neighbour_dists = neighbour_indices
+            .iter()
+            .map( |x| euc(dao.get(row).view(), dao.get(*x).view() ) )
+            .collect::<Vec<f32>>();
+
+        let (nns_indirect,nn_dists) = arg_sort(neighbour_dists.clone());
+
+        (0 ..= num_neighbours) // Don't do index 0 (which is itself)   Has to be = iter because it may get itself
+            .for_each( |nth_closest_indirect| {
+                let neighbour_index = nns_indirect[nth_closest_indirect];
+                let dao_index = neighbour_indices[neighbour_index];
+
+                if dao_index != row {
+                    checked_flagged_heap_push(&mut current_graph.indices[row], &mut current_graph.distances[row], &mut current_graph.flags[row], &nn_dists[nth_closest_indirect], dao_index as i32, 1);
+                }
+            } );
+
+    }
+
+    current_graph
+}
+
 fn init_random(dao: Rc<Dao>, num_neighbours: usize, rng: &mut ChaCha8Rng) -> Heap {
     let mut current_graph = Heap::new(dao.num_data, num_neighbours);
     let num_data = dao.num_data;
@@ -133,7 +147,7 @@ fn init_random(dao: Rc<Dao>, num_neighbours: usize, rng: &mut ChaCha8Rng) -> Hea
                 index = rng.gen_range(0..num_data);
             }
 
-            let dist = NonNan::new( euc(dao.get(index).unwrap(), dao.get(row).unwrap()) ).unwrap();
+            let dist = euc(dao.get(index).view(), dao.get(row).view());
             let flag = 1;
 
             checked_flagged_heap_push(&mut current_graph.indices[row], &mut current_graph.distances[row], &mut current_graph.flags[row], &dist, index as i32, flag);
@@ -153,7 +167,7 @@ fn apply_graph_updates(current_heap: &mut Heap, updates: Vec<Vec<Update>>, nn_ta
                 continue;
             }
 
-            if dist.0 == f32::MAX { // should never happen
+            if dist == f32::MAX { // should never happen
                 panic!("Found a MAX dist when applying graph updates")
             }
 
@@ -199,7 +213,7 @@ fn generate_graph_updates(
     let mut updates: Vec<Vec<Update>> = vec![];
     // initialise the updates data structure with empty entries.
     for _ in 0..block_size {
-        updates.push(vec![Update(-1, -1, NonNan::new(f32::MAX).unwrap())]);
+        updates.push(vec![Update(-1, -1, f32::MAX)]);
     }
 
     // The names in this code assume the following:
@@ -224,7 +238,7 @@ fn generate_graph_updates(
                     continue;
                 }
 
-                let ac_dist = NonNan::new(euc(dao.get(a as usize).unwrap(), dao.get(c as usize).unwrap())).unwrap();
+                let ac_dist = euc(dao.get(a as usize).view(), dao.get(c as usize).view());
                 if ac_dist <= distances[a as usize][0] || ac_dist <= distances[c as usize][0] {      // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, ac_dist));
                 }
@@ -235,7 +249,7 @@ fn generate_graph_updates(
                 if c < 0 {
                     continue;
                 }
-                let dist = NonNan::new(euc(dao.get(a as usize).unwrap(), dao.get(c as usize).unwrap())).unwrap();
+                let dist = euc(dao.get(a as usize).view(), dao.get(c as usize).view());
                 if dist <= distances[a as usize][0] || dist <= distances[c as usize][0] {   // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, dist));
                 }
@@ -243,10 +257,6 @@ fn generate_graph_updates(
         }
     }
     updates
-}
-
-fn euc(a: &[f32], b: &[f32]) -> f32 {
-    f32::sqrt( a.iter().zip(b.iter()).map(|(a, b)| (a - b).powf(2.0)).sum() )
 }
 
 fn dedup(indices: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
@@ -285,9 +295,9 @@ fn new_build_candidates(
     let current_flags = &current_graph.flags;
 
     let mut new_candidate_indices : Vec<Vec<i32>> = vec![vec![-1;max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of indices of -1 = not connected
-    let mut new_candidate_distances: Vec<Vec<NonNan>> = vec![vec![NonNan::new(f32::MAX).unwrap(); max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of infinity
+    let mut new_candidate_distances: Vec<Vec<f32>> = vec![vec![f32::MAX; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of infinity
     let mut old_candidate_indices : Vec<Vec<i32>> = vec![vec![-1;max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of indices of -1 = not connected
-    let mut old_candidate_distances: Vec<Vec<NonNan>> = vec![vec![NonNan::new(f32::MAX).unwrap(); max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of infinity
+    let mut old_candidate_distances: Vec<Vec<f32>> = vec![vec![f32::MAX; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of infinity
 
     // for n in numba.prange(n_threads): TODO fix concurrency
 
@@ -301,7 +311,7 @@ fn new_build_candidates(
 
             let friend_index = friend_index as usize; // we have now checked it is not -1 can make it usize
 
-            let priority = NonNan::new(rng.gen_range(0.0..f32::MAX)).unwrap(); // a random number - used to sort the data when pushed
+            let priority = rng.gen_range(0.0..f32::MAX); // a random number - used to sort the data when pushed
 
             let is_new = current_flags[row_index][column_index];
 
@@ -341,12 +351,12 @@ fn new_build_candidates(
     (new_candidate_indices, old_candidate_indices)
 }
 
-fn checked_heap_push(priorities: &mut Vec<NonNan>, indices: &mut Vec<i32>, priority: &NonNan, dao_index: &usize) -> bool {
+fn checked_heap_push(priorities: &mut Vec<f32>, indices: &mut Vec<i32>, priority: &f32, dao_index: &usize) -> bool {
     if priority >= &priorities[0] {
         false
     } else {
         priorities[0] = *priority; // insert the new priority in place of the furthest
-        priorities.sort_by(|a,b| { b.cmp(a) }); // get the new entry into the right position
+        priorities.sort_by(|a,b| { b.partial_cmp(a).unwrap() }); // get the new entry into the right position
         let insert_position = priorities.iter().position(|&x| x == *priority).unwrap(); // find out where it went
 
         indices.insert(insert_position+1, *dao_index as i32); // insert into the rest of the indices - ignore the zeroth
@@ -358,7 +368,7 @@ fn checked_heap_push(priorities: &mut Vec<NonNan>, indices: &mut Vec<i32>, prior
 
 // Tom was here
 
-fn checked_flagged_heap_push(indices: &mut Vec<i32>, priorities: &mut Vec<NonNan>, flags: &mut Vec<u8>, dist: &NonNan, index: i32, flag: u8) -> usize {
+fn checked_flagged_heap_push(indices: &mut Vec<i32>, priorities: &mut Vec<f32>, flags: &mut Vec<u8>, dist: &f32, index: i32, flag: u8) -> usize {
     if dist >= &priorities[0] {
         return 0 // dist greater than furthest distance return no updates
     }
@@ -371,7 +381,7 @@ fn checked_flagged_heap_push(indices: &mut Vec<i32>, priorities: &mut Vec<NonNan
     }
 
     priorities[0] = *dist; // insert the new priority in place of the furthest
-    priorities.sort_by(|a,b| { b.cmp(a) }); // get the new entry into the right position
+    priorities.sort_by(|a,b| { b.partial_cmp(a).unwrap() }); // get the new entry into the right position // TODO look at this too
     let insert_position = priorities.iter().position(|&x| x == *dist).unwrap(); // find out where it went
 
     indices.insert(insert_position+1, index); // insert into the rest of the indices - ignore the zeroth
@@ -383,39 +393,36 @@ fn checked_flagged_heap_push(indices: &mut Vec<i32>, priorities: &mut Vec<NonNan
     1 // one update
 }
 
-struct Update(i32, i32, NonNan);
 
-#[derive(PartialEq, PartialOrd, Clone, Copy)]
-pub struct NonNan(f32);
-
-// NonN type for f32 partial comparison
-// from https://stackoverflow.com/questions/28247990/how-to-do-a-binary-search-on-a-vec-of-floats
-
-impl NonNan {
-    fn new(val: f32) -> Option<NonNan> {
-        if val.is_nan() {
-            None
-        } else {
-            Some(NonNan(val))
-        }
+impl Debug for Descent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "indices:\n{}\n\ndistances:{}",
+               to_string_indices(&self.current_graph.indices),
+               to_string_distances(&self.current_graph.distances) )
     }
 }
 
-impl Eq for NonNan {}
-
-impl Ord for NonNan {
-    fn cmp(&self, other: &NonNan) -> Ordering {
-        self.partial_cmp(other).unwrap()
-    }
+fn to_string_indices(indices: &Vec<Vec<i32>>) -> String {
+    indices
+        .iter()
+        .map(|row| format!("[{}]", {
+            row.iter()
+                .map(|&x| x.to_string())
+                .join(", ")} ))
+        .join("\n")
 }
 
-impl Display for NonNan {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0 )
-    }
+fn to_string_distances(indices: &Vec<Vec<f32>>) -> String {
+    indices
+        .iter()
+        .map(|row| format!("[{}]", {
+            row.iter()
+                .map(|nn| nn)
+                .join(", ")} ))
+        .join("\n")
 }
 
-
+struct Update(i32, i32, f32);
 
 
 

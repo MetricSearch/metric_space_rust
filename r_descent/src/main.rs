@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter(filter).init();
     //let now = Instant::now();
     tracing::info!("Loading mf dino data...");
-    let num_queries = 990_000; // 10_000;
+    let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
     let dao: Rc<Dao> = Rc::new(Dao::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_loader)?);
     let num_neighbours = 10;
@@ -21,6 +21,7 @@ fn main() -> Result<()> {
     let descent = Descent::new(dao.clone(), num_neighbours, true);
 
     println!("First row: {:?}", descent.current_graph.indices[0]);
+    println!("First row: {:?}", descent.current_graph.distances[0]);
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use bitvec_simd::BitVecSimd;
 use ndarray::{Array, Array1, Array2, ArrayView, Axis, Ix1, Ix2};
-use dao::csv_loader::csv_loader;
+use dao::csv_f32_loader::csv_f32_loader;
 use dao::Dao;
 use divan::{black_box, counter::BytesCount, AllocProfiler, Bencher};
 
@@ -16,7 +16,7 @@ fn bench(bencher: Bencher) { // bencher: Bencher
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
 
-    let dao: Rc<Dao> = Rc::new(Dao::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_loader).unwrap());
+    let dao: Rc<Dao> = Rc::new(Dao::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_f32_loader).unwrap());
 
     let query = embedding_to_bitrep(dao.query(0).view());
     let data = embedding_to_bitrep(dao.get(0).view());

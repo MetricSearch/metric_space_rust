@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/bits/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/bits/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/bits/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dao/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dao/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/metrics/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/r_descent/examples" isTestSource="false" />

@@ -62,9 +62,10 @@ fn nn_descent(
 
     let mut nn_table = dedup(&current_graph.indices); // these are the deduped neighbour indices - this is acopy
 
+    tracing::info!("Descent iterating...");
     for n in 0..num_iters {
         // outer loop which performs NN improvement
-        println!("\t {} / {}", n + 1, num_iters);
+        tracing::info!("\t {} / {}", n + 1, num_iters);
 
         let (new_candidate_neighbors, old_candidate_neighbors) =
             new_build_candidates(current_graph, max_candidates, num_neighbours, num_vertices, rng); // a pair of neighbour graphs of the new and old
@@ -88,10 +89,7 @@ fn nn_descent(
             count_updates = count_updates + apply_graph_updates(current_graph, updates, &mut nn_table);
 
             if count_updates as f32 <= delta * num_neighbours as f32 * num_vertices as f32 {
-                println!(
-                    "\tStopping threshold met -- exiting after, {}, iterations",
-                    n + 1
-                );
+                tracing::info!( "\tStopping threshold met -- exiting after, {}, iterations", n + 1 );
                 return;
             }
         }
@@ -104,13 +102,10 @@ fn init_rp_forest(dao: Rc<Dao>, num_neighbours: usize) -> Heap {
     let mut current_graph = Heap::new(dao.num_data, num_neighbours);
 
     for row in 0..dao.num_data {
-        if row % 1_000 == 0 {
-            print!(".");
+        if row % 100_000 == 0 {
+            tracing::info!( "\nForest initialised {} rows", row);
         }
-        if row % 10_000 == 0 {
-            println!( "\nInitialised {} rows", row);
-        }
-        let neighbour_indices = forest.lookup(&dao.get(row));
+        let neighbour_indices = forest.lookup(dao.get(row));
 
         let neighbour_dists = neighbour_indices
             .iter()

@@ -1,7 +1,8 @@
 use anyhow::anyhow;
 use ndarray::{Array, Array2};
 
-pub fn csv_f32_loader(data_path: &String) -> anyhow::Result<Array2<f32>> {
+
+pub fn csv_f32_load(data_path: &String) -> anyhow::Result<Array2<f32>> {
     // returns a tuple stores data in single Vector
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')

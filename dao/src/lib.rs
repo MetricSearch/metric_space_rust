@@ -4,6 +4,7 @@
 pub mod csv_f32_loader;
 mod nn_table;
 mod class_labels;
+pub mod hdf5_f32_loader;
 
 use std::fs::File;
 use std::io::Read;
@@ -11,7 +12,7 @@ pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{anyhow, Result};
 use ndarray::{Array2, ArrayBase, Ix1, ViewRepr, Axis, ArrayView2};
 use serde::{Deserialize, Serialize};
-use crate::csv_f32_loader::csv_f32_loader;
+use crate::csv_f32_loader::csv_f32_load;
 
 #[derive(Debug,Serialize,Deserialize,Clone)]
 pub enum Normed {
@@ -41,7 +42,7 @@ pub struct DaoMetaData {
     pub dim: usize,                  // the dimension/number of columns in the data set
 }
 
-pub struct Dao {
+pub struct Dao32 {
     pub meta: DaoMetaData,                           // The meta data for this dao
     pub num_data: usize,                             // the size of the data (a subset of the total data)
     pub num_queries: usize,                          // the size of the queries (a subset of the total data)
@@ -49,11 +50,11 @@ pub struct Dao {
     // pub nns: Option<Array2<usize>>,                 // the nn table (if available) TODO put elsewhere
 }
 
-impl Dao {
+impl Dao32 {
     pub fn new(meta_data: DaoMetaData, num_data: usize, num_queries: usize) -> Result<Self> {
-        let data_and_queries: Array2<f32> = csv_f32_loader(&meta_data.path_to_data).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
+        let data_and_queries: Array2<f32> = csv_f32_load(&meta_data.path_to_data).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
 
-        Ok(Dao {
+        Ok(Dao32 {
             meta: meta_data,
             num_data,
             num_queries,
@@ -104,6 +105,6 @@ pub fn get_dao_metadata(meta_data_filename: &str) -> Result<DaoMetaData> {
     Ok(toml::from_str(&contents).unwrap())
 }
 
-pub fn dao_from_description(meta_data_filename: &str, num_data: usize, num_queries: usize) -> Dao {
-    Dao::new(get_dao_metadata(meta_data_filename).unwrap(), num_data, num_queries).unwrap()
+pub fn dao_from_description(meta_data_filename: &str, num_data: usize, num_queries: usize) -> Dao32 {
+    Dao32::new(get_dao_metadata(meta_data_filename).unwrap(), num_data, num_queries).unwrap()
 }

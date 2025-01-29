@@ -1,12 +1,12 @@
 use std::collections::HashSet;
-use dao::Dao;
+use dao::Dao32;
 use metrics::euc;
 use anyhow::Result;
 use std::rc::Rc;
 use std::time::Instant;
 use bitvec_simd::BitVecSimd;
 use wide::u64x4;
-use dao::csv_f32_loader::csv_f32_loader;
+use dao::csv_f32_loader::csv_f32_load;
 use rayon::prelude::*;
 use ndarray::{Array, Array1, Array2, ArrayView, Axis, Ix1, Ix2};
 use utils::arg_sort_2D;
@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
-    let dao: Rc<Dao> = Rc::new(Dao::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_f32_loader)?);
+    let dao: Rc<Dao32> = Rc::new(Dao32::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_f32_load)?);
 
     // just take 1 queries
 

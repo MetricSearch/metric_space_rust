@@ -3,7 +3,7 @@
 
 mod heap;
 
-use ::dao::Dao;
+use ::dao::Dao32;
 use crate::descent::heap::Heap;
 use std::cmp::Ordering;
 //use ndarray::{s, Array, ArrayBase, ArrayView, ArrayView1, Axis, Dim, OwnedRepr, SliceInfo};
@@ -25,7 +25,7 @@ pub struct Descent {
 }
 
 impl Descent {
-    pub fn new(dao: Rc<Dao>, num_neighbours: usize, use_rp_tree: bool) -> Descent {
+    pub fn new(dao: Rc<Dao32>, num_neighbours: usize, use_rp_tree: bool) -> Descent {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); // random number
         let mut current_graph = if use_rp_tree {
             init_rp_forest(dao.clone(), num_neighbours)
@@ -49,7 +49,7 @@ impl Descent {
 /// This code actually performs the descent refining the Heap data structures to create better and better NN tables
 fn nn_descent(
     current_graph: &mut Heap,
-    dao: Rc<Dao>,
+    dao: Rc<Dao32>,
     rng: &mut ChaCha8Rng,
     num_neighbours: usize,
     max_candidates: usize,
@@ -96,7 +96,7 @@ fn nn_descent(
     }
 }
 
-fn init_rp_forest(dao: Rc<Dao>, num_neighbours: usize) -> Heap {
+fn init_rp_forest(dao: Rc<Dao32>, num_neighbours: usize) -> Heap {
     println!("init_rp_forest");
     let forest = RPForest::new(30, 40, dao.clone() );
     let mut current_graph = Heap::new(dao.num_data, num_neighbours);
@@ -129,7 +129,7 @@ fn init_rp_forest(dao: Rc<Dao>, num_neighbours: usize) -> Heap {
     current_graph
 }
 
-fn init_random(dao: Rc<Dao>, num_neighbours: usize, rng: &mut ChaCha8Rng) -> Heap {
+fn init_random(dao: Rc<Dao32>, num_neighbours: usize, rng: &mut ChaCha8Rng) -> Heap {
     let mut current_graph = Heap::new(dao.num_data, num_neighbours);
     let num_data = dao.num_data;
 
@@ -198,7 +198,7 @@ fn generate_graph_updates(
     new_candidate_block: &[Vec<i32>],
     old_candidate_block: &[Vec<i32>],
     current_graph: &mut Heap,
-    dao: Rc<Dao>
+    dao: Rc<Dao32>
 ) -> Vec<Vec<Update>> {
 
     let distances = &current_graph.distances;

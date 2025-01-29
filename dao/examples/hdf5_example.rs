@@ -24,11 +24,11 @@ fn main() -> Result<()> {
 fn write_data<T:H5Type>( fname: &str, arrai: &Array2<T> ) -> Result<()> {
     let file = File::create(fname)?;                        // open for writing
     let group = file.create_group("/embeddings")?;   // create a group
-    #[cfg(feature = "blosc")]
-    blosc_set_nthreads(2);                                      // set number of blosc threads
+    // #[cfg(feature = "blosc")]
+    // blosc_set_nthreads(2);                                      // set number of blosc threads
     let builder = group.new_dataset_builder();
-    #[cfg(feature = "blosc")]
-    let builder = builder.blosc_zstd(9, true); // zstd + shuffle
+    // #[cfg(feature = "blosc")]
+    // let builder = builder.blosc_zstd(9, true); // zstd + shuffle
     let dim = arrai.shape()[1];
     let num_records = arrai.shape()[0];
     let ds = builder
@@ -42,7 +42,6 @@ fn write_data<T:H5Type>( fname: &str, arrai: &Array2<T> ) -> Result<()> {
     let attr = ds.new_attr::<i32>().create("num_records").unwrap();
     attr.write_scalar(&num_records);
     file.flush();
-    file.close();
     Ok(())
 }
 
@@ -52,8 +51,8 @@ fn read_data<T:H5Type>( fname: &str ) -> Result<Array2<T>> {
     let data: Array2<T> = ds.read_slice(s![..,..] ).unwrap();      // read the dataset
     let dim_attr = ds.attr("dim")?; // open the attribute
     println!("Dim is {:?}",dim_attr.read_scalar::<usize>().unwrap());
-    let dim_attr = ds.attr("num_records")?; // open the attribute
-    println!("Num records is {:?}",dim_attr.read_scalar::<usize>().unwrap());
+    let num_records = ds.attr("num_records")?; // open the attribute
+    println!("Num records is {:?}",num_records.read_scalar::<usize>().unwrap());
 
     Ok((data))
     //Err( anyhow!( "Error reading" ) )

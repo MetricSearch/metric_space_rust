@@ -1,7 +1,7 @@
 // RPTree impl
 // al
 
-use dao::Dao;
+use dao::Dao32;
 use itertools::Itertools;
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
@@ -29,7 +29,7 @@ pub struct RpNode {
 }
 
 impl RpNode {
-    pub fn new(dao: Rc<Dao>, rng: &mut ChaCha8Rng) -> Self {
+    pub fn new(dao: Rc<Dao32>, rng: &mut ChaCha8Rng) -> Self {
         let payload: Vec<usize> = vec![];
         //let distribution = Normal::new(0.0, 1.0).unwrap();
         Self {
@@ -50,7 +50,7 @@ impl RpNode {
         index: usize,
         max_load: usize,
         dim: usize,
-        dao: Rc<Dao>,
+        dao: Rc<Dao32>,
         rng: &mut ChaCha8Rng,
     ) {
         // call the private insert method with the tree root
@@ -62,7 +62,7 @@ impl RpNode {
         index: usize,
         max_load: usize,
         dim: usize,
-        dao: Rc<Dao>,
+        dao: Rc<Dao32>,
         rng: &mut ChaCha8Rng,
     ) {
         // should not be pub?
@@ -103,7 +103,7 @@ impl RpNode {
         1 + max(right_depth, left_depth)
     }
 
-    pub fn do_lookup(&self, query: ArrayBase<ViewRepr<&f32>,Ix1>, dao: Rc<Dao>) -> Option<Vec<usize>> {
+    pub fn do_lookup(&self, query: ArrayBase<ViewRepr<&f32>,Ix1>, dao: Rc<Dao32>) -> Option<Vec<usize>> {
         if self.is_leaf() {
             Some(self.payload.clone())
         } else {
@@ -137,7 +137,7 @@ impl RpNode {
         return Result::Ok(());
     }
 
-    fn redistribute(&mut self, dao: Rc<Dao>) {
+    fn redistribute(&mut self, dao: Rc<Dao32>) {
         let prods = self
             .payload
             .iter()
@@ -204,7 +204,7 @@ impl std::fmt::Debug for RpNode {
     }
 }
 
-pub fn make_pivot2(dao: Rc<Dao>, rng: &mut ChaCha8Rng) -> Array1<f32> {
+pub fn make_pivot2(dao: Rc<Dao32>, rng: &mut ChaCha8Rng) -> Array1<f32> {
     let index = rng.gen_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
     dao.get_datum(index).into_owned()
@@ -236,7 +236,7 @@ fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
 
 //#[derive(Debug)]
 pub struct RPTree {
-    dao: Rc<Dao>,
+    dao: Rc<Dao32>,
     root: Option<Box<RpNode>>,
     max_load: usize,
     dim: usize,
@@ -253,7 +253,7 @@ impl RPTree {
 }
 
 impl RPTree {
-    pub fn new(max_load: usize, dao: Rc<Dao>, use_as_seed: u64) -> Self {
+    pub fn new(max_load: usize, dao: Rc<Dao32>, use_as_seed: u64) -> Self {
         let dim = dao.get_dim();
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(use_as_seed * 142);
         Self {
@@ -344,7 +344,7 @@ pub struct RPForest {
 }
 
 impl RPForest {
-    pub fn new(num_trees: usize, max_load: usize, dao: Rc<Dao>) -> Self {
+    pub fn new(num_trees: usize, max_load: usize, dao: Rc<Dao32>) -> Self {
         let mut trees = vec![];
         for use_as_seed in 0..num_trees {
             let tree = RPTree::new(max_load, dao.clone(), use_as_seed as u64);
@@ -356,7 +356,7 @@ impl RPForest {
         this
     }
 
-    pub fn populate(&mut self, dao: Rc<Dao>) {
+    pub fn populate(&mut self, dao: Rc<Dao32>) {
         for i in 0..dao.data_len() {
             if i % 100_000 == 0 {
                 for j in 0..self.trees.len() {

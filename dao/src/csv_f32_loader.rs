@@ -1,8 +1,7 @@
-use crate::{Dao, DaoMetaData, Normed};
 use anyhow::anyhow;
 use ndarray::{Array, Array2};
 
-pub fn csv_f32_loader(meta: DaoMetaData, data_path: String, num_data: usize, num_queries: usize) -> anyhow::Result<Dao> {
+pub fn csv_f32_loader(data_path: &String) -> anyhow::Result<Array2<f32>> {
     // returns a tuple stores data in single Vector
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
@@ -24,18 +23,5 @@ pub fn csv_f32_loader(meta: DaoMetaData, data_path: String, num_data: usize, num
         });
     tracing::info!("Ingested {count} records");
 
-    if num_data + num_queries > count {
-        Err(anyhow!("Requested data {num_data} and query {num_queries} sizes cannot be satisfied: in data of length {}", data_vec.len()))
-    } else {
-        let dim = data_vec.len() / count;
-        let data_and_queries = Array::from_iter(data_vec.iter().map(|x| *x)).to_shape((count, dim)).unwrap().into_owned();
-
-        Ok(Dao {
-            meta,
-            num_data,
-            num_queries,
-            all_data: data_and_queries,
-            nns: None,
-        })
-    }
+    Ok(Array::from_shape_vec((count, data_vec.len() / count), data_vec)?)
 }

@@ -27,7 +27,7 @@ fn main() -> Result<()> {
 
     tracing::info!("Forest built, querying...");
 
-    let res = forest.lookup(dao.get(0));
+    let res = forest.lookup(dao.get_datum(0));
     // was query not get
     println!("Number of results = {}", res.len());
     println!("{:?}", res);

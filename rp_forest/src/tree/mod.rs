@@ -78,7 +78,7 @@ impl RpNode {
             }
         }
         // Walk the tree to get to the leaves
-        let data_to_add = dao.get(index);
+        let data_to_add = dao.get_datum(index);
         let dist = dot_product(&self.pivot.view(), data_to_add);
         if dist <= self.split_value {
             if let Some(left) = self.left.as_mut() {
@@ -144,7 +144,7 @@ impl RpNode {
             .map(|id| {
                 dot_product(
                     &self.pivot.view(),
-                    dao.get(*id),
+                    dao.get_datum(*id),
                 )
             })
             .collect::<Vec<f32>>(); // calculate the dot products to each data from the pivot
@@ -207,7 +207,7 @@ impl std::fmt::Debug for RpNode {
 pub fn make_pivot2(dao: Rc<Dao>, rng: &mut ChaCha8Rng) -> Array1<f32> {
     let index = rng.gen_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
-    dao.get(index).into_owned()
+    dao.get_datum(index).into_owned()
 }
 
 fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {

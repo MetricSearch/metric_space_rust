@@ -1,0 +1,1 @@
+To install hdf5 on MacOS you need to do:  brew install hdf5@1.10

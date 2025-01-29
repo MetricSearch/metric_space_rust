@@ -18,8 +18,8 @@ fn bench(bencher: Bencher) { // bencher: Bencher
 
     let dao: Rc<Dao> = Rc::new(Dao::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_f32_loader).unwrap());
 
-    let query = embedding_to_bitrep(dao.query(0).view());
-    let data = embedding_to_bitrep(dao.get(0).view());
+    let query = embedding_to_bitrep(dao.get_query(0).view());
+    let data = embedding_to_bitrep(dao.get_datum(0).view());
 
     bencher
         .bench(|| {

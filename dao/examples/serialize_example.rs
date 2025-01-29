@@ -16,7 +16,7 @@ fn main() -> std::io::Result<()> {
         dim: 384,
     };
 
-    let f_name = "_scratch/meta_data.txt";
+    let f_name = "../_scratch/meta_data.txt";
 
     let toml = toml::to_string(&dao_meta).unwrap();
 

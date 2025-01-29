@@ -105,11 +105,11 @@ fn init_rp_forest(dao: Rc<Dao>, num_neighbours: usize) -> Heap {
         if row % 100_000 == 0 {
             tracing::info!( "\nForest initialised {} rows", row);
         }
-        let neighbour_indices = forest.lookup(dao.get(row));
+        let neighbour_indices = forest.lookup(dao.get_datum(row));
 
         let neighbour_dists = neighbour_indices
             .iter()
-            .map( |x| euc(dao.get(row).view(), dao.get(*x).view() ) )
+            .map( |x| euc(dao.get_datum(row).view(), dao.get_datum(*x).view() ) )
             .collect::<Vec<f32>>();
 
         let (nns_indirect,nn_dists) = arg_sort(neighbour_dists.clone());
@@ -142,7 +142,7 @@ fn init_random(dao: Rc<Dao>, num_neighbours: usize, rng: &mut ChaCha8Rng) -> Hea
                 index = rng.gen_range(0..num_data);
             }
 
-            let dist = euc(dao.get(index).view(), dao.get(row).view());
+            let dist = euc(dao.get_datum(index).view(), dao.get_datum(row).view());
             let flag = 1;
 
             checked_flagged_heap_push(&mut current_graph.indices[row], &mut current_graph.distances[row], &mut current_graph.flags[row], &dist, index as i32, flag);
@@ -233,7 +233,7 @@ fn generate_graph_updates(
                     continue;
                 }
 
-                let ac_dist = euc(dao.get(a as usize).view(), dao.get(c as usize).view());
+                let ac_dist = euc(dao.get_datum(a as usize).view(), dao.get_datum(c as usize).view());
                 if ac_dist <= distances[a as usize][0] || ac_dist <= distances[c as usize][0] {      // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, ac_dist));
                 }
@@ -244,7 +244,7 @@ fn generate_graph_updates(
                 if c < 0 {
                     continue;
                 }
-                let dist = euc(dao.get(a as usize).view(), dao.get(c as usize).view());
+                let dist = euc(dao.get_datum(a as usize).view(), dao.get_datum(c as usize).view());
                 if dist <= distances[a as usize][0] || dist <= distances[c as usize][0] {   // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, dist));
                 }

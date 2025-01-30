@@ -2,8 +2,9 @@ use std::rc::Rc;
 use bitvec_simd::BitVecSimd;
 use ndarray::{Array, Array1, Array2, ArrayView, Axis, Ix1, Ix2};
 use dao::csv_f32_loader::csv_f32_load;
-use dao::Dao32;
+use dao::{dao_from_dir, Dao32};
 use divan::{black_box, counter::BytesCount, AllocProfiler, Bencher};
+use bits::{embedding_to_bitrep,hamming_distance};
 
 fn main() {
     divan::main();
@@ -16,7 +17,7 @@ fn bench(bencher: Bencher) { // bencher: Bencher
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
 
-    let dao: Rc<Dao32> = Rc::new(Dao32::new("/Volumes/data/mf_dino2_csv/mf_dino2.csv", num_data, num_queries, &csv_f32_load).unwrap());
+    let dao: Rc<Dao32> = Rc::new(dao_from_dir("/Volumes/Data/RUST_META/mf_dino2_csv/meta_data.txt", num_data, num_queries));
 
     let query = embedding_to_bitrep(dao.get_query(0).view());
     let data = embedding_to_bitrep(dao.get_datum(0).view());
@@ -25,14 +26,4 @@ fn bench(bencher: Bencher) { // bencher: Bencher
         .bench(|| {
             hamming_distance(&query, &data)
         });
-}
-
-// TODO below here copied from try_out - refactor later
-fn embedding_to_bitrep(embedding: ArrayView<f32, Ix1>) -> BitVecSimd<[wide::u64x4; 4], 4> {
-    BitVecSimd::from_bool_iterator(embedding.iter().map(|&x| x < 0.0 ) )
-}
-
-fn hamming_distance(a: &BitVecSimd<[wide::u64x4; 4], 4>, b: &BitVecSimd<[wide::u64x4; 4], 4> ) -> usize {
-    //assert_eq!(a.len(), b.len());
-    a.xor_cloned(&b).count_ones()
 }

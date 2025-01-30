@@ -2,6 +2,7 @@
 use anyhow::{anyhow, Result};
 use hdf5::{File, H5Type};
 use ndarray::{arr2, s, Array, Array2};
+use dao::Dao32;
 use dao::hdf5_f32_loader::{hdf5_f32_load, hdf5_f32_write};
 
 fn main() -> Result<()> {
@@ -13,10 +14,10 @@ fn main() -> Result<()> {
     // println!("Before serialisation: {:?}", arrai);
     let f_name = "../_scratch/arrai.h5";
 
-    hdf5_f32_write( f_name, &arrai.unwrap() );
+    hdf5_f32_write(f_name, &"Benny the Ball".to_string(), &"fish".to_string(), &"L2".to_string(), &arrai.unwrap());
 
-    let decoded: Array2<f32> = hdf5_f32_load(f_name)?;
+    let decoded: Dao32 = hdf5_f32_load(f_name, 999_000, 10_000)?;
 
-    println!("Read from file: {:?}", decoded);
+    println!("Read from file: {:?}", decoded.all_embeddings);
     Ok(())
 }

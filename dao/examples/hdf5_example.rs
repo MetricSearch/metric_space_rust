@@ -1,6 +1,6 @@
 
 use anyhow::{anyhow, Result};
-use hdf5::{File, H5Type};
+use hdf5::{Dataset, File, H5Type};
 use ndarray::{arr2, s, Array, Array2};
 use tracing::error;
 
@@ -35,15 +35,28 @@ fn write_data<T:H5Type>( fname: &str, arrai: &Array2<T> ) -> Result<()> {
         .with_data(arrai)
         .create("all_embeddings")?;
     // next finalize and write the dataset
-    // create an attr with fixed shape but don't write the data
-    let attr = ds.new_attr::<i32>().create("dim").unwrap();
-    attr.write_scalar(&dim);
 
-    let attr = ds.new_attr::<i32>().create("num_records").unwrap();
-    attr.write_scalar(&num_records);
+    add_str_attr(&ds,"name", &"test_name");
+    add_str_attr(&ds,&"description", &"Mirflkr DinoV2 encoded data as f32s" );
+    add_attr(&ds, "dim", &dim);
+    add_attr(&ds, "num_records", &num_records);
+    add_str_attr(&ds,&"normed", &"L2" );
+
     file.flush();
     Ok(())
 }
+
+fn add_attr(ds: &Dataset, key: &str, value: &usize) {
+    let attr = ds.new_attr::<i32>().create(key).unwrap();
+    attr.write_scalar(value);
+}
+
+pub fn add_str_attr(ds: &Dataset, key: &str, value: &str) {
+    let attr = ds.new_attr::<hdf5::types::VarLenUnicode>().create(key).unwrap();
+    let value_: hdf5::types::VarLenUnicode = value.parse().unwrap();
+    attr.write_scalar(&value_);
+}
+
 
 fn read_data<T:H5Type>( fname: &str ) -> Result<Array2<T>> {
     let file = File::open(fname)?; // open for reading
@@ -54,6 +67,5 @@ fn read_data<T:H5Type>( fname: &str ) -> Result<Array2<T>> {
     let num_records = ds.attr("num_records")?; // open the attribute
     println!("Num records is {:?}",num_records.read_scalar::<usize>().unwrap());
 
-    Ok((data))
-    //Err( anyhow!( "Error reading" ) )
+    Ok(data)
 }

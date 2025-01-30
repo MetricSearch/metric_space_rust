@@ -6,11 +6,10 @@ use dao::{DaoMetaData, Normed};
 fn main() -> std::io::Result<()> {
 
     let dao_meta = DaoMetaData {
+        name: "Test".to_string(),
         description: "This is test".to_string(),
         data_disk_format: "csv_f32".to_string(),
-        nns_disk_format: "csv_usize".to_string(),
         path_to_data: "/Data/somewhere.csv".to_string(),
-        path_to_nns: "/Data/somewhere_else.csv".to_string(),
         normed: Normed::L2,
         num_records: 100,
         dim: 384,

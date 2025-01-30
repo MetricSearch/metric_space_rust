@@ -1,4 +1,4 @@
-use dao::{dao_from_description, Dao32};
+use dao::{dao_from_dir, Dao32};
 use anyhow::Result;
 use r_descent::descent::Descent;
 use std::rc::Rc;
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
-    let dao: Rc<Dao32> = Rc::new( dao_from_description("/Volumes/Data/RUST_META/mf_dino2_csv/meta_data.txt", num_data, num_queries) );
+    let dao: Rc<Dao32> = Rc::new( dao_from_dir("/Volumes/Data/RUST_META/mf_dino2_csv/meta_data.txt", num_data, num_queries) );
     let num_neighbours = 10;
     //let max_candidates = 50;
 

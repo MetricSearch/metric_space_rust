@@ -6,13 +6,17 @@ mod nn_table;
 mod class_labels;
 pub mod hdf5_f32_loader;
 
+use std::collections::LinkedList;
 use std::fs::File;
 use std::io::Read;
+use std::ops::{Add, Mul};
+use std::str::FromStr;
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{anyhow, Result};
-use ndarray::{Array2, ArrayBase, Ix1, ViewRepr, Axis, ArrayView2};
+use ndarray::{Array2, ArrayBase, Ix1, ViewRepr, Axis, ArrayView2, Array};
 use serde::{Deserialize, Serialize};
 use crate::csv_f32_loader::csv_f32_load;
+use crate::hdf5_f32_loader::hdf5_f32_load;
 
 #[derive(Debug,Serialize,Deserialize,Clone)]
 pub enum Normed {
@@ -33,10 +37,10 @@ pub enum Normed {
 
 #[derive(Debug,Serialize,Deserialize,Clone)]
 pub struct DaoMetaData {
+    pub name: String,
     pub description: String,         // An English description of the data e.g. Mirflkr 1M encoded with Dino2
     pub data_disk_format: String,    // A descriptor of the data format on disk - may be used to determine the name of loader e.g format = "csv_f32" -> use the csv_f32_loader
     pub path_to_data: String,        // the path to where the data is stored on disk - URL?
-    pub path_to_nns: String,         // the path to where the nns are stored on disk
     pub normed: Normed,              // is the data normed?
     pub num_records: usize,          // the total number of records/data items/rows in the data set
     pub dim: usize,                  // the dimension/number of columns in the data set
@@ -51,16 +55,31 @@ pub struct Dao32 {
 }
 
 impl Dao32 {
-    pub fn new(meta_data: DaoMetaData, num_data: usize, num_queries: usize) -> Result<Self> {
-        let data_and_queries: Array2<f32> = csv_f32_load(&meta_data.path_to_data).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
 
-        Ok(Dao32 {
+    pub fn new(meta_data: DaoMetaData, all_embeddings: Array2<f32>, num_data: usize, num_queries: usize) -> Self {
+        Self{
             meta: meta_data,
             num_data,
             num_queries,
-            all_embeddings: data_and_queries,
-            // nns: None,
-        })
+            all_embeddings: all_embeddings,
+        }
+    }
+
+    pub fn dao_from_h5(data_path: &str, num_data: usize, num_queries: usize) -> Result<Dao32> {
+        hdf5_f32_load(data_path, num_data, num_queries)
+    }
+
+    pub fn dao_from_csv_dir(dir_name: &str, num_data: usize, num_queries: usize) -> Result<Dao32> {
+        let meta_data = dao_metadata_from_dir(dir_name).unwrap();
+        let mut data_file_path = dir_name.to_string();
+        data_file_path.push_str("/");
+        data_file_path.push_str(meta_data.path_to_data.as_str());
+
+        // Put loader selection here.
+
+        let data_and_queries: Array2<f32> = csv_f32_load(&data_file_path).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
+
+        Ok(Self::new(meta_data, data_and_queries, num_data, num_queries))
     }
 
     pub fn get_dim(&self) -> usize { self.meta.dim }
@@ -98,13 +117,14 @@ impl Dao32 {
     }
 }
 
-pub fn get_dao_metadata(meta_data_filename: &str) -> Result<DaoMetaData> {
-    let mut file = File::open(meta_data_filename)?;
+pub fn dao_metadata_from_dir(dir_name: &str) -> Result<DaoMetaData> {
+    let mut meta_data_file_path = dir_name.to_string();
+    meta_data_file_path.push_str("/meta_data.txt");
+    let mut file = File::open(meta_data_file_path)?;
     let mut contents =  String::new();
     file.read_to_string(&mut contents)?;
     Ok(toml::from_str(&contents).unwrap())
 }
 
-pub fn dao_from_description(meta_data_filename: &str, num_data: usize, num_queries: usize) -> Dao32 {
-    Dao32::new(get_dao_metadata(meta_data_filename).unwrap(), num_data, num_queries).unwrap()
-}
+
+

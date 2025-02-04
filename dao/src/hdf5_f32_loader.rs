@@ -1,6 +1,6 @@
 use std::io::Write;
 use anyhow::anyhow;
-use ndarray::{s, Array, Array2};
+use ndarray::{s, Array2};
 use hdf5::{Dataset, File, H5Type};
 use crate::{Dao32, DaoMetaData, Normed};
 

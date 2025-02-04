@@ -207,6 +207,7 @@ dependencies = [
  "anndists",
  "anyhow",
  "bincode",
+ "bitvec_simd",
  "csv",
  "hdf5-metno",
  "ndarray",
@@ -215,6 +216,7 @@ dependencies = [
  "serde_json",
  "toml",
  "tracing",
+ "wide",
 ]
 
 [[package]]

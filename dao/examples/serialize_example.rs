@@ -1,10 +1,9 @@
+use dao::{DaoMetaData, Normed};
+use serde_json;
 use std::fs::File;
 use std::io::{Read, Write};
-use serde_json;
-use dao::{DaoMetaData, Normed};
 
 fn main() -> std::io::Result<()> {
-
     let dao_meta = DaoMetaData {
         name: "Test".to_string(),
         description: "This is test".to_string(),
@@ -23,7 +22,7 @@ fn main() -> std::io::Result<()> {
     file.write(toml.as_ref())?;
 
     let mut file = File::open(f_name)?;
-    let mut contents =  String::new();
+    let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     let toml2: DaoMetaData = toml::from_str(&contents).unwrap();
     println!("{:?}", toml2);

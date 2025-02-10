@@ -11,20 +11,26 @@
 //use crate::descent::NonNan;
 
 pub struct Heap {
-    pub num_entries : usize,
-    pub num_neighbours : usize,
-    pub indices : Vec<Vec<i32>>, // ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>,
-    pub distances : Vec<Vec<f32>>, // ArrayBase<OwnedRepr<NonNan>, Dim<[usize; 2]>>,
-    pub flags : Vec<Vec<u8>>,  //ArrayBase<OwnedRepr<u8>, Dim<[usize; 2]>>,
-    //maybe bitset?
+    pub num_entries: usize,
+    pub num_neighbours: usize,
+    pub indices: Vec<Vec<i32>>, // ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>,
+    pub distances: Vec<Vec<f32>>, // ArrayBase<OwnedRepr<NonNan>, Dim<[usize; 2]>>,
+    pub flags: Vec<Vec<u8>>,    //ArrayBase<OwnedRepr<u8>, Dim<[usize; 2]>>,
+                                //maybe bitset?
 }
 
 impl Heap {
     pub fn new(num_entries: usize, num_neighbours: usize) -> Heap {
         let indices = vec![vec![-1; num_neighbours]; num_entries]; // Array::from_elem((num_entries, num_neighbours), -1);
-        let distances =  vec![vec![f32::MAX; num_neighbours]; num_entries];  // Array::from_elem((num_entries, num_neighbours), NonNan::new(f32::MAX).unwrap());
+        let distances = vec![vec![f32::MAX; num_neighbours]; num_entries]; // Array::from_elem((num_entries, num_neighbours), NonNan::new(f32::MAX).unwrap());
         let flags = vec![vec![0; num_neighbours]; num_entries]; // Array::zeros((num_entries, num_neighbours));
 
-        Self {num_entries, num_neighbours, indices, distances, flags}
+        Self {
+            num_entries,
+            num_neighbours,
+            indices,
+            distances,
+            flags,
+        }
     }
 }

@@ -1,11 +1,9 @@
 use bitvec_simd::BitVecSimd;
 use hdf5::{Dataset, File};
-use ndarray::{
-    s, Array1, Array2, ArrayBase, ArrayView1, Ix1, OwnedRepr,
-};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, Ix1, OwnedRepr};
 use wide::u64x4;
 
-trait PolyDao<DataRep> {
+trait Dao<DataRep> {
     fn get_dim(&self) -> usize;
 
     fn data_len(&self) -> usize;
@@ -21,14 +19,14 @@ trait PolyDao<DataRep> {
     fn get_queries(&self) -> ArrayView1<DataRep>;
 }
 
-struct daoStruct<DataRep> {
+struct DaoStruct<DataRep> {
     dim: usize,
     num_data: usize,
     num_queries: usize,
     embeddings: Array1<DataRep>,
 }
 
-impl<T: Clone> PolyDao<T> for daoStruct<T> {
+impl<T: Clone> Dao<T> for DaoStruct<T> {
     // for dao_struct<Array1<f32>> {
     fn get_dim(&self) -> usize {
         self.dim
@@ -68,15 +66,14 @@ impl<T: Clone> PolyDao<T> for daoStruct<T> {
 }
 
 fn main() {
-
-    let s: daoStruct<Array1<f32>> = daoStruct {
+    let s: DaoStruct<Array1<f32>> = DaoStruct {
         dim: 2,
         num_data: 2,
         num_queries: 1,
         embeddings: Array1::from_iter((0..5).map(|x| Array1::from_vec(vec![1.2, 2.0]))),
     };
 
-    let t: daoStruct<BitVecSimd<[u64x4; 4], 4>> = daoStruct {
+    let t: DaoStruct<BitVecSimd<[u64x4; 4], 4>> = DaoStruct {
         dim: 2,
         num_data: 2,
         num_queries: 1,
@@ -100,14 +97,14 @@ pub fn hdf5_f32_load(
     data_path: &str,
     num_data: usize,
     num_queries: usize,
-) -> anyhow::Result<daoStruct<Array1<f32>>> {
+) -> anyhow::Result<DaoStruct<Array1<f32>>> {
     let file = File::open(data_path)?; // open for reading
     let ds: Dataset = file.dataset("/embeddings/all_embeddings")?; // open the dataset
 
-    let name = read_string_attr(&ds, "name");
-    let description: String = read_string_attr(&ds, "description");
+    let _ = read_string_attr(&ds, "name");
+    let _: String = read_string_attr(&ds, "description");
     let dim = read_scalar_attr(&ds, "dim");
-    let num_records = read_scalar_attr(&ds, "num_records");
+    let _ = read_scalar_attr(&ds, "num_records");
 
     let data: Array2<f32> = ds.read_slice(s![.., ..]).unwrap(); // read in the 2D structure
 
@@ -116,7 +113,7 @@ pub fn hdf5_f32_load(
     let data = data
         .rows()
         .into_iter()
-        .map( |x| x.to_owned() )
+        .map(|x| x.to_owned())
         .collect::<Array1<Array1<f32>>>();
 
     // let dao_meta = DaoMetaData{
@@ -128,7 +125,7 @@ pub fn hdf5_f32_load(
     //     num_records: num_records,
     //     dim: dim };
 
-    let dao = daoStruct::<Array1<f32>> {
+    let dao = DaoStruct::<Array1<f32>> {
         dim: dim,
         num_data: num_data,
         num_queries: num_queries,

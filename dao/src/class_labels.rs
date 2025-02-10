@@ -1,4 +1,6 @@
-use anndists::{dist::DistDot,prelude::*};
+#![allow(dead_code)]
+
+use anndists::{dist::DistDot, prelude::*};
 use rayon::prelude::*;
 
 pub fn get_class_labels(
@@ -26,7 +28,7 @@ pub fn get_class_labels(
                     None
                 }
             }) // Counts the number on same side of HP as original item
-                .sum::<u16>()
+            .sum::<u16>()
         })
         .map(|x| if x > alpha { 1 } else { 0 }) // Whether the sum is gt alpha
         .collect::<Vec<i32>>()

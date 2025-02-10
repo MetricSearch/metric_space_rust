@@ -1,15 +1,15 @@
 // RPTree impl
 // al
 
-use dao::Dao32;
+use dao::{Dao, DataType};
 use itertools::Itertools;
+use ndarray::{Array1, ArrayBase, Ix1, ViewRepr};
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rand_distr::{Distribution, Normal};
 use std::cmp::max;
 use std::rc::Rc;
-use ndarray::{Array, Array1, ArrayBase, Ix1, ViewRepr};
 
 const SEED: [u8; 32] = [
     1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
@@ -20,20 +20,20 @@ const SEED: [u8; 32] = [
                                              RPNode
 ***************************************************************************************************/
 
-pub struct RpNode {
-    pub pivot: Array1<f32>,   // The pivot for this node
+pub struct RpNode<T> {
+    pub pivot: T,            // The pivot for this node
     pub payload: Vec<usize>, // A vec of indices into the vectors structure
     pub split_value: f32,    // the split value that is used to subdivide the data into children
     pub left: Option<Box<Self>>,
     pub right: Option<Box<Self>>,
 }
 
-impl RpNode {
-    pub fn new(dao: Rc<Dao32>, rng: &mut ChaCha8Rng) -> Self {
+impl<T: Clone + DataType> RpNode<T> {
+    pub fn new(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> Self {
         let payload: Vec<usize> = vec![];
         //let distribution = Normal::new(0.0, 1.0).unwrap();
         Self {
-            pivot: make_pivot2(dao, rng), //make_pivot(dim,distribution),
+            pivot: make_pivot2(dao, rng),
             payload: payload,
             split_value: 0.0,
             left: None,
@@ -50,7 +50,7 @@ impl RpNode {
         index: usize,
         max_load: usize,
         dim: usize,
-        dao: Rc<Dao32>,
+        dao: Rc<Dao<T>>,
         rng: &mut ChaCha8Rng,
     ) {
         // call the private insert method with the tree root
@@ -62,7 +62,7 @@ impl RpNode {
         index: usize,
         max_load: usize,
         dim: usize,
-        dao: Rc<Dao32>,
+        dao: Rc<Dao<T>>,
         rng: &mut ChaCha8Rng,
     ) {
         // should not be pub?
@@ -79,7 +79,7 @@ impl RpNode {
         }
         // Walk the tree to get to the leaves
         let data_to_add = dao.get_datum(index);
-        let dist = dot_product(&self.pivot.view(), data_to_add);
+        let dist = T::dot_product(&self.pivot, data_to_add);
         if dist <= self.split_value {
             if let Some(left) = self.left.as_mut() {
                 left.do_insert(index, max_load, dim, dao.clone(), rng);
@@ -103,11 +103,11 @@ impl RpNode {
         1 + max(right_depth, left_depth)
     }
 
-    pub fn do_lookup(&self, query: ArrayBase<ViewRepr<&f32>,Ix1>, dao: Rc<Dao32>) -> Option<Vec<usize>> {
+    pub fn do_lookup(&self, query: T, dao: Rc<Dao<T>>) -> Option<Vec<usize>> {
         if self.is_leaf() {
             Some(self.payload.clone())
         } else {
-            let dp = dot_product(&self.pivot.view(), query.view());
+            let dp = T::dot_product(&self.pivot, &query);
             if dp <= self.split_value {
                 if let Some(left) = &self.left {
                     left.do_lookup(query, dao)
@@ -134,19 +134,14 @@ impl RpNode {
         if let Some(right) = &self.right {
             write!(f, "\n\tR: {}", right)?;
         }
-        return Result::Ok(());
+        Ok(())
     }
 
-    fn redistribute(&mut self, dao: Rc<Dao32>) {
+    fn redistribute(&mut self, dao: Rc<Dao<T>>) {
         let prods = self
             .payload
             .iter()
-            .map(|id| {
-                dot_product(
-                    &self.pivot.view(),
-                    dao.get_datum(*id),
-                )
-            })
+            .map(|id| T::dot_product(&self.pivot, dao.get_datum(*id)))
             .collect::<Vec<f32>>(); // calculate the dot products to each data from the pivot
                                     // next calculate the split position
 
@@ -190,24 +185,26 @@ impl RpNode {
     }
 }
 
-impl std::fmt::Display for RpNode {
+impl<T> std::fmt::Display for RpNode<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.pretty_print(f)
+        //self.pretty_print(f)
+            //OR
+        write!( f, "{self}" )
     }
 }
 
-impl std::fmt::Debug for RpNode {
+impl<T> std::fmt::Debug for RpNode<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.pretty_print(f)
+        //self.pretty_print(f)
         // OR
-        //write!( f, "{self}" ) // calls Display
+        write!( f, "{self}" ) // calls Display
     }
 }
 
-pub fn make_pivot2(dao: Rc<Dao32>, rng: &mut ChaCha8Rng) -> Array1<f32> {
+pub fn make_pivot2<T: Clone + DataType>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> T {
     let index = rng.gen_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
-    dao.get_datum(index).into_owned()
+    dao.get_datum(index).clone()
 }
 
 fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
@@ -235,25 +232,16 @@ fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
 ***************************************************************************************************/
 
 //#[derive(Debug)]
-pub struct RPTree {
-    dao: Rc<Dao32>,
-    root: Option<Box<RpNode>>,
+pub struct RPTree<T: Clone> {
+    dao: Rc<Dao<T>>,
+    root: Option<Box<RpNode<T>>>,
     max_load: usize,
     dim: usize,
     rng: ChaCha8Rng,
 }
 
-impl RPTree {
-    pub(crate) fn depth(&self) -> usize {
-        match self.root {
-            Some(ref root) => root.depth(),
-            None => 0,
-        }
-    }
-}
-
-impl RPTree {
-    pub fn new(max_load: usize, dao: Rc<Dao32>, use_as_seed: u64) -> Self {
+impl<T: Clone + DataType> RPTree<T> {
+    pub fn new(max_load: usize, dao: Rc<Dao<T>>, use_as_seed: u64) -> Self {
         let dim = dao.get_dim();
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(use_as_seed * 142);
         Self {
@@ -265,7 +253,14 @@ impl RPTree {
         }
     }
 
-    pub fn lookup(&self, query: ArrayBase<ViewRepr<&f32>,Ix1>) -> Option<Vec<usize>> {
+    pub(crate) fn depth(&self) -> usize {
+        match self.root {
+            Some(ref root) => root.depth(),
+            None => 0,
+        }
+    }
+
+    pub fn lookup(&self, query: T) -> Option<Vec<usize>> {
         self.root
             .as_ref()
             .and_then(|node| node.do_lookup(query, self.dao.clone()))
@@ -314,7 +309,7 @@ impl RPTree {
     }
 }
 
-impl std::fmt::Display for RPTree {
+impl<T: Clone> std::fmt::Display for RPTree<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(node) = &self.root {
             write!(f, "\t{:?}", node)
@@ -324,7 +319,7 @@ impl std::fmt::Display for RPTree {
     }
 }
 
-impl std::fmt::Debug for RPTree {
+impl<T: Clone> std::fmt::Debug for RPTree<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(node) = &self.root {
             write!(f, "\t{:?}", node)
@@ -339,12 +334,12 @@ impl std::fmt::Debug for RPTree {
 ***************************************************************************************************/
 
 #[derive(Debug)]
-pub struct RPForest {
-    trees: Vec<RPTree>,
+pub struct RPForest<T: Clone> {
+    trees: Vec<RPTree<T>>,
 }
 
-impl RPForest {
-    pub fn new(num_trees: usize, max_load: usize, dao: Rc<Dao32>) -> Self {
+impl<T: Clone + DataType> RPForest<T> {
+    pub fn new(num_trees: usize, max_load: usize, dao: Rc<Dao<T>>) -> Self {
         let mut trees = vec![];
         for use_as_seed in 0..num_trees {
             let tree = RPTree::new(max_load, dao.clone(), use_as_seed as u64);
@@ -356,7 +351,7 @@ impl RPForest {
         this
     }
 
-    pub fn populate(&mut self, dao: Rc<Dao32>) {
+    pub fn populate(&mut self, dao: Rc<Dao<T>>) {
         for i in 0..dao.data_len() {
             if i % 100_000 == 0 {
                 for j in 0..self.trees.len() {
@@ -372,10 +367,10 @@ impl RPForest {
         self.trees.iter_mut().for_each(|tree| tree.add(index));
     }
 
-    pub fn lookup(&self, query: ArrayBase<ViewRepr<&f32>,Ix1>) -> Vec<usize> {
+    pub fn lookup(&self, query: T) -> Vec<usize> {
         self.trees
             .iter()
-            .filter_map(|tree| tree.lookup(query))
+            .filter_map(|tree| tree.lookup(query.clone()))
             .flatten()
             .unique()
             .collect()
@@ -385,15 +380,3 @@ impl RPForest {
 /***************************************************************************************************
                                              Utility functions
 ***************************************************************************************************/
-
-fn dot_product(p0: &ArrayBase<ViewRepr<&f32>, Ix1>, p1: ArrayBase<ViewRepr<&f32>, Ix1>) -> f32 {
-    assert!(p0.len() == p1.len());
-    p0.iter().zip(p1.iter()).map(|(x, y)| x * y).sum()
-
-    // equivalent to:
-    // let mut result = 0.0;
-    // for i in 0..p0.len() {
-    //     result += p0[i] * p1[i];
-    // }
-    // result
-}

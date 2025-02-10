@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub fn load_nn_table(nn_path: &str) -> anyhow::Result<Vec<Vec<usize>>> {
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')

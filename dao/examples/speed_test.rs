@@ -1,43 +1,41 @@
 use anyhow::Result;
-use bits::{embedding_to_bitrep, hamming_distance};
+use bits::{f32_embedding_to_bitrep, hamming_distance};
 use bitvec_simd::BitVecSimd;
-use dao::csv_f32_loader::{csv_f32_load, dao_from_csv_dir};
-use dao::Dao;
 use metrics::euc;
-use ndarray::{Array, Array1, Array2, ArrayView, ArrayView1, ArrayView2, Axis, Ix1, Ix2};
+use ndarray::{Array1, ArrayView1};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::time::Instant;
-use utils::arg_sort_2d;
+//use std::time::Instant;
 use wide::u64x4;
-
-use divan::Bencher;
+use dao::{Dao};
+use dao::csv_f32_loader::{dao_from_csv_dir};
+use utils::arg_sort_2d;
+//use divan::Bencher;
 
 fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
 
-    let dao: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
-        "/Volumes/Data/RUST_META",
+    let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
+        "/Volumes/Data/RUST_META/mf_dino2_csv/",
         num_data,
         num_queries,
-    ).unwrap());
-
+    )?);
     // just take 1 queries
 
-    let queries = dao.get_queries(); //queries.view().split_at( Axis(0), 1).0.to_owned(); // first query
-    let data = dao.get_data();
+    let queries = dao_f32.get_queries();
+    let data = dao_f32.get_data();
 
-    println!("Doing {:?} queries", queries.nrows());
+    println!("Doing {:?} queries", queries.len());
 
     let data_bitreps = data_to_bitrep(data);
     let queries_bitreps = data_to_bitrep(queries);
 
-    println!("Brute force NNs for {:?} queries", queries.nrows());
+    println!("Brute force NNs for {:?} queries", queries.len());
     let euc_dists: Vec<Vec<f32>> = brute_force_all_dists(queries, data);
-    let (gt_nns, gt_dists) = arg_sort_2d(euc_dists);
+    let (gt_nns, _gt_dists) = arg_sort_2d(euc_dists);
 
     // TEST code: just do one query for now with the data[0]
     // TEST code: let queries = dao.data.view().split_at( Axis(0), 1).0.to_owned();
@@ -53,7 +51,7 @@ fn main() -> Result<()> {
     // let after = Instant::now();
     // println!("Time per query: {} ms", ((after - now).as_millis() as f64) / num_queries as f64 );
 
-    let (hamming_nns, haming_dists) = arg_sort_2d(hamming_distances);
+    let (hamming_nns, _haming_dists) = arg_sort_2d(hamming_distances);
 
     println!("Hamming NNs for q0 = {:?} ", hamming_nns.get(0).unwrap());
 
@@ -70,10 +68,13 @@ fn main() -> Result<()> {
 }
 
 //Returns the nn(k) using Euc as metric for queries
-fn brute_force_all_dists(queries: ArrayView1<Array1<f32>>, data: ArrayView1<Array1<f32>>) -> Vec<Vec<f32>> {
+fn brute_force_all_dists(
+    queries: ArrayView1<Array1<f32>>,
+    data: ArrayView1<Array1<f32>>,
+) -> Vec<Vec<f32>> {
     queries
-        .rows()
-        .map(|q| data.rows().map(|d| euc(q, d)).collect())
+        .iter()
+        .map(|q| data.iter().map(|d| euc(q, d)).collect())
         .collect()
 }
 
@@ -95,9 +96,9 @@ fn generate_hamming_dists(
 /// returns a Vector of BitVecSimds in which the bit in the bitvector is set if the corresponding value in the embedding space is positive.
 /// Thus an input of
 /// to_bitrep( [ [ 0.4, -0.3, 0.2 ], [ -0.9, -0.2, -0.1 ]] ) will create [[1,0,1],[0,0,0]]
-fn data_to_bitrep(embeddings: ArrayView2<f32>) -> Vec<BitVecSimd<[wide::u64x4; 4], 4>> {
+fn data_to_bitrep(embeddings: ArrayView1<Array1<f32>>) -> Vec<BitVecSimd<[wide::u64x4; 4], 4>> {
     embeddings
-        .axis_iter(Axis(0))
-        .map(|embedding| embedding_to_bitrep(embedding))
+        .iter()
+        .map(|embedding| f32_embedding_to_bitrep(embedding))
         .collect::<Vec<BitVecSimd<[wide::u64x4; 4], 4>>>()
 }

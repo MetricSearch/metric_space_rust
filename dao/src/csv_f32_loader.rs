@@ -1,6 +1,6 @@
-use anyhow::anyhow;
-use ndarray::{Array, Array1, Array2};
 use crate::{dao_metadata_from_dir, Dao};
+use anyhow::anyhow;
+use ndarray::{Array1};
 
 pub fn csv_f32_load(data_path: &String) -> anyhow::Result<Array1<Array1<f32>>> {
     // returns a tuple stores data in single Vector
@@ -16,9 +16,11 @@ pub fn csv_f32_load(data_path: &String) -> anyhow::Result<Array1<Array1<f32>>> {
         //.take(100 ) // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<, put back in to limit
         .for_each(|r| {
             // row in the file
-            data_vec.push(r
-                .iter()
-                .filter_map(|f| f.parse::<f32>().ok()).collect::<Array1<f32>>());
+            data_vec.push(
+                r.iter()
+                    .filter_map(|f| f.parse::<f32>().ok())
+                    .collect::<Array1<f32>>(),
+            );
             if count % 100_000 == 0 {
                 tracing::info!("Ingested {count} records");
             };
@@ -33,7 +35,11 @@ pub fn csv_f32_load(data_path: &String) -> anyhow::Result<Array1<Array1<f32>>> {
     // )?)
 }
 
-pub fn dao_from_csv_dir(dir_name: &str, num_data: usize, num_queries: usize) -> anyhow::Result<Dao<Array1<f32>>> {
+pub fn dao_from_csv_dir(
+    dir_name: &str,
+    num_data: usize,
+    num_queries: usize,
+) -> anyhow::Result<Dao<Array1<f32>>> {
     let meta = dao_metadata_from_dir(dir_name).unwrap();
     let mut data_file_path = dir_name.to_string();
     data_file_path.push_str("/");
@@ -41,7 +47,13 @@ pub fn dao_from_csv_dir(dir_name: &str, num_data: usize, num_queries: usize) -> 
 
     // Put loader selection here.
 
-    let embeddings: Array1<Array1<f32>> = csv_f32_load(&data_file_path).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
+    let embeddings: Array1<Array1<f32>> =
+        csv_f32_load(&data_file_path).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
 
-    Ok(Dao::<Array1<f32>> { meta, num_data, num_queries, embeddings } )
+    Ok(Dao::<Array1<f32>> {
+        meta,
+        num_data,
+        num_queries,
+        embeddings,
+    })
 }

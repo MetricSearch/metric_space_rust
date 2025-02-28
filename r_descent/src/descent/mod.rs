@@ -2,6 +2,7 @@
 //! Transcribed as a learning exercise from PynnDescent.
 
 mod heap;
+mod non_nan;
 
 use crate::descent::heap::Heap;
 use dao::Dao;
@@ -9,14 +10,14 @@ use dao::Dao;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use std::cmp::min;
-use std::fmt::{Debug};
+use std::fmt::Debug;
 //use std::env::current_dir;
 use dao::DataType;
 use itertools::Itertools;
 use rp_forest::tree::RPForest;
 use std::iter;
 use std::rc::Rc;
-use utils::{arg_sort};
+use utils::arg_sort;
 
 pub struct Descent {
     pub current_graph: Heap,
@@ -281,10 +282,7 @@ fn generate_graph_updates<T: Clone + DataType>(
                     continue;
                 }
 
-                let ac_dist = T::dist(
-                    dao.get_datum(a as usize),
-                    dao.get_datum(c as usize)
-                );
+                let ac_dist = T::dist(dao.get_datum(a as usize), dao.get_datum(c as usize));
                 if ac_dist <= distances[a as usize][0] || ac_dist <= distances[c as usize][0] {
                     // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, ac_dist));
@@ -296,10 +294,7 @@ fn generate_graph_updates<T: Clone + DataType>(
                 if c < 0 {
                     continue;
                 }
-                let dist = T::dist(
-                    dao.get_datum(a as usize),
-                    dao.get_datum(c as usize)
-                );
+                let dist = T::dist(dao.get_datum(a as usize), dao.get_datum(c as usize));
                 if dist <= distances[a as usize][0] || dist <= distances[c as usize][0] {
                     // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, dist));
@@ -438,8 +433,6 @@ fn checked_heap_push(
         true
     }
 }
-
-// Tom was here
 
 fn checked_flagged_heap_push(
     indices: &mut Vec<i32>,

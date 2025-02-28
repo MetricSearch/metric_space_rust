@@ -5,17 +5,19 @@ mod class_labels;
 pub mod csv_f32_loader;
 pub mod hdf5_f32_loader;
 mod nn_table;
+pub mod convert_f32_to_hamming;
 
-use fmt::Display;
-use std::fmt;
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::Result;
 use bitvec_simd::BitVecSimd;
+
 use ndarray::{s, Array1, ArrayView1};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use wide::u64x4;
+//use std::fmt;
+//use fmt::Display;
 // use crate::csv_f32_loader::csv_f32_load;
 // use crate::hdf5_f32_loader::hdf5_f32_load;
 
@@ -50,14 +52,13 @@ impl DataType for Array1<f32> {
     }
 }
 
-
 impl DataType for BitVecSimd<[u64x4; 4], 4> {
     fn dot_product(p0: &Self, p1: &Self) -> f32 {
-        todo!()
+        p0.and_cloned(p1).count_ones() as f32
     }
 
     fn dist(a: &Self, b: &Self) -> f32 {
-        todo!()
+        a.xor_cloned(b).count_ones() as f32
     }
 }
 
@@ -129,4 +130,3 @@ pub fn dao_metadata_from_dir(dir_name: &str) -> Result<DaoMetaData> {
     file.read_to_string(&mut contents)?;
     Ok(toml::from_str(&contents).unwrap())
 }
-

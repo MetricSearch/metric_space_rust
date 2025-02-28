@@ -3,18 +3,15 @@
 
 use dao::{Dao, DataType};
 use itertools::Itertools;
-use ndarray::{Array1, ArrayBase, Ix1, ViewRepr};
-use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use rand_distr::{Distribution, Normal};
 use std::cmp::max;
 use std::rc::Rc;
 
-const SEED: [u8; 32] = [
-    1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
-    8, 39, 55, 23, 37, 112, 72, 5,
-];
+// const SEED: [u8; 32] = [
+//     1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
+//     8, 39, 55, 23, 37, 112, 72, 5,
+// ];
 
 /***************************************************************************************************
                                              RPNode
@@ -125,8 +122,7 @@ impl<T: Clone + DataType> RpNode<T> {
     }
 
     /**************  private functions **************/
-
-    fn pretty_print(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    pub fn pretty_print(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self.payload)?;
         if let Some(left) = &self.left {
             write!(f, "\n\tL: {}", left)?;
@@ -188,8 +184,8 @@ impl<T: Clone + DataType> RpNode<T> {
 impl<T> std::fmt::Display for RpNode<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         //self.pretty_print(f)
-            //OR
-        write!( f, "{self}" )
+        //OR
+        write!(f, "{self}")
     }
 }
 
@@ -197,7 +193,7 @@ impl<T> std::fmt::Debug for RpNode<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         //self.pretty_print(f)
         // OR
-        write!( f, "{self}" ) // calls Display
+        write!(f, "{self}") // calls Display
     }
 }
 
@@ -207,25 +203,25 @@ pub fn make_pivot2<T: Clone + DataType>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -
     dao.get_datum(index).clone()
 }
 
-fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
-    // IF WE USE THIS NEED TO ADD rng
-    let values: Vec<f32> = (0..dim) // for all the required dimensions
-        .map(|_| distribution.sample(&mut StdRng::from_seed(SEED))) // map randoms in range 0..1
-        .collect(); // put them all in a vector
-    let mag_squared: f32 = values
-        .iter() // take all the elements in the Vector
-        .map(|x| (x * x)) // square each of them
-        .sum(); // and sum them up
-
-    let mag = mag_squared.sqrt();
-
-    let normed = values
-        .iter() // take all the values
-        .map(|x| x / mag) // divide by the mag
-        .collect(); // collect them up into a vec
-
-    normed // return the norm
-}
+// fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
+//     // IF WE USE THIS NEED TO ADD rng
+//     let values: Vec<f32> = (0..dim) // for all the required dimensions
+//         .map(|_| distribution.sample(&mut StdRng::from_seed(SEED))) // map randoms in range 0..1
+//         .collect(); // put them all in a vector
+//     let mag_squared: f32 = values
+//         .iter() // take all the elements in the Vector
+//         .map(|x| (x * x)) // square each of them
+//         .sum(); // and sum them up
+//
+//     let mag = mag_squared.sqrt();
+//
+//     let normed = values
+//         .iter() // take all the values
+//         .map(|x| x / mag) // divide by the mag
+//         .collect(); // collect them up into a vec
+//
+//     normed // return the norm
+// }
 
 /***************************************************************************************************
                                              RPTree
@@ -253,7 +249,7 @@ impl<T: Clone + DataType> RPTree<T> {
         }
     }
 
-    pub(crate) fn depth(&self) -> usize {
+    pub fn depth(&self) -> usize {
         match self.root {
             Some(ref root) => root.depth(),
             None => 0,

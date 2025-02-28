@@ -3,16 +3,7 @@ name = "bits"
 version = "0.1.0"
 edition = "2021"
 
-[[bench]]
-name = "hamming_distance"
-harness = false
-
-[[bench]]
-name = "euc_distance"
-harness = false
-
 [dependencies]
-dao = {path="../dao"}
 metrics = {path="../metrics"}
 utils = {path="../utils"}
 bitvec_simd = "0.20.5"

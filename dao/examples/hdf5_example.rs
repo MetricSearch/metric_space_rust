@@ -1,4 +1,4 @@
-use anyhow::{Result};
+use anyhow::Result;
 use hdf5::{Dataset, File, H5Type};
 use ndarray::{s, Array, Array2};
 //use tracing::error;
@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     // println!("Before serialisation: {:?}", arrai);
     let f_name = "../_scratch/arrai.h5";
 
-    write_data::<f32>(f_name, &arrai.unwrap());
+    let _ = write_data::<f32>(f_name, &arrai.unwrap())?;
 
     let decoded: Array2<f32> = read_data::<f32>(f_name)?;
 
@@ -40,13 +40,13 @@ fn write_data<T: H5Type>(fname: &str, arrai: &Array2<T>) -> Result<()> {
     add_attr(&ds, "num_records", &num_records);
     add_str_attr(&ds, &"normed", &"L2");
 
-    file.flush();
+    let _ = file.flush();
     Ok(())
 }
 
 fn add_attr(ds: &Dataset, key: &str, value: &usize) {
     let attr = ds.new_attr::<i32>().create(key).unwrap();
-    attr.write_scalar(value);
+    let _ = attr.write_scalar(value);
 }
 
 pub fn add_str_attr(ds: &Dataset, key: &str, value: &str) {
@@ -55,7 +55,7 @@ pub fn add_str_attr(ds: &Dataset, key: &str, value: &str) {
         .create(key)
         .unwrap();
     let value_: hdf5::types::VarLenUnicode = value.parse().unwrap();
-    attr.write_scalar(&value_);
+    let _ = attr.write_scalar(&value_);
 }
 
 fn read_data<T: H5Type>(fname: &str) -> Result<Array2<T>> {

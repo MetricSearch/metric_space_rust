@@ -1,7 +1,7 @@
 use bitvec_simd::BitVecSimd;
-use ndarray::{ArrayView, Ix1};
+use ndarray::{Array1};
 
-pub fn embedding_to_bitrep(embedding: ArrayView<f32, Ix1>) -> BitVecSimd<[wide::u64x4; 4], 4> {
+pub fn f32_embedding_to_bitrep(embedding: &Array1<f32>) -> BitVecSimd<[wide::u64x4; 4], 4> {
     BitVecSimd::from_bool_iterator(embedding.iter().map(|&x| x < 0.0))
 }
 

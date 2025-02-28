@@ -1,15 +1,17 @@
-use rp_forest::dao::Dao;
+
 use rp_forest::tree::RPTree;
 use std::rc::Rc;
+use ndarray::Array1;
+use dao::csv_f32_loader::dao_from_csv_dir;
+use dao::Dao;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     tracing::info!("**** Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
-    let dao: Rc<Dao> = Rc::new(Dao::new(
-        "/Volumes/data/mf_dino2_csv/mf_dino2.csv",
-        "unused",
+    let dao: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
+        "/Volumes/Data/RUST_META/mf_dino2_csv/",
         num_data,
         num_queries,
     )?);
@@ -44,8 +46,8 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn lookup(index: usize, dao: Rc<Dao>, tree: &mut RPTree) -> anyhow::Result<()> {
-    let res = tree.lookup(dao.get(index)?);
+fn lookup(index: usize, dao: Rc<Dao::<Array1<f32>>>, tree: &mut RPTree::<Array1<f32>>) -> anyhow::Result<()> {
+    let res = tree.lookup(dao.get_datum(index).clone());
     match res {
         Some(results) => {
             println!("Number of results = {}", results.len());

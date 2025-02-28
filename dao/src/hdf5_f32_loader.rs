@@ -69,14 +69,14 @@ pub fn hdf5_f32_write(
     let dim = arrai.len();
     let num_records = arrai[0].len();
 
-    let arrai : Array1<f32> = arrai
+    let arrai: Array1<f32> = arrai
         .iter()
         .map(|row| row.iter()) // 1D array of f32s
         .flatten()
         .map(|x| *x)
         .collect::<Array1<f32>>();
 
-    let arrai : Array2<f32> = arrai.into_shape([num_records,dim]).unwrap().into();
+    let arrai: Array2<f32> = arrai.into_shape_with_order([num_records, dim]).unwrap().into();
 
     let ds = builder.with_data(&arrai).create("all_embeddings")?;
 

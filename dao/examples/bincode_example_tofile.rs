@@ -11,7 +11,7 @@ fn main() -> Result<()> {
     println!("Before serialisation: {:?}", arrai);
     let f_name = "../_scratch/arrai_data.txt";
 
-    write_data(f_name, &arrai.unwrap());
+    write_data(f_name, &arrai.unwrap())?;
 
     let decoded: Array2<f32> = read_data(f_name)?;
 
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
 fn write_data(fname: &str, arrai: &Array2<f32>) -> Result<()> {
     let encoded = bincode::serialize(&arrai).unwrap();
-    let mut writer: BufWriter<File> = BufWriter::new(File::create(fname)?);
+    let writer: BufWriter<File> = BufWriter::new(File::create(fname)?);
     bincode::serialize_into(writer, &arrai)?;
     // writer.flush()?;
     println!("Wrote: {:?} bytes", &encoded.len());

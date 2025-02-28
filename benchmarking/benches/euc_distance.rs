@@ -1,11 +1,11 @@
-use bits::{embedding_to_bitrep, hamming_distance};
-use bitvec_simd::BitVecSimd;
-use dao::csv_f32_loader::{csv_f32_load, dao_from_csv_dir};
-use divan::{black_box, counter::BytesCount, AllocProfiler, Bencher};
+
+//use bitvec_simd::BitVecSimd;
+use divan::{black_box, Bencher};
 use metrics::euc;
-use ndarray::{Array, Array1, Array2, ArrayView, Axis, Ix1, Ix2};
+use ndarray::{Array1};
 use std::rc::Rc;
 use dao::Dao;
+use dao::csv_f32_loader::{dao_from_csv_dir};
 
 fn main() {
     divan::main();

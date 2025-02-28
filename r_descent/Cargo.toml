@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 
 dao = {path="../dao"}
+bits = {path="../bits"}
 metrics = {path="../metrics"}
 rp_forest = {path="../rp_forest"}
 utils = {path="../utils"}
@@ -22,3 +23,5 @@ tracing-subscriber = "0.3.19"
 itertools = "0.13.0"
 rand_distr = "0.4.3"
 rand_chacha = "0.3.1"
+bitvec_simd = "0.20.5"
+wide = "0.7.32"

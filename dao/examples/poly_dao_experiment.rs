@@ -3,7 +3,7 @@ use hdf5::{Dataset, File};
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, Ix1, OwnedRepr};
 use wide::u64x4;
 
-trait Dao<DataRep> {
+pub trait Dao<DataRep> {
     fn get_dim(&self) -> usize;
 
     fn data_len(&self) -> usize;
@@ -19,7 +19,7 @@ trait Dao<DataRep> {
     fn get_queries(&self) -> ArrayView1<DataRep>;
 }
 
-struct DaoStruct<DataRep> {
+pub struct DaoStruct<DataRep> {
     dim: usize,
     num_data: usize,
     num_queries: usize,
@@ -70,7 +70,7 @@ fn main() {
         dim: 2,
         num_data: 2,
         num_queries: 1,
-        embeddings: Array1::from_iter((0..5).map(|x| Array1::from_vec(vec![1.2, 2.0]))),
+        embeddings: Array1::from_iter((0..5).map(|_x| Array1::from_vec(vec![1.2, 2.0]))),
     };
 
     let t: DaoStruct<BitVecSimd<[u64x4; 4], 4>> = DaoStruct {

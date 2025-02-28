@@ -1,5 +1,4 @@
-use dao::{dao_metadata_from_dir};
-use serde_json;
+use dao::dao_metadata_from_dir;
 
 fn main() -> std::io::Result<()> {
     let f_name = "../_scratch/meta_data.txt";

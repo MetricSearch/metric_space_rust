@@ -4,10 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dao = {path="../dao"}
-metrics = {path="../metrics"}
-rp_forest = {path="../rp_forest"}
-
 anndists = "0.1.2"
 anyhow = "1.0.94"
 csv = "1.3.1"

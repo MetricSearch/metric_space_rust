@@ -2,7 +2,7 @@ use std::rc::Rc;
 use bitvec_simd::BitVecSimd;
 use ndarray::Array1;
 use wide::u64x4;
-use bits::{f32_embedding_to_bitrep};
+use bits::{f32_embedding_to_cubic_bitrep};
 use crate::Dao;
 
 pub fn to_hamming_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> {
@@ -23,6 +23,6 @@ pub fn to_hamming_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x4
 pub fn to_hamming_embeddings(embeddings: &Array1<Array1<f32>>) -> Array1<BitVecSimd<[u64x4; 4], 4>> {
     embeddings
         .iter()
-        .map( |row| { f32_embedding_to_bitrep(row) } )
+        .map( |row| { f32_embedding_to_cubic_bitrep(row) } )
         .collect()
 }

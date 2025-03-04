@@ -1,0 +1,46 @@
+Matrix Euc distance:
+
+10000 * 100 = 1_000_000
+
+1,000,000 distances over f32 matrix
+
+     Running benches/euc_distance_matrix.rs (target/release/deps/euc_distance_matrix-257e5b62e241e61f)
+Timer precision: 41 ns
+euc_distance_matrix  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench             8.447 ms      │ 10.64 ms      │ 8.851 ms      │ 8.941 ms      │ 100     │ 100
+
+8.447 ns per query.
+
+------------------
+
+Single Euc distance (with sqrt):
+
+     Running benches/euc_distance.rs (target/release/deps/euc_distance-0e3292a74c0bbcca)
+Timer precision: 41 ns
+euc_distance  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench      290.7 ns      │ 6.249 µs      │ 374.7 ns      │ 408.9 ns      │ 100     │ 100
+
+290.7ns per query
+
+
+Single Euc distance (no sqrt):
+
+Running benches/euc_distance.rs (target/release/deps/euc_distance-0e3292a74c0bbcca)
+Timer precision: 41 ns
+euc_distance  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench      275.7 ms      │ 283.3 ms      │ 277.2 ms      │ 277.5 ms      │ 100     │ 100
+
+
+------------------
+
+Single Hamming distance:
+
+     Running benches/hamming_distance.rs (target/release/deps/hamming_distance-af760e9a00e47ca6)
+Timer precision: 41 ns
+hamming_distance  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench          6.166 ns      │ 6.451 ns      │ 6.248 ns      │ 6.26 ns       │ 100     │ 102400
+
+
+6.166 ns per query
+
+------

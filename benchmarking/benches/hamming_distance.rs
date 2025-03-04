@@ -12,7 +12,6 @@ fn main() {
 
 #[divan::bench]
 fn bench(bencher: Bencher) {
-    // bencher: Bencher
 
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;

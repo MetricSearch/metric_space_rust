@@ -28,12 +28,12 @@ fn bench(bencher: Bencher) {
     );
 
     let query = dao.get_query(0);
-    //let query = query.view();
     let data = dao.get_datum(0);
-    //let data = data.view();
 
     bencher.bench(|| {
-        let res = euc(black_box(query), black_box(data));
-        black_box(res);
+        for _ in 0..1_000_000 {
+            let res = euc(black_box(query), black_box(data));
+            black_box(res);
+        }
     });
 }

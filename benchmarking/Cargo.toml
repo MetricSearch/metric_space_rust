@@ -8,6 +8,10 @@ name = "hamming_distance"
 harness = false
 
 [[bench]]
+name = "euc_distance_matrix"
+harness = false
+
+[[bench]]
 name = "euc_distance"
 harness = false
 

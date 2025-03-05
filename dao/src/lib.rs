@@ -16,10 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use wide::u64x4;
-//use std::fmt;
-//use fmt::Display;
-// use crate::csv_f32_loader::csv_f32_load;
-// use crate::hdf5_f32_loader::hdf5_f32_load;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Normed {

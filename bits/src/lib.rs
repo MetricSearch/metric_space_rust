@@ -1,5 +1,5 @@
 use bitvec_simd::BitVecSimd;
-use ndarray::{Array1, Array2, ArrayView1};
+use ndarray::{Array1, ArrayView1};
 use utils::arg_sort;
 /*
  Also look at:
@@ -28,7 +28,7 @@ pub fn f32_embedding_to_cubeoct_bitrep(embedding: &Array1<f32>) -> BitVecSimd<[w
 
     let mut bit_vec = vec![];
 
-    let (indices, dists) = arg_sort(embedding.to_vec());
+    let (indices, _dists) = arg_sort(embedding.to_vec());
     let ( _smallest_indices, biggest_indices ) = indices.split_at(indices.len() / 2);
 
     (0..embedding.len()).for_each( |index| {

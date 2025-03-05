@@ -1,0 +1,35 @@
+Cube: No rotations.
+
+Time per query 1_000_000 dists: 13932.9709 ns
+
+hamming_set_size: 100 Mean size = 56, Max = 86, Min = 26
+hamming_set_size: 150 Mean size = 68, Max = 98, Min = 32
+hamming_set_size: 200 Mean size = 76, Max = 100, Min = 35
+hamming_set_size: 250 Mean size = 81, Max = 100, Min = 37
+hamming_set_size: 300 Mean size = 84, Max = 100, Min = 41
+hamming_set_size: 350 Mean size = 86, Max = 100, Min = 42
+hamming_set_size: 400 Mean size = 88, Max = 100, Min = 44
+hamming_set_size: 450 Mean size = 89, Max = 100, Min = 47
+hamming_set_size: 500 Mean size = 91, Max = 100, Min = 48
+
+Cubeoct:
+
+(biggest 1/2)
+
+Time per query 1_000_000 dists: 14565.9459 ns
+
+hamming_set_size: 100 Mean size = 54, Max = 82, Min = 25
+hamming_set_size: 150 150 Mean size = 65, Max = 93, Min = 31
+hamming_set_size: 200 200 Mean size = 72, Max = 98, Min = 36
+hamming_set_size: 250 250 Mean size = 77, Max = 100, Min = 41
+hamming_set_size: 300 300 Mean size = 80, Max = 100, Min = 45
+hamming_set_size: 350 350 Mean size = 83, Max = 100, Min = 48
+hamming_set_size: 400 400 Mean size = 85, Max = 100, Min = 50
+hamming_set_size: 450 450 Mean size = 86, Max = 100, Min = 50
+hamming_set_size: 500 Mean size = 88, Max = 100, Min = 53
+
+
+
+
+
+

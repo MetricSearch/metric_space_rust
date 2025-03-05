@@ -1,8 +1,8 @@
 use anyhow::Result;
-use bits::{f32_data_to_cubeoct_bitrep, f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, hamming_distance};
+use bits::{f32_data_to_cubeoct_bitrep, hamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
-use ndarray::{s, Array1, ArrayView1, Axis};
+use ndarray::{Array1, ArrayView1, Axis};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;

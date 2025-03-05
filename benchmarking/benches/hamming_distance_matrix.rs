@@ -2,7 +2,7 @@
 //use bitvec_simd::BitVecSimd;
 use dao::csv_f32_loader::{dao_from_csv_dir};
 use dao::Dao;
-use divan::{black_box, Bencher};
+use divan::{black_box,Bencher};
 use ndarray::{Array1, Array2, ArrayView, Axis, Ix1};
 use std::rc::Rc;
 
@@ -30,13 +30,11 @@ fn bench(bencher: Bencher) {
     let queries_100 = to_2d_array(queries_100,384);
     let data_10k = to_2d_array(data_10k,384);
 
-
-
-    // bencher.bench(|| {
-    //     let dists = queries_100.dot(&data_10k.t());
-    //     // println!( "size = {:?}", dists.shape() );
-    //     black_box(dists);
-    // });
+    bencher.bench(|| {
+        let dists = queries_100.dot(&data_10k.t());
+        // println!( "size = {:?}", dists.shape() );
+        black_box(dists);
+    });
 }
 
 fn to_2d_array(input : ArrayView<Array1<f32>, Ix1>, n_cols: usize ) -> Array2<f32> {

@@ -257,6 +257,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "descent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bits",
+ "bitvec_simd",
+ "dao",
+ "itertools",
+ "metrics",
+ "ndarray",
+ "rand",
+ "rand_chacha",
+ "rp_forest",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+ "utils",
+ "wide",
+]
+
+[[package]]
 name = "divan"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -715,32 +737,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e4dccaaaf89514f546c693ddc140f729f958c247918a13380cccc6078391acc"
 dependencies = [
  "proc-macro2",
-]
-
-[[package]]
-name = "r_descent"
-version = "0.1.0"
-dependencies = [
- "anndists",
- "anyhow",
- "bits",
- "bitvec_simd",
- "csv",
- "dao",
- "itertools",
- "metrics",
- "ndarray",
- "rand",
- "rand_chacha",
- "rand_distr",
- "rayon",
- "rp_forest",
- "serde",
- "serde_json",
- "tracing",
- "tracing-subscriber",
- "utils",
- "wide",
 ]
 
 [[package]]

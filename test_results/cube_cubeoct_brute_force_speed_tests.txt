@@ -14,19 +14,19 @@ hamming_set_size: 500 Mean size = 91, Max = 100, Min = 48
 
 Cubeoct:
 
-(biggest 1/2)
+                            (biggest 1/2)
 
-Time per query 1_000_000 dists: 14565.9459 ns
+  all wrong!                Time per query 1_000_000 dists: 14565.9459 ns
 
-hamming_set_size: 100 Mean size = 54, Max = 82, Min = 25
-hamming_set_size: 150 150 Mean size = 65, Max = 93, Min = 31
-hamming_set_size: 200 200 Mean size = 72, Max = 98, Min = 36
-hamming_set_size: 250 250 Mean size = 77, Max = 100, Min = 41
-hamming_set_size: 300 300 Mean size = 80, Max = 100, Min = 45
-hamming_set_size: 350 350 Mean size = 83, Max = 100, Min = 48
-hamming_set_size: 400 400 Mean size = 85, Max = 100, Min = 50
-hamming_set_size: 450 450 Mean size = 86, Max = 100, Min = 50
-hamming_set_size: 500 Mean size = 88, Max = 100, Min = 53
+                            hamming_set_size: 100 Mean size = 54, Max = 82, Min = 25
+                            hamming_set_size: 150 150 Mean size = 65, Max = 93, Min = 31
+                            hamming_set_size: 200 200 Mean size = 72, Max = 98, Min = 36
+                            hamming_set_size: 250 250 Mean size = 77, Max = 100, Min = 41
+                            hamming_set_size: 300 300 Mean size = 80, Max = 100, Min = 45
+                            hamming_set_size: 350 350 Mean size = 83, Max = 100, Min = 48
+                            hamming_set_size: 400 400 Mean size = 85, Max = 100, Min = 50
+                            hamming_set_size: 450 450 Mean size = 86, Max = 100, Min = 50
+                            hamming_set_size: 500 Mean size = 88, Max = 100, Min = 53
 
 TODO
 
@@ -46,15 +46,16 @@ hamming_set_size: 50 Mean size = 27, Max = 43, Min = 11
 
 Cubeoct
 
-hamming_set_size: 10 Mean size = 5, Max = 9, Min = 2
-hamming_set_size: 15 Mean size = 7, Max = 13, Min = 3
-hamming_set_size: 20 Mean size = 10, Max = 18, Min = 4
-hamming_set_size: 25 Mean size = 12, Max = 22, Min = 6
-hamming_set_size: 30 Mean size = 15, Max = 26, Min = 8
-hamming_set_size: 35 Mean size = 18, Max = 32, Min = 8
-hamming_set_size: 40 Mean size = 20, Max = 36, Min = 9
-hamming_set_size: 45 Mean size = 23, Max = 38, Min = 10
-hamming_set_size: 50 Mean size = 26, Max = 41, Min = 11
+hamming_set_size: 10 Mean size = 6, Max = 9, Min = 3
+hamming_set_size: 15 Mean size = 9, Max = 14, Min = 6
+hamming_set_size: 20 Mean size = 12, Max = 19, Min = 7
+hamming_set_size: 25 Mean size = 15, Max = 23, Min = 8
+hamming_set_size: 30 Mean size = 19, Max = 28, Min = 9
+hamming_set_size: 35 Mean size = 22, Max = 32, Min = 12
+hamming_set_size: 40 Mean size = 25, Max = 35, Min = 14
+hamming_set_size: 45 Mean size = 29, Max = 40, Min = 17
+hamming_set_size: 50 Mean size = 32, Max = 47, Min = 20
+
 
 
 

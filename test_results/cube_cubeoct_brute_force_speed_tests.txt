@@ -28,6 +28,35 @@ hamming_set_size: 400 400 Mean size = 85, Max = 100, Min = 50
 hamming_set_size: 450 450 Mean size = 86, Max = 100, Min = 50
 hamming_set_size: 500 Mean size = 88, Max = 100, Min = 53
 
+TODO
+
+Richard measured best KNN(15) measure recall - cubeoct better than cube?
+
+Cubes with N/N:
+
+hamming_set_size: 10 Mean size = 5, Max = 9, Min = 2
+hamming_set_size: 15 Mean size = 7, Max = 13, Min = 2
+hamming_set_size: 20 Mean size = 10, Max = 17, Min = 4
+hamming_set_size: 25 Mean size = 13, Max = 23, Min = 8
+hamming_set_size: 30 Mean size = 15, Max = 27, Min = 8
+hamming_set_size: 35 Mean size = 18, Max = 30, Min = 8
+hamming_set_size: 40 Mean size = 21, Max = 37, Min = 9
+hamming_set_size: 45 Mean size = 24, Max = 41, Min = 10
+hamming_set_size: 50 Mean size = 27, Max = 43, Min = 11
+
+Cubeoct
+
+hamming_set_size: 10 Mean size = 5, Max = 9, Min = 2
+hamming_set_size: 15 Mean size = 7, Max = 13, Min = 3
+hamming_set_size: 20 Mean size = 10, Max = 18, Min = 4
+hamming_set_size: 25 Mean size = 12, Max = 22, Min = 6
+hamming_set_size: 30 Mean size = 15, Max = 26, Min = 8
+hamming_set_size: 35 Mean size = 18, Max = 32, Min = 8
+hamming_set_size: 40 Mean size = 20, Max = 36, Min = 9
+hamming_set_size: 45 Mean size = 23, Max = 38, Min = 10
+hamming_set_size: 50 Mean size = 26, Max = 41, Min = 11
+
+
 
 
 

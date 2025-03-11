@@ -7,9 +7,9 @@
 //! distances - the distances from the node corresponding to the row to each of the near neighbours
 //! flags - misc flags used to record meta information about the entries WHAT ARE THEY??
 
-//use ndarray::{indices, Array, ArrayBase, Dim, OwnedRepr, ViewRepr};
-//use crate::descent::NonNan;
+use serde::{Deserialize, Serialize};
 
+#[derive (Serialize, Deserialize)]
 pub struct Heap {
     pub num_entries: usize,
     pub num_neighbours: usize,

@@ -57,22 +57,21 @@ fn main() -> Result<()> {
 
     let (hamming_nns, _haming_dists) = arg_sort_2d(hamming_distances);
 
-    for hamming_set_size in 100..550 {
-        if hamming_set_size % 50 == 0 {
-            report_queries(queries.len(), &gt_nns, &hamming_nns, hamming_set_size);
+    for hamming_set_size in 10..51 {
+        if hamming_set_size % 5 == 0 {
+            report_queries(queries.len(), &gt_nns, &hamming_nns, hamming_set_size, hamming_set_size);
         }
     }
 
     Ok(())
 }
 
-fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, hamming_nns: &Vec<Vec<usize>>, hamming_set_size: usize) {
+fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, hamming_nns: &Vec<Vec<usize>>, hamming_set_size: usize, nns_size : usize) {
     println!("Benchmarking queries: hamming_set_size: {:?}", hamming_set_size);
     let mut sum = 0;
     let mut min = 100;
     let mut max = 0;
     (0..num_queries).into_iter().for_each(|qi| {
-        let nns_size = 100;
 
         let (hamming_nns, _rest_nns) = hamming_nns.get(qi).unwrap().split_at(hamming_set_size);
         let (gt_nns, _rest_gt_nns) = gt_nns.get(qi).unwrap().split_at(nns_size);
@@ -89,7 +88,7 @@ fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, hamming_nns: &Ve
         max = max.max(intersection_size);
         min = min.min(intersection_size);
 
-        println!("Intersection of q{:?} {:?} Hamming vs {:?} nns, size: {:?}", qi, hamming_set_size, nns_size, intersection_size);
+        // println!("Intersection of q{:?} {:?} Hamming vs {:?} nns, size: {:?}", qi, hamming_set_size, nns_size, intersection_size);
     }
     );
     println!("Mean size = {}, Max = {}, Min = {}", sum / num_queries , max, min);

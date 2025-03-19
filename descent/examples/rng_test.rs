@@ -29,7 +29,7 @@ fn main() -> Result<()> {
     let rng = descent.rng_star(dao.clone());
 
     for i in 0..40 {
-        println!("Descent {i}: {:?}", descent.current_graph.indices[i]);
+        println!("Descent {i}: {:?}", descent.current_graph.nns[i]);
         println!("RNG {i}: {:?}", rng[i]);
     }
 

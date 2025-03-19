@@ -5,12 +5,12 @@ use wide::u64x4;
 use bits::{f32_embedding_to_cubic_bitrep};
 use crate::Dao;
 
-pub fn to_hamming_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> {
-    let bit_embeddings = to_hamming_embeddings(&f32_dao.embeddings);
+pub fn to_cubic_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> {
+    let bit_embeddings = to_cubic_embeddings(&f32_dao.embeddings);
 
     let mut meta= f32_dao.meta.clone();
     meta.path_to_data = "none".parse().unwrap();
-    meta.data_disk_format = "Hamming".parse().unwrap();
+    meta.data_disk_format = "Cubic".parse().unwrap();
 
     Rc::new( Dao{
         meta,
@@ -20,7 +20,7 @@ pub fn to_hamming_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x4
     })
 }
 
-pub fn to_hamming_embeddings(embeddings: &Array1<Array1<f32>>) -> Array1<BitVecSimd<[u64x4; 4], 4>> {
+pub fn to_cubic_embeddings(embeddings: &Array1<Array1<f32>>) -> Array1<BitVecSimd<[u64x4; 4], 4>> {
     embeddings
         .iter()
         .map( |row| { f32_embedding_to_cubic_bitrep(row) } )

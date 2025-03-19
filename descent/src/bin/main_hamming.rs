@@ -7,7 +7,7 @@ use wide::u64x4;
 use ndarray::Array1;
 use bitvec_simd::BitVecSimd;
 use descent::Descent;
-use dao::convert_f32_to_hamming::to_hamming_dao;
+use dao::convert_f32_to_cubic::to_cubic_dao;
 //use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -29,11 +29,11 @@ fn main() -> Result<()> {
     let num_neighbours = 10;
     //let max_candidates = 50;
 
-    let dao : Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_hamming_dao(dao.clone());
+    let dao : Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_cubic_dao(dao.clone());
 
     let descent = Descent::new(dao.clone(), num_neighbours, true);
 
-    println!("First row: {:?}", descent.current_graph.indices[0]);
+    println!("First row: {:?}", descent.current_graph.nns[0]);
     println!("First row: {:?}", descent.current_graph.distances[0]);
 
     Ok(())

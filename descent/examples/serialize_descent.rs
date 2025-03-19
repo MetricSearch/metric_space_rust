@@ -3,7 +3,7 @@ use dao::Dao;
 use anyhow::Result;
 use ndarray::Array1;
 use dao::csv_f32_loader::{dao_from_csv_dir};
-use dao::convert_f32_to_hamming::to_hamming_dao;
+use dao::convert_f32_to_cubic::to_cubic_dao;
 use bitvec_simd::BitVecSimd;
 use descent::Descent;
 use wide::u64x4;
@@ -21,17 +21,14 @@ fn main() -> Result<()> {
         num_data,
         num_queries,
     )?);
-    let num_neighbours = 10;
-    //let max_candidates = 50;
 
-    let dao : Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_hamming_dao(dao.clone());
-
+    let num_neighbours = 100;
     let descent = Descent::new(dao.clone(), num_neighbours, true);
 
-    println!("Saving NN table to _scratch/nn_table.bin ...");
+    println!("Saving NN table to _scratch/descent_100.bin ...");
 
-    let f = BufWriter::new(File::create("_scratch/nn_table.bin").unwrap());
-    bincode::serialize_into(f, &descent).unwrap();
+    let f = BufWriter::new(File::create("_scratch/nn_table_100.bin").unwrap());
+    bincode::serialize_into(f, &descent);
 
     Ok(())
 }

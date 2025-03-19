@@ -27,7 +27,7 @@ fn main() -> Result<()> {
 
     let descent = Descent::new(dao.clone(), num_neighbours, true);
 
-    println!("First row: {:?}", descent.current_graph.indices[0]);
+    println!("First row: {:?}", descent.current_graph.nns[0]);
     println!("First row: {:?}", descent.current_graph.distances[0]);
 
     Ok(())

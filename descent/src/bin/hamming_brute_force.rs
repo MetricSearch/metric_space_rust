@@ -1,7 +1,7 @@
 
 use anyhow::Result;
 use dao::csv_f32_loader::{dao_from_csv_dir};
-use dao::convert_f32_to_hamming::to_hamming_dao;
+use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::Dao;
 use std::rc::Rc;
 use wide::u64x4;
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
     let num_neighbours = 100;
     //let max_candidates = 50;
 
-    let dao_hamming: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_hamming_dao(dao_f32.clone());
+    let dao_hamming: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_cubic_dao(dao_f32.clone());
 
     let mut indices_f32: Vec<i32> = vec![-1; num_neighbours]; // build a new array of nns
     let mut distances_f32: Vec<f32> = vec![f32::MAX; num_neighbours]; // build a new array of infinity distances

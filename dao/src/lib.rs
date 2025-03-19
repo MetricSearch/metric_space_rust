@@ -4,8 +4,9 @@
 mod class_labels;
 pub mod csv_f32_loader;
 pub mod hdf5_f32_loader;
-mod nn_table;
-pub mod convert_f32_to_hamming;
+mod csv_nn_table_loader;
+pub mod convert_f32_to_cubic;
+mod convert_f32_to_cube_oct;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::Result;

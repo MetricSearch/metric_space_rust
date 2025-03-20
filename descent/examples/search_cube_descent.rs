@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::rc::Rc;
 use std::time::Instant;
+use serde::__private::de::borrow_cow_bytes;
 use wide::u64x4;
 use dao::{Dao};
 use dao::convert_f32_to_cubic::to_cubic_dao;
@@ -15,6 +16,7 @@ use dao::csv_f32_loader::dao_from_csv_dir;
 use utils::arg_sort_2d;
 use descent::non_nan::NonNan;
 use descent::{Descent};
+use descent::pair::Pair;
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -72,24 +74,37 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn show_results(results: Vec<Vec<(NonNan, usize)>>) {
-    results.iter().enumerate().for_each(|(i, row)| {
-        println!( "num results: {}", row.len());
-    })
+// fn show_results(results: Vec<Vec<Pair>>) {
+//     let mut dists = 0.0;
+//     results.iter().for_each( |row| row.iter().for_each( |pair| { dists = dists + pair.distance.0 } ) );
+//     println!("Total distance calculations performed: {}", dists); // wrong! this is sum of dists
+// }
+
+fn show_results(results: Vec<Vec<Pair>>) {
+    print!( "first few results: " );
+    results
+        .iter()
+        .for_each( |row| {
+            row
+                .iter()
+                .by_ref()
+                .take(5)
+                .for_each(|pair| { print!("{} {}", pair.distance.0, pair.index); })
+        } );
+    println!();
 }
 
 fn do_queries(
     queries_bitreps: Vec<BitVecSimd<[u64x4; 4], 4>>,
     descent: Descent,
     dao: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>>,
-)  -> Vec<Vec<(NonNan,usize)>> {
-    let mut results: Vec<Vec<(NonNan,usize)>> = vec![];
+)  -> Vec<Vec<Pair>> {
+    let mut results: Vec<Vec<Pair>> = vec![];
     queries_bitreps
         .iter()
         .for_each(|query| {
             let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100);
             results.push(qresults);
-            println!("Dists: {:?}", dists);
         } );
     results
 }

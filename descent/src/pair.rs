@@ -7,7 +7,7 @@ pub struct Pair{
 }
 
 impl Pair {
-    pub(crate) fn new(distance: NonNan, index: usize) -> Pair {
+    pub fn new(distance: NonNan, index: usize) -> Pair {
         Pair { distance, index }
     }
 }

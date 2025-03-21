@@ -9,7 +9,7 @@ use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
 use wide::u64x4;
-use dao::{Dao};
+use dao::{Dao, DataType};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
 use utils::arg_sort_2d;
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     let queries = dao_f32.get_queries().to_vec();
     let data = dao_f32.get_data().to_vec();
 
-    let this_many = 1;
+    let this_many = 10;
 
     let (queries, _rest) = queries.split_at(this_many);
 
@@ -61,16 +61,9 @@ fn main() -> Result<()> {
 
     println!("Doing {:?} queries", queries.len());
 
-    println!("Running timings");
-    let now = Instant::now();
+    println!("Running Queries");
 
-    let results = do_queries(queries,descent,dao_f32.clone());
-
-    let after = Instant::now();
-    println!("Time per query: {} ms", ((after - now).as_millis() as f64) / this_many as f64 );
-
-    show_results(results);
-    show_gt(queries,gt_pairs, dao_f32.clone());
+    do_queries(queries, descent, dao_f32.clone(), &gt_pairs);
 
     Ok(())
 }
@@ -88,6 +81,7 @@ fn first_row(graph: &Descent) {
         .zip(dists.iter())
         .for_each(|pair| { print!("{} d: {} ", pair.0, pair.1 ); })
 }
+
 /* checks that the distances are from low to high in the descent graph */
 fn check_order(graph: &Descent) {
     let heap = &graph.current_graph;
@@ -98,7 +92,7 @@ fn check_order(graph: &Descent) {
         .for_each( |row| {
             let mut val = row.get(0).unwrap();
             for i in row.iter() {
-                if( i < val ) {
+                if i < val {
                     println!("Out of order {:?} !< {:?}", i, val);
                     return;
                 }
@@ -110,57 +104,46 @@ fn check_order(graph: &Descent) {
     println!( "distance order in graph all Ok: checked {}", items_checked );
 }
 
-// fn show_results(results: Vec<Vec<Pair>>) {
-//     results.iter().enumerate().for_each(|(i, row)| {
-//         println!( "num results: {}", row.len());
-//     })
-// }
-
-fn show_results(results: Vec<Vec<Pair>>) {
-    print!( "first few results: " );
+fn show_results(qid : usize, results: &Vec<Pair>) {
+    print!( "first few results for q{}:\t", qid );
     results
         .iter()
-        .for_each( |row| {
-            row
-                .iter()
-                .by_ref()
-                .take(5)
-                .for_each(|pair| { print!("{} d: {} ", pair.index, pair.distance.0 ); })
-        } );
+        .by_ref()
+        .take(5)
+        .for_each(|pair| { print!("{} d: {} ", pair.index, pair.distance.0 ); });
     println!();
 }
 
-fn show_gt(queries: &[Array1<f32>], gt_pairs: Vec<Vec<Pair>>, dao: Rc<Dao<Array1<f32>>>) {
-    print!( "first few GT results: " );
+fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
+    print!( "first few GT results for q{}:\t", qid );
     gt_pairs
+        .get(qid)
+        .unwrap()
         .iter()
-        .for_each( |row| {
-            row
-                .iter()
-                .take(5)
-                .for_each(|pair| {
-                    print!("index: {} dist {} ", pair.index, pair.distance );
-                } )
+        .take(5)
+        .for_each(|pair| {
+            print!("{} d: {} ", pair.index, pair.distance );
         } );
     println!();
 
 }
 
-fn do_queries(
-    queries: &[Array1<f32>],
-    descent: Descent,
-    dao: Rc<Dao<Array1<f32>>>,
-) -> Vec<Vec<Pair>> {
-    let mut results: Vec<Vec<Pair>> = vec![];
-    queries
-        .iter()
-        .for_each(|query| {
-
-            let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100);
+fn do_queries(    queries: &[Array1<f32>],
+                  descent: Descent,
+                  dao: Rc<Dao<Array1<f32>>>,
+                  gt_pairs: &Vec<Vec<Pair>>) {
+    queries.
+        iter().
+        enumerate()
+        .for_each( | (qid,query) | {
+            let now = Instant::now();
+            let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100 );
+            let after = Instant::now();
+            println!("Time per query: {} ms", (after - now).as_millis());
             println!("Dists: {:?}", dists);
-            results.push(qresults);
+            show_results(qid,&qresults);
+            show_gt(qid,gt_pairs);
         } );
-    results
 }
 
 // TODO fix this mess somehow!
@@ -169,9 +152,9 @@ fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
 }
 
 //Returns the nn(k) using Euc as metric for queries
-fn brute_force_all_dists(
-    queries: Vec<Array1<f32>>,
-    data: Vec<Array1<f32>>,
+fn brute_force_all_dists<T: Clone + DataType>(
+    queries: Vec<T>,
+    data: Vec<T>,
 ) -> Vec<Vec<Pair>> {
     queries
         .iter()
@@ -179,7 +162,7 @@ fn brute_force_all_dists(
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map( |it| { Pair::new( NonNan(euc(q, it.1)), it.0 ) } )
+                .map( |it| { Pair::new( NonNan(T::dist(q, it.1)), it.0 ) } )
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs

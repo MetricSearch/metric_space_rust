@@ -104,7 +104,7 @@ fn check_order(graph: &Descent) {
     println!( "distance order in graph all Ok: checked {}", items_checked );
 }
 
-fn show_results(qid : usize, results: &Vec<Pair>) {
+fn show_results(qid : usize, results: Vec<Pair>) {
     print!( "first few results for q{}:\t", qid );
     results
         .iter()
@@ -139,9 +139,10 @@ fn do_queries(    queries: &[Array1<f32>],
             let now = Instant::now();
             let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100 );
             let after = Instant::now();
+            println!("Results for Q{}....", qid);
             println!("Time per query: {} ms", (after - now).as_millis());
             println!("Dists: {:?}", dists);
-            show_results(qid,&qresults);
+            show_results(qid,qresults);
             show_gt(qid,gt_pairs);
         } );
 }
@@ -151,7 +152,7 @@ fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
 }
 
-//Returns the nn(k) using Euc as metric for queries
+//Returns the nn(k)
 fn brute_force_all_dists<T: Clone + DataType>(
     queries: Vec<T>,
     data: Vec<T>,
@@ -170,9 +171,5 @@ fn brute_force_all_dists<T: Clone + DataType>(
         .collect::<Vec<Vec<Pair>>>()
 }
 
-// This is copied from dist which is in Dao/lib.rs and impl DataType for Array1<f32> {
-fn dist(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-}
 
 

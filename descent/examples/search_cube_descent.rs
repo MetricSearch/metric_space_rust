@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use serde::__private::de::borrow_cow_bytes;
 use wide::u64x4;
-use dao::{Dao};
+use dao::{Dao, DataType};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
 use utils::arg_sort_2d;
@@ -53,60 +53,65 @@ fn main() -> Result<()> {
     // let descent = Descent::new(dao_f32.clone(), num_neighbours, true);
 
     let queries = dao_cube.get_queries().to_vec();
-    // let data_bitreps = dao_cube.get_data().to_vec();
+    let data = dao_cube.get_data().to_vec();
 
-    let this_many = 1000;
+    let this_many = 10;
 
     let (queries, _rest) = queries.split_at(this_many);
 
+    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
+
     println!("Doing {:?} queries", queries.len());
 
-    println!("Running timings");
-    let now = Instant::now();
+    println!("Running queries");
 
-    let results = do_queries(queries.to_vec(),descent,dao_cube);
-
-    let after = Instant::now();
-    println!("Time per query: {} ms", ((after - now).as_millis() as f64) / this_many as f64 );
-
-    show_results(results);
+    do_queries(queries.to_vec(),descent,dao_cube.clone(),&gt_pairs);
 
     Ok(())
 }
 
-// fn show_results(results: Vec<Vec<Pair>>) {
-//     let mut dists = 0.0;
-//     results.iter().for_each( |row| row.iter().for_each( |pair| { dists = dists + pair.distance.0 } ) );
-//     println!("Total distance calculations performed: {}", dists); // wrong! this is sum of dists
-// }
-
-fn show_results(results: Vec<Vec<Pair>>) {
-    print!( "first few results: " );
+fn show_results(qid : usize, results: Vec<Pair>) {
+    print!( "first few results for q{}:\t", qid );
     results
         .iter()
-        .for_each( |row| {
-            row
-                .iter()
-                .by_ref()
-                .take(5)
-                .for_each(|pair| { print!("{} {}", pair.distance.0, pair.index); })
-        } );
+        .by_ref()
+        .take(5)
+        .for_each(|pair| { print!("{} d: {} ", pair.index, pair.distance.0 ); });
     println!();
 }
 
+fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
+    print!( "first few GT results for q{}:\t", qid );
+    gt_pairs
+        .get(qid)
+        .unwrap()
+        .iter()
+        .take(5)
+        .for_each(|pair| {
+            print!("{} d: {} ", pair.index, pair.distance );
+        } );
+    println!();
+
+}
+
 fn do_queries(
-    queries_bitreps: Vec<BitVecSimd<[u64x4; 4], 4>>,
+    queries: Vec<BitVecSimd<[u64x4; 4], 4>>,
     descent: Descent,
     dao: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>>,
-)  -> Vec<Vec<Pair>> {
-    let mut results: Vec<Vec<Pair>> = vec![];
-    queries_bitreps
-        .iter()
-        .for_each(|query| {
-            let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100);
-            results.push(qresults);
+    gt_pairs: &Vec<Vec<Pair>>) {
+    queries.
+        iter().
+        enumerate()
+        .for_each( | (qid,query) | {
+            let now = Instant::now();
+            let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100 );
+            let after = Instant::now();
+            println!("Results for Q{}....", qid);
+            println!("Time per query: {} ms", (after - now).as_millis());
+            println!("Dists: {:?}", dists);
+            show_results(qid,qresults);
+            show_gt(qid,gt_pairs);
         } );
-    results
 }
 
 // TODO fix this mess somehow!
@@ -114,15 +119,22 @@ fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
 }
 
-//Returns the nn(k) using Euc as metric for queries
-fn brute_force_all_dists(
-    queries: ArrayView1<Array1<f32>>,
-    data: ArrayView1<Array1<f32>>,
-) -> Vec<Vec<f32>> {
+fn brute_force_all_dists<T: Clone + DataType>(
+    queries: Vec<T>,
+    data: Vec<T>,
+) -> Vec<Vec<Pair>> {
     queries
         .iter()
-        .map(|q| data.iter().map(|d| euc(q, d)).collect())
-        .collect()
+        .map( |q| {
+            let mut pairs = data
+                .iter()
+                .enumerate()
+                .map( |it| { Pair::new( NonNan(T::dist(q, it.1)), it.0 ) } )
+                .collect::<Vec<Pair>>();
+            pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
+            pairs
+        } )
+        .collect::<Vec<Vec<Pair>>>()
 }
 
 

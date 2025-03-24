@@ -193,10 +193,10 @@ fn knn_search_internal<T: Clone + DataType>(
                     .into_iter()
                     .filter_map(|neighbour_index| {
                         if visited_set.contains(&neighbour_index.0) {
+                            None
+                        } else {
                             visited_set.insert(neighbour_index.0);
                             Some(neighbour_index)
-                        } else {
-                            None
                         }
                     })
                     .map(|unseen_neighbour| {

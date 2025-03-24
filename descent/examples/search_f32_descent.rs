@@ -58,12 +58,14 @@ fn main() -> Result<()> {
     let (queries, _rest) = queries.split_at(this_many);
 
 //  let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
+    let nn_table = to_usize(&descent.current_graph.nns);
 
     println!("Doing {:?} queries", queries.len());
 
     println!("Running Queries");
 
-    do_queries(queries, descent, dao_f32.clone(), );//&gt_pairs
+
+    do_queries(queries, descent, dao_f32.clone(), nn_table);//&gt_pairs
 
     Ok(())
 }
@@ -131,13 +133,14 @@ fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
 fn do_queries(    queries: &[Array1<f32>],
                   descent: Descent,
                   dao: Rc<Dao<Array1<f32>>>,//  gt_pairs: &Vec<Vec<Pair>>
+                  nn_table: Vec<Vec<usize>>
                  ) {
     queries.
         iter().
         enumerate()
         .for_each( | (qid,query) | {
         let now = Instant::now();
-            let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100 );
+            let (dists,qresults) = descent.knn_search( query.clone(), &nn_table, dao.clone(), 100 );
            let after = Instant::now();
              println!("Results for Q{}....", qid);
              println!("Time per query: {} ms", (after - now).as_millis());

@@ -105,7 +105,7 @@ impl Descent {
     pub fn knn_search<T: Clone + DataType>(
         &self,
         query: T,
-        nn_table: Vec<Vec<usize>>,
+        nn_table: &Vec<Vec<usize>>,
         dao: Rc<Dao<T>>,
         swarm_size: usize,
     ) -> (usize, Vec<(Pair)>) {
@@ -149,7 +149,7 @@ fn get_entry_point(nn_table: &Vec<Vec<usize>>) -> usize {
  */
 fn knn_search_internal<T: Clone + DataType>(
     query: T,
-    nn_table: Vec<Vec<usize>>,
+    nn_table: &Vec<Vec<usize>>,
     dao: Rc<Dao<T>>,
     entry_point: usize,
     ef: usize,

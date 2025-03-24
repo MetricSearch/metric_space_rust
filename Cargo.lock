@@ -270,6 +270,7 @@ dependencies = [
  "ndarray",
  "rand",
  "rand_chacha",
+ "rayon",
  "rp_forest",
  "serde",
  "serde_json",

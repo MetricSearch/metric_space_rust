@@ -1,2 +1,5 @@
 [net]
 git-fetch-with-cli=true
+
+[target.aarch64-apple-darwin]
+rustflags = ["-Ctarget-cpu=native"]

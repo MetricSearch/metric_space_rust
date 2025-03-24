@@ -30,6 +30,7 @@ pub trait DataType {
     fn dist(a: &Self, b: &Self) -> f32;
 }
 
+
 impl DataType for Array1<f32> {
     fn dot_product(a: &Self, b: &Self) -> f32 {
         assert!(a.len() == b.len());

@@ -32,8 +32,8 @@ fn main() -> Result<()> {
     let f = BufReader::new(File::open(descent_file_name).unwrap());
     let descent: Descent = bincode::deserialize_from(f).unwrap();
 
-    check_order(&descent);
-    first_row(&descent);
+  //  check_order(&descent);
+   // first_row(&descent);
 
     // println!("Serde load code commented out for now");
     // let num_neighbours = 100;
@@ -57,13 +57,13 @@ fn main() -> Result<()> {
 
     let (queries, _rest) = queries.split_at(this_many);
 
-    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
+//  let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
 
     println!("Doing {:?} queries", queries.len());
 
     println!("Running Queries");
 
-    do_queries(queries, descent, dao_f32.clone(), &gt_pairs);
+    do_queries(queries, descent, dao_f32.clone(), );//&gt_pairs
 
     Ok(())
 }
@@ -130,20 +130,20 @@ fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
 
 fn do_queries(    queries: &[Array1<f32>],
                   descent: Descent,
-                  dao: Rc<Dao<Array1<f32>>>,
-                  gt_pairs: &Vec<Vec<Pair>>) {
+                  dao: Rc<Dao<Array1<f32>>>,//  gt_pairs: &Vec<Vec<Pair>>
+                 ) {
     queries.
         iter().
         enumerate()
         .for_each( | (qid,query) | {
-            let now = Instant::now();
+        let now = Instant::now();
             let (dists,qresults) = descent.knn_search( query.clone(), to_usize(&descent.current_graph.nns), dao.clone(), 100 );
-            let after = Instant::now();
-            println!("Results for Q{}....", qid);
-            println!("Time per query: {} ms", (after - now).as_millis());
-            println!("Dists: {:?}", dists);
+           let after = Instant::now();
+             println!("Results for Q{}....", qid);
+             println!("Time per query: {} ms", (after - now).as_millis());
+             println!("Dists: {:?}", dists);
             show_results(qid,qresults);
-            show_gt(qid,gt_pairs);
+            // show_gt(qid,gt_pairs);
         } );
 }
 

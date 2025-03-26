@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use crate::non_nan::NonNan;
 
+#[derive(Clone)]
 pub struct Pair{
     pub distance: NonNan,
     pub index: usize,

@@ -6,7 +6,7 @@ pub mod csv_f32_loader;
 pub mod hdf5_f32_loader;
 mod csv_nn_table_loader;
 pub mod convert_f32_to_cubic;
-mod convert_f32_to_cube_oct;
+pub mod convert_f32_to_cube_oct;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::Result;
@@ -33,7 +33,7 @@ pub trait DataType {
 
 impl DataType for Array1<f32> {
     fn dot_product(a: &Self, b: &Self) -> f32 {
-        assert!(a.len() == b.len());
+        debug_assert!(a.len() == b.len());
         a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 
         // equivalent to:
@@ -46,6 +46,7 @@ impl DataType for Array1<f32> {
 
     /// This is Euc dist
     fn dist(a: &Self, b: &Self) -> f32 {
+        debug_assert!(a.len() == b.len());
         f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
     }
 }

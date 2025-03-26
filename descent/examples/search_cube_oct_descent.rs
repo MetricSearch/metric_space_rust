@@ -11,7 +11,7 @@ use std::time::Instant;
 use serde::__private::de::borrow_cow_bytes;
 use wide::u64x4;
 use dao::{Dao, DataType};
-use dao::convert_f32_to_cubic::to_cubic_dao;
+use dao::convert_f32_to_cube_oct::to_cube_oct_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
 use utils::arg_sort_2d;
 use descent::non_nan::NonNan;
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     let descent_file_name = "_scratch/nn_table_100.bin";
     let rng_star_file_name = "_scratch/rng_table_100.bin";
 
-    println!("cubic search:");
+    println!("cube-oct search:");
     println!("Serde load of Descent");
     let f = BufReader::new(File::open(descent_file_name).unwrap());
     let descent: Descent = bincode::deserialize_from(f).unwrap();
@@ -47,13 +47,13 @@ fn main() -> Result<()> {
         num_queries,
     )?);
 
-    let dao_cube = to_cubic_dao(dao_f32.clone());
+    let dao_cube_oct = to_cube_oct_dao(dao_f32.clone());
 
     let num_neighbours = 100;
     // let descent = Descent::new(dao_f32.clone(), num_neighbours, true);
 
-    let queries = dao_cube.get_queries().to_vec();
-    let data = dao_cube.get_data().to_vec();
+    let queries = dao_cube_oct.get_queries().to_vec();
+    let data = dao_cube_oct.get_data().to_vec();
 
     let this_many = 10;
 
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
 
     println!("Running queries");
 
-    do_queries(queries.to_vec(),descent,dao_cube.clone(),&gt_pairs,nn_table);
+    do_queries(queries.to_vec(), descent, dao_cube_oct.clone(), &gt_pairs, nn_table);
 
     Ok(())
 }

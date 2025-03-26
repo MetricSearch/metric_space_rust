@@ -2,14 +2,12 @@
 //! Transcribed as a learning exercise from PynnDescent.
 
 mod heap;
-pub mod non_nan;
-pub mod pair;
 
 use dao::Dao;
 
 use crate::heap::Heap;
-use crate::non_nan::NonNan;
-use crate::pair::Pair;
+use utils::non_nan::NonNan;
+use utils::pair::Pair;
 use dao::DataType;
 use itertools::Itertools;
 use rand::Rng;
@@ -20,10 +18,12 @@ use rp_forest::tree::RPForest;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
 use std::cmp::{min, Ordering};
-use std::collections::{BTreeSet, BinaryHeap};
+use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::fmt::Debug;
+use std::hash::BuildHasherDefault;
 use std::iter;
 use std::rc::Rc;
+use twox_hash::{XxHash3_64, XxHash64};
 use utils::arg_sort;
 
 #[derive(Serialize, Deserialize)]
@@ -154,7 +154,7 @@ fn knn_search_internal<T: Clone + DataType>(
     entry_point: usize,
     ef: usize,
 ) -> (usize, Vec<Pair>) {
-    let mut visited_set: BTreeSet<usize> = BTreeSet::new();
+    let mut visited_set: HashSet<usize,BuildHasherDefault<XxHash64>> = HashSet::default();
 
     let ep_q_dist = NonNan(T::dist(&query, dao.get_datum(entry_point)));
 

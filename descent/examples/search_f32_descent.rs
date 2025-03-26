@@ -12,10 +12,10 @@ use wide::u64x4;
 use dao::{Dao, DataType};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
-use utils::arg_sort_2d;
-use descent::non_nan::NonNan;
+use utils::{arg_sort_2d, ndcg};
+use utils::non_nan::NonNan;
 use descent::{Descent};
-use descent::pair::Pair;
+use utils::pair::Pair;
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
 
     let (queries, _rest) = queries.split_at(this_many);
 
-//  let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
+    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
     let nn_table = to_usize(&descent.current_graph.nns);
 
     println!("Doing {:?} queries", queries.len());
@@ -65,7 +65,7 @@ fn main() -> Result<()> {
     println!("Running Queries");
 
 
-    do_queries(queries, descent, dao_f32.clone(), nn_table);//&gt_pairs
+    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table);
 
     Ok(())
 }
@@ -106,7 +106,7 @@ fn check_order(graph: &Descent) {
     println!( "distance order in graph all Ok: checked {}", items_checked );
 }
 
-fn show_results(qid : usize, results: Vec<Pair>) {
+fn show_results(qid : usize, results: &Vec<Pair>) {
     print!( "first few results for q{}:\t", qid );
     results
         .iter()
@@ -132,21 +132,32 @@ fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
 
 fn do_queries(    queries: &[Array1<f32>],
                   descent: Descent,
-                  dao: Rc<Dao<Array1<f32>>>,//  gt_pairs: &Vec<Vec<Pair>>
+                  dao: Rc<Dao<Array1<f32>>>,
+                  gt_pairs: &Vec<Vec<Pair>>,
                   nn_table: Vec<Vec<usize>>
                  ) {
     queries.
         iter().
         enumerate()
         .for_each( | (qid,query) | {
-        let now = Instant::now();
+            let now = Instant::now();
             let (dists,qresults) = descent.knn_search( query.clone(), &nn_table, dao.clone(), 100 );
-           let after = Instant::now();
-             println!("Results for Q{}....", qid);
-             println!("Time per query: {} ms", (after - now).as_millis());
-             println!("Dists: {:?}", dists);
-            show_results(qid,qresults);
-            // show_gt(qid,gt_pairs);
+            let after = Instant::now();
+            println!("Results for Q{}....", qid);
+            println!("Time per query: {} ns", (after - now).as_nanos());
+            println!("Number of results = {} ", qresults.len() );
+            println!("Dists: {:?}", dists);
+            show_results(qid,&qresults);
+            show_gt(qid,gt_pairs);
+
+            println!( "DCG: {}", ndcg(&qresults,
+                                      &gt_pairs
+                                          .get(qid)
+                                          .unwrap()
+                                          [0..99].into() ) );
+                                          // .into_iter()
+                                          // .take(100)
+                                          // .collect::<Vec<Pair>>() ) );
         } );
 }
 

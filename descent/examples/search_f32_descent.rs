@@ -149,15 +149,11 @@ fn do_queries(    queries: &[Array1<f32>],
             println!("Dists: {:?}", dists);
             show_results(qid,&qresults);
             show_gt(qid,gt_pairs);
-
             println!( "DCG: {}", ndcg(&qresults,
                                       &gt_pairs
                                           .get(qid)
                                           .unwrap()
                                           [0..99].into() ) );
-                                          // .into_iter()
-                                          // .take(100)
-                                          // .collect::<Vec<Pair>>() ) );
         } );
 }
 

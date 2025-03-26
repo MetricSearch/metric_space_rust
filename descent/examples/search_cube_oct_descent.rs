@@ -13,10 +13,10 @@ use wide::u64x4;
 use dao::{Dao, DataType};
 use dao::convert_f32_to_cube_oct::to_cube_oct_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
-use utils::arg_sort_2d;
-use descent::non_nan::NonNan;
+use utils::{arg_sort_2d, ndcg};
+use utils::non_nan::NonNan;
 use descent::{Descent};
-use descent::pair::Pair;
+use utils::pair::Pair;
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn show_results(qid : usize, results: Vec<Pair>) {
+fn show_results(qid : usize, results: &Vec<Pair>) {
     print!( "first few results for q{}:\t", qid );
     results
         .iter()
@@ -111,9 +111,15 @@ fn do_queries(
             let after = Instant::now();
             println!("Results for Q{}....", qid);
             println!("Time per query: {} ns", (after - now).as_nanos());
+            println!("Number of results = {} ", qresults.len() );
             println!("Dists: {:?}", dists);
-            show_results(qid,qresults);
+            show_results(qid,&qresults);
             show_gt(qid,gt_pairs);
+            println!( "DCG: {}", ndcg(&qresults,
+                                      &gt_pairs
+                                          .get(qid)
+                                          .unwrap()
+                                          [0..99].into() ) );
         } );
 }
 

@@ -13,10 +13,10 @@ use wide::u64x4;
 use dao::{Dao, DataType};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
-use utils::arg_sort_2d;
-use descent::non_nan::NonNan;
+use utils::{arg_sort_2d, ndcg};
+use utils::non_nan::NonNan;
 use descent::{Descent};
-use descent::pair::Pair;
+use utils::pair::Pair;
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -33,10 +33,6 @@ fn main() -> Result<()> {
     let f = BufReader::new(File::open(descent_file_name).unwrap());
     let descent: Descent = bincode::deserialize_from(f).unwrap();
 
-    // println!("Serde load code commented out for now");
-    // let num_neighbours = 100;
-    // let descent = Descent::new(dao.clone(), num_neighbours, true);
-
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
@@ -50,7 +46,6 @@ fn main() -> Result<()> {
     let dao_cube = to_cubic_dao(dao_f32.clone());
 
     let num_neighbours = 100;
-    // let descent = Descent::new(dao_f32.clone(), num_neighbours, true);
 
     let queries = dao_cube.get_queries().to_vec();
     let data = dao_cube.get_data().to_vec();
@@ -72,7 +67,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn show_results(qid : usize, results: Vec<Pair>) {
+fn show_results(qid : usize, results: &Vec<Pair>) {
     print!( "first few results for q{}:\t", qid );
     results
         .iter()
@@ -111,9 +106,15 @@ fn do_queries(
             let after = Instant::now();
             println!("Results for Q{}....", qid);
             println!("Time per query: {} ns", (after - now).as_nanos());
+            println!("Number of results = {} ", qresults.len() );
             println!("Dists: {:?}", dists);
-            show_results(qid,qresults);
+            show_results(qid,&qresults);
             show_gt(qid,gt_pairs);
+            println!( "DCG: {}", ndcg(&qresults,
+                                      &gt_pairs
+                                          .get(qid)
+                                          .unwrap()
+                                          [0..99].into() ) );
         } );
 }
 

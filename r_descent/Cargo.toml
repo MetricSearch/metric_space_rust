@@ -1,0 +1,28 @@
+[package]
+name = "r_descent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+descent = {path="../descent"}
+dao = {path="../dao"}
+array2d = "0.3.2"
+randperm-crt = "0.3.0"
+utils = {path="../utils"}
+bits = {path="../bits"}
+metrics = {path="../metrics"}
+ndarray = { version="0.16.1", features=["serde"] }
+serde = "1.0.217"
+serde_json = "1.0"
+anyhow = "1.0.94"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+bitvec_simd = "0.20.5"
+wide = "0.7.32"
+rand_chacha = "0.3.1"
+rand = "0.8.5"
+itertools = "0.13.0"
+bincode = "1.3.3"
+rayon = "1.10.0"
+twox-hash = "2.1.0"

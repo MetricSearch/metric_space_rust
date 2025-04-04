@@ -78,6 +78,24 @@ pub struct Dao<DataRep: Clone> {
     pub num_queries: usize,          // the size of the queries (a subset of the total data)
     pub embeddings: Array1<DataRep>, // the data and queries
 }
+//
+// pub struct DaoTom<StorageFormat: Clone> {
+//     pub meta: DaoMetaData,           // The meta data for this dao
+//     pub num_data: usize,             // the size of the data (a subset of the total data)
+//     pub num_queries: usize,          // the size of the queries (a subset of the total data)
+//     pub embeddings: StorageFormat,        // the data and queries
+// }
+//
+// pub trait DaoOps<StorageFormat: Clone,Encoding: Clone + DataType> {
+//     fn get_dim(&self) -> usize;
+// }
+//
+// impl <StorageFormat: Clone, Encoding: Clone + DataType> DaoOps<StorageFormat,Encoding> for DaoTom<StorageFormat> {
+//     fn get_dim(&self) -> usize { 6 }
+//     fn get_datum(&self, id: usize) -> &StorageFormat {
+//         &self.embeddings[id]
+//     }
+// }
 
 impl<T: Clone + DataType> Dao<T> {
     // pub fn new(dir_name: &str) -> Self {
@@ -104,7 +122,7 @@ impl<T: Clone + DataType> Dao<T> {
     }
 
     pub fn get_query(&self, id: usize) -> &T {
-        if id < self.num_data && id >= self.meta.num_records {
+        if id >= self.num_queries {
             panic!("id out of bounds");
         }
         self.embeddings.get(self.num_data + id).unwrap()
@@ -116,7 +134,7 @@ impl<T: Clone + DataType> Dao<T> {
     }
 
     pub fn get_queries(&self) -> ArrayView1<T> {
-        let queries = self.embeddings.slice(s![self.num_queries..]);
+        let queries = self.embeddings.slice(s![self.num_data..]);
         queries
     }
 }

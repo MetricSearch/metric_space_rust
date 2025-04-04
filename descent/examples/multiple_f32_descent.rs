@@ -1,17 +1,18 @@
-use std::collections::HashSet;
 use anyhow::Result;
 use bits::{f32_data_to_cubic_bitrep, hamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
-use ndarray::{Array1};
+use ndarray::{s, Array1, ArrayView1};
 //use rayon::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
+use wide::u64x4;
 use dao::{Dao, DataType};
+use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
-use utils::{ndcg};
+use utils::{arg_sort_2d, ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};
 use utils::pair::Pair;
@@ -32,7 +33,7 @@ fn main() -> Result<()> {
     let descent: Descent = bincode::deserialize_from(f).unwrap();
 
   //  check_order(&descent);
-    first_row(&descent);
+   // first_row(&descent);
 
     // println!("Serde load code commented out for now");
     // let num_neighbours = 100;
@@ -47,7 +48,16 @@ fn main() -> Result<()> {
         num_queries,
     )?);
 
-    let swarm_size = 100;
+    let mut swarm_size = 100;
+
+    while swarm_size > 0 {
+        run_with_swarm(&descent, dao_f32.clone(), swarm_size);
+        swarm_size = swarm_size - 10;
+    }
+    Ok(())
+}
+
+fn run_with_swarm(descent: &Descent, dao_f32: Rc<Dao<Array1<f32>>>, swarm_size: usize) {
 
     let queries = dao_f32.get_queries().to_vec();
     let data = dao_f32.get_data().to_vec();
@@ -61,16 +71,14 @@ fn main() -> Result<()> {
 
     println!("NNtable columns active {:?}", swarm_size);
 
-    let nn_table = reduce_columns_to( nn_table,swarm_size );
+    let nn_table = reduce_columns_to(nn_table, swarm_size);
 
     println!("Doing {:?} queries", queries.len());
 
     println!("Running Queries");
 
 
-    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table, swarm_size );
-
-    Ok(())
+    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table, swarm_size);
 }
 
 fn reduce_columns_to(nn_table: Vec<Vec<usize>>, num_columns: usize) -> Vec<Vec<usize>> {
@@ -140,44 +148,12 @@ fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
 
 }
 
-fn show_results_and_gt(qid: usize, results: &Vec<Pair>, gt_pairs: &Vec<Pair>) {
-    println!( "All results and GT for q{}:\t", qid );
-    results
-        .iter()
-        .zip(gt_pairs.iter())
-        .for_each( |result_gt_pair| {
-            let result = result_gt_pair.0;
-            let gt = result_gt_pair.1;
-            println!("result:\t{},{}\ngt:\t{},{}", result.index, result.distance, gt.index, gt.distance ); });
-
-    let number_same = results
-        .iter()
-        .zip(gt_pairs.iter())
-        .filter( |result_gt_pair| {
-            let result = result_gt_pair.0;
-            let gt = result_gt_pair.1;
-            result.index == gt.index
-            } )
-        .count();
-    println!( "Matches {}", number_same );
-
-    let gt_indexes = gt_pairs.iter().map(|gt_pair| gt_pair.index).collect::<HashSet<usize>>();
-
-    let intersection = results
-        .iter()
-        .map( |pair| pair.index )
-        .filter( |index| {gt_indexes.contains(index)})
-        .count();
-
-    println!( "Intersection {}", intersection );
-}
-
-fn do_queries(    queries: &[Array1<f32>],
-                  descent: Descent,
-                  dao: Rc<Dao<Array1<f32>>>,
-                  gt_pairs: &Vec<Vec<Pair>>,
-                  nn_table: Vec<Vec<usize>>,
-                  swarm_size: usize,
+fn do_queries(queries: &[Array1<f32>],
+              descent: &Descent,
+              dao: Rc<Dao<Array1<f32>>>,
+              gt_pairs: &Vec<Vec<Pair>>,
+              nn_table: Vec<Vec<usize>>,
+              swarm_size: usize,
                  ) {
     queries.
         iter().
@@ -192,19 +168,13 @@ fn do_queries(    queries: &[Array1<f32>],
             print!("{:?}\t", dists);
             // show_results(qid,&qresults);
             // show_gt(qid,gt_pairs);
-            show_results_and_gt(qid,&qresults,gt_pairs.get(qid).unwrap());
             println!( "{}", ndcg(&qresults,
                                       &gt_pairs
                                           .get(qid)
                                           .unwrap()
                                           [0..swarm_size-1].into() ) );
-            // print!("Results:");
-            // qresults
-            //     .iter()
-            //     .for_each( | result | { println!("{} @dist {}", result.index, result.distance); } );
         } );
 }
-
 
 // TODO fix this mess somehow!
 fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {

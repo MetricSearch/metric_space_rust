@@ -2,6 +2,7 @@
 pub mod non_nan;
 pub mod pair;
 
+use ndarray::{Array2, ArrayView, Axis, Ix1,};
 use rand_distr::num_traits::Pow;
 use crate::pair::Pair;
 use crate::non_nan::NonNan;
@@ -15,6 +16,18 @@ pub fn arg_sort_2d<T: PartialOrd + Copy>(dists: Vec<Vec<T>>) -> (Vec<Vec<usize>>
 
             enumerated.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
 
+            enumerated.into_iter().unzip()
+        })
+        .collect()
+}
+
+// Converts vectors of distances into vectors of indices and distances
+pub fn arg_sort_array2(dists: Array2<f32>) -> (Vec<Vec<usize>>, Vec<Vec<f32>>) {
+    dists
+        .axis_iter(Axis(0))
+        .map(|row: ArrayView<f32,Ix1> | {
+            let mut enumerated  = row.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
+            enumerated.sort_by(|a, b| NonNan(*a.1).partial_cmp(&NonNan(*b.1)).unwrap());
             enumerated.into_iter().unzip()
         })
         .collect()

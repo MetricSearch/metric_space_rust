@@ -1,17 +1,19 @@
-use std::collections::HashSet;
 use anyhow::Result;
-use bits::{f32_data_to_cubic_bitrep, hamming_distance};
+use bits::{f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, hamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
-use ndarray::{Array1};
+use ndarray::{s, Array1, ArrayView1};
 //use rayon::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
+use wide::u64x4;
 use dao::{Dao, DataType};
+use dao::convert_f32_to_cubic::to_cubic_dao;
+use dao::convert_f32_to_cube_oct::to_cube_oct_dao;
 use dao::csv_f32_loader::dao_from_csv_dir;
-use utils::{ndcg};
+use utils::{arg_sort_2d, ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};
 use utils::pair::Pair;
@@ -26,31 +28,48 @@ fn main() -> Result<()> {
     let descent_file_name = "_scratch/nn_table_100.bin";
     let rng_star_file_name = "_scratch/rng_table_100.bin";
 
-    println!("f32 search");
+    println!("Poly search");
     println!("Serde load of Descent");
     let f = BufReader::new(File::open(descent_file_name).unwrap());
     let descent: Descent = bincode::deserialize_from(f).unwrap();
 
-  //  check_order(&descent);
-    first_row(&descent);
-
-    // println!("Serde load code commented out for now");
-    // let num_neighbours = 100;
-    // let descent = Descent::new(dao.clone(), num_neighbours, true);
-
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
+
     let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
         data_file_name,
         num_data,
         num_queries,
     )?);
 
-    let swarm_size = 100;
+    let dao_cube = to_cubic_dao(dao_f32.clone());
+    let dao_cube_oct = to_cube_oct_dao(dao_f32.clone());
 
-    let queries = dao_f32.get_queries().to_vec();
-    let data = dao_f32.get_data().to_vec();
+    let swarm_size = 100;
+    let nn_table_size = 100;
+
+    println!("f32:");
+    run_with_dao(&descent, dao_f32.clone(), swarm_size, nn_table_size);
+    println!("cube:");
+    run_with_dao(&descent, dao_cube.clone(), swarm_size, nn_table_size);
+    println!("cube oct:");
+    run_with_dao(&descent, dao_cube_oct.clone(), swarm_size, nn_table_size);
+
+    Ok(())
+}
+
+fn run_with_dao<T: Clone + DataType>(descent: &Descent, dao: Rc<Dao<T>>, mut swarm_size: usize, nn_table_size: usize) {
+    while swarm_size > 0 {
+        run_with_swarm(&descent, dao.clone(), swarm_size, nn_table_size);
+        swarm_size = swarm_size - 10;
+    }
+}
+
+fn run_with_swarm<T: Clone + DataType>(descent: &Descent, dao: Rc<Dao<T>>, swarm_size: usize, mut nn_table_size: usize) {
+
+    let queries = dao.get_queries().to_vec();
+    let data = dao.get_data().to_vec();
 
     let this_many_queries = 10;
 
@@ -59,18 +78,17 @@ fn main() -> Result<()> {
     let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
     let nn_table = to_usize(&descent.current_graph.nns);
 
-    println!("NNtable columns active {:?}", swarm_size);
+    println!("NNtable columns active {:?}", nn_table_size);
+    println!("Swarm size {:?}", swarm_size);
 
-    let nn_table = reduce_columns_to( nn_table,swarm_size );
+    let nn_table = reduce_columns_to(nn_table, nn_table_size);
 
     println!("Doing {:?} queries", queries.len());
 
     println!("Running Queries");
 
 
-    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table, swarm_size );
-
-    Ok(())
+    do_queries(queries, descent, dao.clone(), &gt_pairs, nn_table, swarm_size);
 }
 
 fn reduce_columns_to(nn_table: Vec<Vec<usize>>, num_columns: usize) -> Vec<Vec<usize>> {
@@ -140,44 +158,12 @@ fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
 
 }
 
-fn show_results_and_gt(qid: usize, results: &Vec<Pair>, gt_pairs: &Vec<Pair>) {
-    println!( "All results and GT for q{}:\t", qid );
-    results
-        .iter()
-        .zip(gt_pairs.iter())
-        .for_each( |result_gt_pair| {
-            let result = result_gt_pair.0;
-            let gt = result_gt_pair.1;
-            println!("result:\t{},{}\ngt:\t{},{}", result.index, result.distance, gt.index, gt.distance ); });
-
-    let number_same = results
-        .iter()
-        .zip(gt_pairs.iter())
-        .filter( |result_gt_pair| {
-            let result = result_gt_pair.0;
-            let gt = result_gt_pair.1;
-            result.index == gt.index
-            } )
-        .count();
-    println!( "Matches {}", number_same );
-
-    let gt_indexes = gt_pairs.iter().map(|gt_pair| gt_pair.index).collect::<HashSet<usize>>();
-
-    let intersection = results
-        .iter()
-        .map( |pair| pair.index )
-        .filter( |index| {gt_indexes.contains(index)})
-        .count();
-
-    println!( "Intersection {}", intersection );
-}
-
-fn do_queries(    queries: &[Array1<f32>],
-                  descent: Descent,
-                  dao: Rc<Dao<Array1<f32>>>,
-                  gt_pairs: &Vec<Vec<Pair>>,
-                  nn_table: Vec<Vec<usize>>,
-                  swarm_size: usize,
+fn do_queries<T: Clone + DataType>(queries: &[T],
+              descent: &Descent,
+              dao: Rc<Dao<T>>,
+              gt_pairs: &Vec<Vec<Pair>>,
+              nn_table: Vec<Vec<usize>>,
+              swarm_size: usize,
                  ) {
     queries.
         iter().
@@ -186,25 +172,20 @@ fn do_queries(    queries: &[Array1<f32>],
             let now = Instant::now();
             let (dists,qresults) = descent.knn_search( query.clone(), &nn_table, dao.clone(), swarm_size );
             let after = Instant::now();
-            print!("Q{} swarm, time, dists, dcg\t", qid);
+            print!("Q{} swarm_size, nn_table_size, time, dists, dcg\t", qid);
             print!("{}\t", qresults.len() );
+            print!("{}\t", nn_table.get(0).unwrap().len() );
             print!("{}\t", (after - now).as_nanos());
             print!("{:?}\t", dists);
             // show_results(qid,&qresults);
             // show_gt(qid,gt_pairs);
-            show_results_and_gt(qid,&qresults,gt_pairs.get(qid).unwrap());
             println!( "{}", ndcg(&qresults,
                                       &gt_pairs
                                           .get(qid)
                                           .unwrap()
                                           [0..swarm_size-1].into() ) );
-            // print!("Results:");
-            // qresults
-            //     .iter()
-            //     .for_each( | result | { println!("{} @dist {}", result.index, result.distance); } );
         } );
 }
-
 
 // TODO fix this mess somehow!
 fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
@@ -229,6 +210,7 @@ fn brute_force_all_dists<T: Clone + DataType>(
         } )
         .collect::<Vec<Vec<Pair>>>()
 }
+
 
 
 

@@ -1,10 +1,9 @@
 //! This implementation of the Descent algorithm in Rust
 //! Transcribed as a learning exercise from PynnDescent.
 
-mod heap;
+pub mod heap;
 
 use dao::Dao;
-
 use crate::heap::Heap;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
@@ -17,13 +16,13 @@ use rayon::prelude::*;
 use rp_forest::tree::RPForest;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
-use std::cmp::{min, Ordering};
-use std::collections::{BTreeSet, BinaryHeap, HashSet};
+use std::cmp::{min};
+use std::collections::{BinaryHeap, HashSet};
 use std::fmt::Debug;
 use std::hash::BuildHasherDefault;
 use std::iter;
 use std::rc::Rc;
-use twox_hash::{XxHash3_64, XxHash64};
+use twox_hash::{XxHash64};
 use utils::arg_sort;
 
 #[derive(Serialize, Deserialize)]
@@ -108,11 +107,11 @@ impl Descent {
         nn_table: &Vec<Vec<usize>>,
         dao: Rc<Dao<T>>,
         swarm_size: usize,
-    ) -> (usize, Vec<(Pair)>) {
+    ) -> (usize, Vec<Pair>) {
         let entry_point_simple = get_entry_point(&nn_table);
         //println!("getting entry point");
         let entry_point_good = find_good_entry_point(&query, dao.clone(), 100);
-        println!("doing search with: {entry_point_simple} {entry_point_good}");
+        // println!("doing search with: {entry_point_simple} {entry_point_good}");
         return knn_search_internal(query, nn_table, dao, entry_point_simple, swarm_size);
     }
 }

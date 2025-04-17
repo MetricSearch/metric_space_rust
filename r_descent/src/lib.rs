@@ -2,12 +2,12 @@
 
 use std::cmp::Ordering;
 use std::rc::Rc;
-use ndarray::{Array, Array1, Array2, Axis, IndexLonger, Ix1, Order};
+use ndarray::{s, Array, Array1, Array2, Axis, IndexLonger, Ix1, Order};
 use dao::{Dao};
 use rand_chacha::rand_core::SeedableRng;
 use randperm_crt::{Permutation, RandomPermutation};
 use serde::{Deserialize, Serialize};
-use utils::arg_sort_array2;
+use utils::{arg_sort_array2, index_of_min, minimum_in};
 use utils::non_nan::NonNan;
 
 #[derive(Serialize, Deserialize)]
@@ -61,10 +61,11 @@ pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Vec<usize> {
     let perm = RandomPermutation::new(drawn_from as u64).unwrap();
     perm.iter().take(how_many).map(|x| x as usize).collect::<Vec<usize>>()
 }
-pub fn vecvec_to_ndarray<T>(v: Vec<Vec<T>>) -> Array2<T> {
+pub fn vecvec_to_ndarray(v: Vec<Array1<f32>>) -> Array2<f32> {
     let rows = v.len();
     let columns = v[0].len();
-    let mut array = Array2::<T>::default((rows, columns));
+
+    let mut array : Array2<f32> = Array2::default((rows, columns));
     for (i, mut row) in array.axis_iter_mut(Axis(0)).enumerate() {
         for (j, col) in row.iter_mut().enumerate() {
             *col = v[i][j];
@@ -123,7 +124,7 @@ pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighb
     (result_indices, result_sims)
 }
 
-pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, neighbours: Vec<Vec<usize>>, similarities: Vec<Vec<f32>>, num_neighbours: usize,
+pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, mut similarities: Vec<Vec<f32>>, num_neighbours: usize,
                    k: usize, rho: f64, delta: f64 , reverse_list_size: usize ) {
     let num_data = dao.num_data;
     let data = &dao.get_data();
@@ -212,15 +213,15 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, neighbours: Vec<Vec<usize>>, simil
 
         // phase 3
 
-        let c = 0;
+        let mut c = 0;
 
         for row in 0..num_data {
 
             // was matlab nonzeros(A): returns a full column vector of the nonzero elements in A. The elements in v are ordered by columns.
 
-            let old_row = old[row].iter().filter(|v| **v != 0).collect::<Vec<&usize>>();
-            let new_row = new[row].iter().filter(|v| **v != 0).collect::<Vec<&usize>>();
-            let mut prime_row = reverse[row].iter().filter(|v| **v != 0).collect::<Vec<&usize>>();
+            let old_row: Vec<usize> = old[row].iter().filter(|v| **v != 0).map(|x| *x ).collect::<Vec<usize>>();
+            let new_row: Vec<usize> = new[row].iter().filter(|v| **v != 0).map(|x| *x ).collect::<Vec<usize>>();
+            let mut prime_row: Vec<usize> = reverse[row].iter().filter(|&&v| v != 0).map(|x| *x ).collect::<Vec<usize>>();
 
             if rho < 1.0 {
                 // randomly shorten the prime_row vector
@@ -228,15 +229,16 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, neighbours: Vec<Vec<usize>>, simil
             }
             let new_row_union: Vec<usize> =
                 if !new_row.is_empty() {
-                    [&new_row[..], &prime_row[..]].concat()
+                    new_row.iter().copied().chain(prime_row.iter().copied()).collect()
                 } else {
                     vec![]
                 };
 
-            // TODO these could well be wrong!!
-            let old_data = old_row.iter().map(|i| dao.get_datum(**i)).collect::<Vec<Vec<f32>>>();
-            let new_data = new_row.iter().map(|i| dao.get_datum(**i)).collect::<Vec<Vec<f32>>>();
-            let new_union_data = new_row_union.iter().map(|i| dao.get_datum(**i)).collect::<Vec<Vec<f32>>>();
+            // ***** This seems to need lots of copying of the data  - once to make new_union_data and again in vecvec_to_ndarray.
+
+            let old_data  = old_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
+            let new_data  = new_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
+            let new_union_data  = new_row_union.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
 
             // need new_union_data as a Matrix...
             let new_union_data = vecvec_to_ndarray(new_union_data);
@@ -246,90 +248,92 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, neighbours: Vec<Vec<usize>>, simil
             // separate for loops for the two distance tables...
             // for each pair of elements in the newNew list, their original ids
 
-            // THIS IS LINE 146 of the text that is in richard_build_nns.txt (in matlab folder) and also below..
+            for newInd1 in 0 .. new_union_data.len() {
+                let u1_id = new_row_union[newInd1];
 
+                for newInd2 in newInd1 + 1 .. new_union_data.len() {
+                    let u2_id = new_row_union[newInd2];
+                    // then get their similarity from the matrix
+                    let this_sim = similarities[newInd1][newInd2];
+                    // is the current similarity greater than the biggest distance
+                    // in the row for u1Id? if it's not, then do nothing
+
+                    if this_sim > global_mins[u1_id] {
+                        // if it is, then u2_id actually can't already be there
+                        if neighbours[u1_id].iter().any(|x| *x == u2_id) {
+                            // THIS IS LINE 157 of the text that is in richard_build_nns.txt (in matlab folder) and also below..
+                            let wh = index_of_min( &similarities[u1_id] );
+                            neighbours[u1_id][wh] = u2_id;
+                            nn_new_flags[u1_id][wh] = true;
+                            similarities[u1_id][wh] = this_sim;
+                            global_mins[u1_id] = minimum_in(&similarities[u1_id]);
+                            c = c + 1;
+                        }
+                    }
+                    // line 167
+
+                    if global_mins[u2_id] < this_sim {
+                        if neighbours[u2_id].iter().any(|x| *x == u1_id) {
+                            let wh = index_of_min( &similarities[u2_id] );
+                            neighbours[u2_id][wh] = u1_id;
+                            nn_new_flags[u2_id][wh] = true;
+                            similarities[u2_id][wh] = this_sim;
+                            global_mins[u2_id] = minimum_in(&similarities[u2_id] );
+                            c = c + 1;
+                        }
+                    }
+                }
+            } // matches start 146 in matlab
+            // line 179
+
+            // now do the news vs the olds, no reverse links
+            // newOldSims = newData * oldData';
+
+            // TODO Look at this very expensive!!!!
+            let new_old_sims = vecvec_to_ndarray(new_data).dot(&vecvec_to_ndarray(old_data).t());
+            // and do the same for each pair of elements in the newRow/oldRow
+
+            for new_ind1 in 0 .. new_row.len() {
+                let u1_id = new_row[new_ind1];
+
+                for new_ind2 in new_ind1 + 1..old_row.len() {
+                    let u2_id = old_row[new_ind2];
+                    // then get their distance from the matrix
+                    let this_sim = new_old_sims.get((new_ind1,new_ind2)).unwrap().clone();
+                    // is the current distance greater than the biggest distance
+                    // in the row for u1Id? if it's not, then do nothing
+
+                    if this_sim > global_mins[u1_id] {
+                        // if it is, then u2Id actually can't already be there
+                        if neighbours[u1_id].iter().any(|x| *x == u2_id) {
+                            let wh = index_of_min(&similarities[u1_id]);
+                            neighbours[u1_id][wh] = u2_id;
+                            similarities[u1_id][wh] = this_sim;
+                            nn_new_flags[u1_id][wh] = true;
+                            global_mins[u1_id] = minimum_in(&similarities[u1_id]);
+                            c = c + 1;
+                        }
+                    }
+
+                    if this_sim > global_mins[u2_id] {
+                        if neighbours[u2_id].iter().any(|x| *x == u1_id) {
+                            let wh = index_of_min(&similarities[u2_id]);
+                            neighbours[u2_id][wh] = u1_id;
+                            similarities[u2_id][wh] = this_sim;
+                            nn_new_flags[u2_id][wh] = true;
+                            global_mins[u2_id] = minimum_in(&similarities[u2_id]);
+                            c = c + 1;
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-/*
-				for newInd1 = 1 : length(newRowUnion) - 1
-					u1Id = newRowUnion(newInd1);
 
-					for newInd2 = newInd1 + 1 : length(newRowUnion)
-						u2Id = newRowUnion(newInd2);
-						% then get their similarity from the matrix
-						thisSim = newNewSims(newInd1,newInd2);
-						% is the current similarity greater than the biggest distance
-						% in the row for u1Id? if it's not, then do nothing
 
-						if thisSim > globalMinsInB(u1Id)
-							% if it is, then u2Id actually can't already be there
-							if sum(B(u1Id,:) == u2Id) == 0
-								[~,wh] = min(nnSims(u1Id,:));
-								B(u1Id,wh) = u2Id;
-								nnNewFlags(u1Id,wh) = true;
-								nnSims(u1Id,wh) = thisSim;
-								globalMinsInB(u1Id) = min(nnSims(u1Id,:));
-								c = c + 1;
-							end
-						end
 
-						if globalMinsInB(u2Id) < thisSim
-							if sum(B(u2Id,:) == u1Id) == 0
-								[~,wh] = min(nnSims(u2Id,:));
-								B(u2Id,wh) = u1Id;
-								nnNewFlags(u2Id,wh) = true;
-								nnSims(u2Id,wh) = thisSim;
-								globalMinsInB(u2Id) = min(nnSims(u2Id,:));
-								c = c + 1;
-							end
-						end
-					end
-				end // start 146
-
-				%now do the news vs the olds, no reverse links
-				newOldSims = newData * oldData';
-				%and do the same for each pair of elements in the newRow/oldRow
-
-				for newInd1 = 1 : length(newRow)
-					u1Id = newRow(newInd1);
-					for newInd2 = 1 : length(oldRow)
-						u2Id = oldRow(newInd2);
-						% then get their distance from the matrix
-						thisSim = newOldSims(newInd1,newInd2);
-						% is the current distance greater than the biggest distance
-						% in the row for u1Id? if it's not, then do nothing
-						if thisSim > globalMinsInB(u1Id)
-							% if it is, then u2Id actually can't already be there
-							if sum(B(u1Id,:) == u2Id) == 0
-								[~,wh] = min(nnSims(u1Id,:));
-								B(u1Id,wh) = u2Id;
-								nnSims(u1Id,wh) = thisSim;
-								nnNewFlags(u1Id,wh) = true;
-								globalMinsInB(u1Id) = min(nnSims(u1Id,:));
-								c = c + 1;
-							end
-						end
-
-						if thisSim > globalMinsInB(u2Id)
-							if sum(B(u2Id,:) == u1Id) == 0
-								[~,wh] = min(nnSims(u2Id,:));
-								B(u2Id,wh) = u1Id;
-								nnSims(u2Id,wh) = thisSim;
-								nnNewFlags(u2Id,wh) = true;
-								globalMinsInB(u2Id) = min(nnSims(u2Id,:));
-								c = c + 1;
-							end // start at 206
-						end // end of 205
-					end // 187 start
-		    end // line 185
-	    end
-	    phaseTimes(3,iters) = toc(phase3timer);
-    end
-end
-
- */
 
 
 

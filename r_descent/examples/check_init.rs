@@ -13,7 +13,7 @@ use dao::csv_f32_loader::dao_from_csv_dir;
 use utils::{ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};
-use r_descent::initialise_table;
+use r_descent::{getNNtable2, initialise_table};
 use utils::pair::Pair;
 
 
@@ -37,8 +37,16 @@ fn main() -> Result<()> {
 
     let (ords,dists) = initialise_table( dao_f32.clone(),100,10 );
 
-    show(ords,dists);
+    // show(ords,dists);
 
+    getNNtable2(dao_f32.clone(),
+                ords,
+                dists,
+                10,
+                16,
+                1.0,
+                0.01,
+                5 );
 
     Ok(())
 }

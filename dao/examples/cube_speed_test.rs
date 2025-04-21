@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use wide::u64x4;
 use dao::{Dao};
-use dao::csv_f32_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::{dao_from_csv_dir};
 use utils::arg_sort_2d;
 //use divan::Bencher;
 

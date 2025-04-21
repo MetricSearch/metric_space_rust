@@ -9,7 +9,7 @@ use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
 use dao::{Dao, DataType};
-use dao::csv_f32_loader::dao_from_csv_dir;
+use dao::csv_dao_loader::dao_from_csv_dir;
 use utils::{ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};
@@ -35,18 +35,20 @@ fn main() -> Result<()> {
         num_queries,
     )?);
 
-    let (ords,dists) = initialise_table( dao_f32.clone(),100,10 );
+    let num_neighbours = 10;
+    let chunk_size = 100;
+    let rho = 1.0;
+    let delta = 0.01;
+    let reverse_list_size = 5;
+
+    println!("Initializing NN table");
+    let (ords,dists) = initialise_table( dao_f32.clone(),chunk_size,num_neighbours );
 
     // show(ords,dists);
 
-    getNNtable2(dao_f32.clone(),
-                ords,
-                dists,
-                10,
-                16,
-                1.0,
-                0.01,
-                5 );
+    println!("Getting NN table");
+
+    getNNtable2(dao_f32.clone(), ords, dists, num_neighbours, rho, delta, reverse_list_size);
 
     Ok(())
 }

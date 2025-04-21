@@ -72,8 +72,6 @@ function [B,phaseTimes,reverseB] = getNNtable2(data, B, nnSims, k, rho, delta, r
 			%have to in-line this otherwise takes ages...!
 			
 			for i_phase1 = 1 : size(B,1)
-				%old[v]: all items in B[v] without new flag set
-				%new[v]: all items in B[v] with new flag set
 				flags = nnNewFlags(i_phase1,:);
 				newInd = find(flags);
 				oldInd = find(~flags);
@@ -82,7 +80,7 @@ function [B,phaseTimes,reverseB] = getNNtable2(data, B, nnSims, k, rho, delta, r
 				old(i_phase1,1:length(oldInd)) = B(i_phase1,oldInd);
 				nnNewFlags(i_phase1,sampled) = false;
 			end
-			
+			q
 			time = toc(phase1timer);
 			
 			phaseTimes(1,iters) = time;

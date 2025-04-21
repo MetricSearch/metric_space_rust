@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering;
 use std::rc::Rc;
-use ndarray::{s, Array, Array1, Array2, Axis, IndexLonger, Ix1, Order};
+use ndarray::{s, Array1, Array2, Axis, CowArray, Ix1, Order};
 use dao::{Dao};
 use rand_chacha::rand_core::SeedableRng;
 use randperm_crt::{Permutation, RandomPermutation};
@@ -61,17 +61,13 @@ pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Vec<usize> {
     let perm = RandomPermutation::new(drawn_from as u64).unwrap();
     perm.iter().take(how_many).map(|x| x as usize).collect::<Vec<usize>>()
 }
-pub fn vecvec_to_ndarray(v: Vec<Array1<f32>>) -> Array2<f32> {
-    let rows = v.len();
-    let columns = v[0].len();
+pub fn vecvec_to_ndarray(vec: Vec<Array1<f32>>, rows : usize, columns: usize) -> Array2<f32> {
 
-    let mut array : Array2<f32> = Array2::default((rows, columns));
-    for (i, mut row) in array.axis_iter_mut(Axis(0)).enumerate() {
-        for (j, col) in row.iter_mut().enumerate() {
-            *col = v[i][j];
-        }
-    }
-    array
+    let mut flat = Vec::new();
+
+    vec.iter().for_each(|row| row.iter().for_each(|&elem| { flat.push(elem); }));
+
+    Array2::from_shape_vec((rows, columns), flat).unwrap()
 }
 
 pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighbours: usize) -> (Vec<Vec<usize>>,Vec<Vec<f32>>) {
@@ -124,10 +120,14 @@ pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighb
     (result_indices, result_sims)
 }
 
-pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, mut similarities: Vec<Vec<f32>>, num_neighbours: usize,
-                   k: usize, rho: f64, delta: f64 , reverse_list_size: usize ) {
+pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, mut similarities: Vec<Vec<f32>>,
+                   num_neighbours: usize,
+                   rho: f64, delta: f64 , reverse_list_size: usize ) {
     let num_data = dao.num_data;
     let data = &dao.get_data();
+    let dims = dao.get_dim();
+
+    // TODO change the DAO to matrix
 
     let mut global_mins = similarities
         .iter()
@@ -137,15 +137,17 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                 .map(|f| NonNan(*f))
                 .min().unwrap().0
         })
-        .collect::<Vec<f32>>();
+        .collect::<Vec<f32>>(); // TODO should be an array1
 
-    let mut iters = 0;
-    let mut nn_new_flags: Vec<Vec<bool>> = vec![vec![true; num_neighbours]; num_data];
-    let mut c = num_data as f64;
+    let iters = 0;
+    let mut nn_new_flags: Vec<Vec<bool>> = vec![vec![true; num_neighbours]; num_data]; // TODO these should be contiguous
+    let c = num_data as f64;
 
     while c > (num_data as f64) * delta {
 
         // phase 1
+
+        // TODO these should be contiguous arrays...
 
         let mut new: Vec<Vec<usize>> = vec![vec![0; num_neighbours]; num_data];
         let mut old: Vec<Vec<usize>> = vec![vec![0; num_neighbours]; num_data];
@@ -154,46 +156,83 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
 
         for row in 0..num_data {
             let flags = &nn_new_flags[row];
-            let new_indices = flags.iter().filter(|x| **x == true).collect::<Vec<&bool>>();
+
+            // new_indices are the indices in this row whose flag is set to false (intially there are none of these).
+
+            let old_indices = flags
+                .iter()
+                .enumerate()
+                .filter_map(|(index,flag)| { if ! *flag  { Some(index) } else {None} } )
+                .collect::<Vec<usize>>();
+
+            // new_indices are the indices in this row whose flag is set to true (columns)
+
+            let new_indices = flags
+                .iter()
+                .enumerate()
+                .filter_map(|(index,flag)| { if *flag { Some(index) } else {None} } )
+                .collect::<Vec<usize>>();
 
             // random data ids from whole data set
-            let perm = RandomPermutation::new(new_indices.len() as u64).unwrap(); // zero value returned?
-            let sampled = perm.iter().take(((rho * new_indices.len() as f64)).round() as usize).map(|x| x as usize).collect::<Vec<usize>>(); // random data ids from whole data set
+            // in matlab p = randperm(n,k) returns a row vector containing k unique integers selected randomly from 1 to n
+            // this was newInd(randperm(length(newInd),round(rho * length(newInd))));
 
-            (0..neighbours[row].len())
-                .for_each(|i| {
-                    if sampled.contains(&i) {
-                        new[row][i] = neighbours[row][i];
-                        nn_new_flags[row][i] = true;
-                    } else {
-                        old[row][i] = neighbours[row][i];
-                        nn_new_flags[row][i] = false;
-                    }
-                });
+            let perm = RandomPermutation::new((rho * (new_indices.len() as f64)).round() as u64).unwrap(); // .map(|x| usize::try_from(x) ).unwrap(); // gives random indices from new_indices
+
+            let sampled = perm.iter()// are random selections from the new_indices (columns)
+                .take(new_indices.len())
+                .map(|x| usize::try_from(x).unwrap_or(0))
+                .collect::<Vec<usize>>();
+
+            // sampled are random indices from new_indices
+
+            (0..sampled.len())
+                .enumerate()
+                .for_each( |(enum_index,sample_index)| {
+                    new[row][enum_index] = neighbours[row][sampled[sample_index]];
+                    old[row][enum_index] = neighbours[row][enum_index];
+                    nn_new_flags[row][enum_index] = false;
+                } )
         }
 
         // phase 2
 
         // initialise old' and new'
 
-        let mut reverse: Vec<Vec<usize>> = vec![vec![0; reverse_list_size]; num_data];
-        let mut reverse_sims = vec![vec![-1.0f32; reverse_list_size]; num_data];
-        let mut reverse_ptr = vec![0; reverse_list_size];
+        // TODO these should be contiguous arrays...
 
-        // calculate newPrime and oldPrime less stupidly...
+        // the reverse NN table
+        let mut reverse: Vec<Vec<usize>> = vec![vec![0; reverse_list_size];  num_data];
+        // all the distances from reverse NN table.
+        let mut reverse_sims = vec![vec![-1.0f32; reverse_list_size]; num_data];
+        // reverse_ptr - how many reverse pointers for each entry in the dataset
+        let mut reverse_ptr = vec![0; num_data];
+
+        // loop over all current entries in neighbours; add that entry to each row in the
+        // reverse list if that id is in the forward NNs
+        // there is a limit to the number of reverse ids we will store, as these
+        // are in a zipf distribution, so we will add the most similar only
 
         for row in 0..num_data {
+            // all_ids are the forward links in the current id's row
             let all_ids = &neighbours[row];
-            for id in 0..k {
+            // so for each one of these (there are k...):
+            for id in 0..num_neighbours {
+                // get the id
                 let this_id = &all_ids[id];
+                // and how similar it is to the current id
                 let local_sim = similarities[row][id];
                 let next_reverse_location = reverse_ptr[*this_id];
 
-                if reverse_ptr[*this_id] <= k {
+                // if the reverse list isn't full, we will just add this one
+                // this adds to a priority queue and keep track of max
+                if next_reverse_location <= reverse_list_size {
                     reverse_ptr[*this_id] = next_reverse_location;
                     reverse[*this_id][next_reverse_location] = row;
                     reverse_sims[*this_id][next_reverse_location] = local_sim;
                 } else {
+                    // but it is, so we will only add it if it's more similar
+                    // than another one already there
                     if let Some((position, value)) = reverse_sims[*this_id]
                         .iter()
                         .enumerate()
@@ -219,44 +258,81 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
 
             // was matlab nonzeros(A): returns a full column vector of the nonzero elements in A. The elements in v are ordered by columns.
 
+            let old_len = old.len();
+
+            // TODO these should be ArrayView
+
             let old_row: Vec<usize> = old[row].iter().filter(|v| **v != 0).map(|x| *x ).collect::<Vec<usize>>();
             let new_row: Vec<usize> = new[row].iter().filter(|v| **v != 0).map(|x| *x ).collect::<Vec<usize>>();
+
             let mut prime_row: Vec<usize> = reverse[row].iter().filter(|&&v| v != 0).map(|x| *x ).collect::<Vec<usize>>();
 
             if rho < 1.0 {
                 // randomly shorten the prime_row vector
                 prime_row = rand_perm(prime_row.len(), (rho * prime_row.len() as f64).round() as usize);
             }
-            let new_row_union: Vec<usize> =
-                if !new_row.is_empty() {
-                    new_row.iter().copied().chain(prime_row.iter().copied()).collect()
-                } else {
-                    vec![]
-                };
+            let new_row_union: Array1<usize> = new_row.iter().copied().chain(prime_row.iter().copied()).collect::<Array1<usize>>();
+                // if !new_row.is_empty() {
+                //     new_row.iter().copied().chain(prime_row.iter().copied()).collect::<Array1<usize>>()
+                // } else {
+                //     array![];
+                // };
 
             // ***** This seems to need lots of copying of the data  - once to make new_union_data and again in vecvec_to_ndarray.
+            // TODO What does CowArray do - what gets copied?
+            // TODO Can you do more with slices?
 
-            let old_data  = old_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
-            let new_data  = new_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
-            let new_union_data  = new_row_union.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
+            // let old_data  = old_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
+            // let new_data  = new_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
 
-            // need new_union_data as a Matrix...
-            let new_union_data = vecvec_to_ndarray(new_union_data);
+            let old_data =
+                old_row
+                    .iter()
+                    .map(|&index| dao.get_datum(index) )// &Array1<f32>
+                    .map( |value| value.iter() )// f32
+                    .flatten()
+                    .map( |&value| value as f32)
+                    .collect::<CowArray<f32,Ix1>>();
 
-            let new_new_sims = new_union_data.dot(&new_union_data.t());
+            let old_data = old_data
+                    .to_shape((old_row.len(), dims))
+                    .unwrap();
+
+            let new_data  = new_row.iter()
+                .map(|&index| dao.get_datum(index) )
+                .map( |value| value.iter() )
+                .flatten()
+                .map( |&value| value as f32)
+                .collect::<CowArray<f32,Ix1>>();
+
+            let new_data = new_data
+                .to_shape((new_row.len(), dims))
+                .unwrap();
+
+            let union_rows = new_row_union.len();
+
+            let mut new_union_data : Array2<f32>  = new_row_union.iter()
+                .map(|&index| dao.get_datum(index) )
+                .map( |value| value.iter() )
+                .flatten()
+                .map( |&value| value as f32)
+                .collect::<Array1<f32>>()
+                .into_shape_with_order((union_rows,dims)).unwrap();
+
+            let new_new_sims : Array2<f32> = new_union_data.dot(&new_union_data.t());
 
             // separate for loops for the two distance tables...
             // for each pair of elements in the newNew list, their original ids
 
-            for newInd1 in 0 .. new_union_data.len() {
-                let u1_id = new_row_union[newInd1];
+            for new_ind1 in 0 .. num_neighbours - 1 {
+                let u1_id = new_row_union[new_ind1];
 
-                for newInd2 in newInd1 + 1 .. new_union_data.len() {
-                    let u2_id = new_row_union[newInd2];
+                for new_ind2 in new_ind1 + 1 .. num_neighbours - 1 {
+                    let u2_id = new_row_union[new_ind2];
                     // then get their similarity from the matrix
-                    let this_sim = similarities[newInd1][newInd2];
+                    let this_sim = new_new_sims[[new_ind1,new_ind2]];
                     // is the current similarity greater than the biggest distance
-                    // in the row for u1Id? if it's not, then do nothing
+                    // in the row for u1_id? if it's not, then do nothing
 
                     if this_sim > global_mins[u1_id] {
                         // if it is, then u2_id actually can't already be there
@@ -289,8 +365,10 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
             // now do the news vs the olds, no reverse links
             // newOldSims = newData * oldData';
 
-            // TODO Look at this very expensive!!!!
-            let new_old_sims = vecvec_to_ndarray(new_data).dot(&vecvec_to_ndarray(old_data).t());
+            // TODO check the amount of copying!
+
+            let new_old_sims = new_data.dot(&old_data.t());
+
             // and do the same for each pair of elements in the newRow/oldRow
 
             for new_ind1 in 0 .. new_row.len() {

@@ -2,7 +2,7 @@ use std::rc::Rc;
 use dao::Dao;
 use anyhow::Result;
 use ndarray::Array1;
-use dao::csv_f32_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::{dao_from_csv_dir};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use bitvec_simd::BitVecSimd;
 use descent::Descent;

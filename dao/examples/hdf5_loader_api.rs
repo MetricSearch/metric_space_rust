@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dao::hdf5_f32_loader::{hdf5_f32_load, hdf5_f32_write};
+use dao::hdf5_dao_loader::{hdf5_f32_load, hdf5_f32_write};
 use dao::Dao;
 use ndarray::{array, Array1};
 

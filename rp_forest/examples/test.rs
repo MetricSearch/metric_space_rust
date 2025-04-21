@@ -2,7 +2,7 @@
 use rp_forest::tree::RPTree;
 use std::rc::Rc;
 use ndarray::Array1;
-use dao::csv_f32_loader::dao_from_csv_dir;
+use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 
 fn main() -> anyhow::Result<()> {

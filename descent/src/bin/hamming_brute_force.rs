@@ -1,6 +1,6 @@
 
 use anyhow::Result;
-use dao::csv_f32_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::{dao_from_csv_dir};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::Dao;
 use std::rc::Rc;

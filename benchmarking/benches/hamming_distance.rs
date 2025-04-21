@@ -1,6 +1,6 @@
 use bits::{f32_embedding_to_cubic_bitrep, hamming_distance};
 //use bitvec_simd::BitVecSimd;
-use dao::csv_f32_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::{dao_from_csv_dir};
 use dao::Dao;
 use divan::{black_box, Bencher};
 use ndarray::{Array1};

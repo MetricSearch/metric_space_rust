@@ -5,7 +5,7 @@ use metrics::euc;
 use ndarray::{Array1};
 use std::rc::Rc;
 use dao::Dao;
-use dao::csv_f32_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::{dao_from_csv_dir};
 
 fn main() {
     divan::main();

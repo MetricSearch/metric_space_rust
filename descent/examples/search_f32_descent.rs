@@ -10,7 +10,7 @@ use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
 use dao::{Dao, DataType};
-use dao::csv_f32_loader::dao_from_csv_dir;
+use dao::csv_dao_loader::dao_from_csv_dir;
 use utils::{ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};

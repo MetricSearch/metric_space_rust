@@ -11,7 +11,7 @@ use std::time::Instant;
 use wide::u64x4;
 use dao::{Dao, DataType};
 use dao::convert_f32_to_cubic::to_cubic_dao;
-use dao::csv_f32_loader::dao_from_csv_dir;
+use dao::csv_dao_loader::dao_from_csv_dir;
 use utils::{arg_sort_2d, ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dao::csv_f32_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::{dao_from_csv_dir};
 use dao::Dao;
 use std::rc::Rc;
 use ndarray::Array1;

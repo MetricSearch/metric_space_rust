@@ -21,12 +21,17 @@ pub fn arg_sort_2d<T: PartialOrd + Copy>(dists: Vec<Vec<T>>) -> (Vec<Vec<usize>>
         .collect()
 }
 
+pub fn min_index_and_value(vector: &Vec<f32>) -> (usize,f32) {
+    let pair = vector.iter().enumerate().min_by(|best_so_far, to_compare| best_so_far.1.partial_cmp(to_compare.1).unwrap()).unwrap();
+    (pair.0,pair.1.clone())
+}
+
 pub fn index_of_min(vector: &Vec<f32>) -> usize {
-    vector.iter().enumerate().min_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0
+    vector.iter().enumerate().min_by(|best_so_far, to_compare| best_so_far.1.partial_cmp(to_compare.1).unwrap()).unwrap().0
 }
 
 pub fn minimum_in(vector: &Vec<f32>) -> f32 {
-    *vector.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
+    *vector.iter().min_by(|best_so_far, to_compare| best_so_far.partial_cmp(to_compare).unwrap()).unwrap()
 }
 
 // Converts vectors of distances into vectors of indices and distances

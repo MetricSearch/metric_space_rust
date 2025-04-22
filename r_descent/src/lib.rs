@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::rc::Rc;
+use std::time::Instant;
 use ndarray::{s, Array1, Array2, Axis, CowArray, Ix1, Order};
 use dao::{Dao};
 use rand_chacha::rand_core::SeedableRng;
@@ -58,6 +59,9 @@ fn get_nn_table2(
     randperm(n,k) returns a vector containing k unique integers selected randomly from 1 to n.
 */
 pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Vec<usize> {
+    if drawn_from == 0 {
+        return Vec::new();
+    }
     let perm = RandomPermutation::new(drawn_from as u64).unwrap();
     perm.iter().take(how_many).map(|x| x as usize).collect::<Vec<usize>>()
 }
@@ -120,9 +124,14 @@ pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighb
     (result_indices, result_sims)
 }
 
-pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, mut similarities: Vec<Vec<f32>>,
+pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
+                   mut neighbours: &mut Vec<Vec<usize>>,
+                   mut similarities: &mut Vec<Vec<f32>>,
                    num_neighbours: usize,
-                   rho: f64, delta: f64 , reverse_list_size: usize ) {
+                   rho: f64, delta: f64, reverse_list_size: usize ) -> (Vec<Vec<usize>>,Vec<Vec<f32>>) {
+
+    let start_time = Instant::now();
+
     let num_data = dao.num_data;
     let data = &dao.get_data();
     let dims = dao.get_dim();
@@ -145,7 +154,13 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
 
     while c > (num_data as f64) * delta {
 
+        println!( "iterating: c: {} num_data: {} iters: {}", c, num_data, iters);
+
         // phase 1
+
+        println!( "phase 1..");
+
+        let now = Instant::now();
 
         // TODO these should be contiguous arrays...
 
@@ -155,11 +170,11 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
         // initialise old and new inline
 
         for row in 0..num_data {
-            let flags = &nn_new_flags[row];
+            let row_flags = &nn_new_flags[row];
 
             // new_indices are the indices in this row whose flag is set to false (intially there are none of these).
 
-            let old_indices = flags
+            let old_indices = row_flags
                 .iter()
                 .enumerate()
                 .filter_map(|(index,flag)| { if ! *flag  { Some(index) } else {None} } )
@@ -167,7 +182,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
 
             // new_indices are the indices in this row whose flag is set to true (columns)
 
-            let new_indices = flags
+            let new_indices = row_flags
                 .iter()
                 .enumerate()
                 .filter_map(|(index,flag)| { if *flag { Some(index) } else {None} } )
@@ -177,25 +192,23 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
             // in matlab p = randperm(n,k) returns a row vector containing k unique integers selected randomly from 1 to n
             // this was newInd(randperm(length(newInd),round(rho * length(newInd))));
 
-            let perm = RandomPermutation::new((rho * (new_indices.len() as f64)).round() as u64).unwrap(); // .map(|x| usize::try_from(x) ).unwrap(); // gives random indices from new_indices
-
-            let sampled = perm.iter()// are random selections from the new_indices (columns)
-                .take(new_indices.len())
-                .map(|x| usize::try_from(x).unwrap_or(0))
-                .collect::<Vec<usize>>();
+            let sampled = rand_perm(new_indices.len(),(rho * (new_indices.len() as f64)).round() as u64 as usize);
 
             // sampled are random indices from new_indices
 
-            (0..sampled.len())
-                .enumerate()
-                .for_each( |(enum_index,sample_index)| {
-                    new[row][enum_index] = neighbours[row][sampled[sample_index]];
-                    old[row][enum_index] = neighbours[row][enum_index];
-                    nn_new_flags[row][enum_index] = false;
-                } )
+            new[row] = fill_selected( &neighbours[row], &sampled, new[row].len() );
+            old[row] = fill_selected( &neighbours[row], &old_indices, new[row].len() );
+            nn_new_flags[row] = fill_false(&sampled, new[row].len())
         }
 
+        let after = Instant::now();
+        println!("Phase 1: {} ms", ((after - now).as_millis() as f64) );
+
         // phase 2
+
+        println!( "phase 2..");
+
+        let now = Instant::now();
 
         // initialise old' and new'
 
@@ -225,9 +238,9 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                 let next_reverse_location = reverse_ptr[*this_id];
 
                 // if the reverse list isn't full, we will just add this one
-                // this adds to a priority queue and keep track of max
-                if next_reverse_location <= reverse_list_size {
-                    reverse_ptr[*this_id] = next_reverse_location;
+                // this adds to a priority queue and keeps track of max
+                if next_reverse_location <= reverse_list_size - 1 { // al changed ***
+                    reverse_ptr[*this_id] = next_reverse_location + 1;
                     reverse[*this_id][next_reverse_location] = row;
                     reverse_sims[*this_id][next_reverse_location] = local_sim;
                 } else {
@@ -249,16 +262,19 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
             }
         }
 
+        let after = Instant::now();
+        println!("Phase 2: {} ms", ((after - now).as_millis() as f64) );
 
         // phase 3
+
+        println!( "phase 3..");
+        let now = Instant::now();
 
         let mut c = 0;
 
         for row in 0..num_data {
 
             // was matlab nonzeros(A): returns a full column vector of the nonzero elements in A. The elements in v are ordered by columns.
-
-            let old_len = old.len();
 
             // TODO these should be ArrayView
 
@@ -270,20 +286,13 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
             if rho < 1.0 {
                 // randomly shorten the prime_row vector
                 prime_row = rand_perm(prime_row.len(), (rho * prime_row.len() as f64).round() as usize);
+                // TODO is prime_row allowed to be empty?
             }
             let new_row_union: Array1<usize> = new_row.iter().copied().chain(prime_row.iter().copied()).collect::<Array1<usize>>();
-                // if !new_row.is_empty() {
-                //     new_row.iter().copied().chain(prime_row.iter().copied()).collect::<Array1<usize>>()
-                // } else {
-                //     array![];
-                // };
 
             // ***** This seems to need lots of copying of the data  - once to make new_union_data and again in vecvec_to_ndarray.
             // TODO What does CowArray do - what gets copied?
             // TODO Can you do more with slices?
-
-            // let old_data  = old_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
-            // let new_data  = new_row.iter().map(|&i| dao.get_datum(i).to_owned()).collect::<Vec<Array1<f32>>>();
 
             let old_data =
                 old_row
@@ -311,7 +320,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
 
             let union_rows = new_row_union.len();
 
-            let mut new_union_data : Array2<f32>  = new_row_union.iter()
+            let new_union_data : Array2<f32>  = new_row_union.iter()
                 .map(|&index| dao.get_datum(index) )
                 .map( |value| value.iter() )
                 .flatten()
@@ -324,10 +333,10 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
             // separate for loops for the two distance tables...
             // for each pair of elements in the newNew list, their original ids
 
-            for new_ind1 in 0 .. num_neighbours - 1 {
+            for new_ind1 in 0 .. new_row_union.len() {
                 let u1_id = new_row_union[new_ind1];
 
-                for new_ind2 in new_ind1 + 1 .. num_neighbours - 1 {
+                for new_ind2 in new_ind1 + 1 .. new_row_union.len() {
                     let u2_id = new_row_union[new_ind2];
                     // then get their similarity from the matrix
                     let this_sim = new_new_sims[[new_ind1,new_ind2]];
@@ -342,11 +351,11 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                             neighbours[u1_id][wh] = u2_id;
                             nn_new_flags[u1_id][wh] = true;
                             similarities[u1_id][wh] = this_sim;
+                            //println!( "1 Updating similarities {} {} {} ", u1_id, wh, this_sim );
                             global_mins[u1_id] = minimum_in(&similarities[u1_id]);
                             c = c + 1;
                         }
                     }
-                    // line 167
 
                     if global_mins[u2_id] < this_sim {
                         if neighbours[u2_id].iter().any(|x| *x == u1_id) {
@@ -354,15 +363,15 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                             neighbours[u2_id][wh] = u1_id;
                             nn_new_flags[u2_id][wh] = true;
                             similarities[u2_id][wh] = this_sim;
+                            //println!( "2 Updating similarities {} {} {} ", u2_id, wh, this_sim );
                             global_mins[u2_id] = minimum_in(&similarities[u2_id] );
                             c = c + 1;
                         }
                     }
                 }
-            } // matches start 146 in matlab
-            // line 179
+            }
 
-            // now do the news vs the olds, no reverse links
+            // nnw do the news vs the olds, no reverse links
             // newOldSims = newData * oldData';
 
             // TODO check the amount of copying!
@@ -387,6 +396,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                             let wh = index_of_min(&similarities[u1_id]);
                             neighbours[u1_id][wh] = u2_id;
                             similarities[u1_id][wh] = this_sim;
+                            //println!( "3 Updating similarities {} {} {} ", u1_id, wh, this_sim );
                             nn_new_flags[u1_id][wh] = true;
                             global_mins[u1_id] = minimum_in(&similarities[u1_id]);
                             c = c + 1;
@@ -398,6 +408,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                             let wh = index_of_min(&similarities[u2_id]);
                             neighbours[u2_id][wh] = u1_id;
                             similarities[u2_id][wh] = this_sim;
+                            //println!( "4 Updating similarities {} {} {} ", u2_id, wh, this_sim );
                             nn_new_flags[u2_id][wh] = true;
                             global_mins[u2_id] = minimum_in(&similarities[u2_id]);
                             c = c + 1;
@@ -406,7 +417,30 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>, mut neighbours: Vec<Vec<usize>>, m
                 }
             }
         }
+        let after = Instant::now();
+        println!("Phase 3: {} ms", ((after - now).as_millis() as f64) );
     }
+
+    let final_time = Instant::now();
+    println!("Phase 3: {} ms", ((final_time - start_time).as_millis() as f64) );
+
+    (neighbours.to_owned(), similarities.to_owned()) // TODO Does this copy?
+}
+
+fn fill_false(selector: &Vec<usize>, vec_size: usize) -> Vec<bool> {
+    let mut v = vec![true;vec_size];
+    for i in 0..selector.len(){
+        v[selector[i]] = false;
+    }
+    v
+}
+
+fn fill_selected(data: &Vec<usize>, selector: &Vec<usize>, vec_size: usize) -> Vec<usize> {
+    let mut v = vec![0;vec_size];
+    for i in 0..selector.len(){
+        v[i] = data[selector[i]];
+    }
+    v
 }
 
 

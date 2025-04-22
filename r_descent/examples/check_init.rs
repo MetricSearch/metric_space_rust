@@ -8,13 +8,9 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use dao::{Dao, DataType};
+use dao::{Dao};
 use dao::csv_dao_loader::dao_from_csv_dir;
-use utils::{ndcg};
-use utils::non_nan::NonNan;
-use descent::{Descent};
 use r_descent::{getNNtable2, initialise_table};
-use utils::pair::Pair;
 
 
 fn main() -> Result<()> {
@@ -42,13 +38,18 @@ fn main() -> Result<()> {
     let reverse_list_size = 5;
 
     println!("Initializing NN table");
-    let (ords,dists) = initialise_table( dao_f32.clone(),chunk_size,num_neighbours );
+    let (mut ords,mut dists) = initialise_table( dao_f32.clone(),chunk_size,num_neighbours );
 
     // show(ords,dists);
 
     println!("Getting NN table");
 
-    getNNtable2(dao_f32.clone(), ords, dists, num_neighbours, rho, delta, reverse_list_size);
+    let (ords,dists) = getNNtable2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+
+    println!("Line 1 of table:" );
+    for i in 0..10 {
+        println!(" neighbours: {} dists: {}", ords[0][i], dists[0][i] );
+    }
 
     Ok(())
 }

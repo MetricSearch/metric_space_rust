@@ -7,7 +7,7 @@ pub mod hdf5_dao_loader;
 mod csv_nn_table_loader;
 pub mod convert_f32_to_cubic;
 pub mod convert_f32_to_cube_oct;
-mod csv_dao_matrix_loader;
+pub mod csv_dao_matrix_loader;
 mod hdf5_dao_matrix_loader;
 
 pub use anndists::{dist::DistDot, prelude::*};

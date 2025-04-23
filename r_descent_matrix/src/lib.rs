@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 use std::time::Instant;
 use ndarray::{s, Array, Array1, Array2, Axis, CowArray, Dim, Ix, Ix1, Ix2, Order};
-use dao::{Dao};
+use dao::{Dao,DaoMatrix};
 use rand_chacha::rand_core::SeedableRng;
 use randperm_crt::{Permutation, RandomPermutation};
 use serde::{Deserialize, Serialize};
@@ -12,13 +12,13 @@ use utils::{arg_sort_array2, index_of_min, min_index_and_value, minimum_in};
 use utils::non_nan::NonNan;
 
 #[derive(Serialize, Deserialize)]
-pub struct RDescent {
+pub struct RDescent_matrix {
     pub indices: Vec<Vec<usize>>,
     pub dists: Vec<Vec<f32>>,
 }
 
-impl RDescent {
-    pub fn new( dao: Rc<Dao<Array1<f32>>>, num_neighbours: usize) -> RDescent {
+impl RDescent_matrix {
+    pub fn new( dao: Rc<Dao<Array1<f32>>>, num_neighbours: usize) -> RDescent_matrix {
 
         let reverse_list_size = 64;
         let rho: f64 = 1.0;
@@ -42,7 +42,7 @@ impl RDescent {
 }
 
 // data, B, nnSims, k, rho, delta,
-fn get_nn_table2(
+fn get_nn_table2_m(
     // current_graph: &mut Heap,
     // dao: Rc<Dao<Array1<f32>>>,
     // rng: &mut ChaCha8Rng,
@@ -92,24 +92,14 @@ mod tests {
     }
 }
 
-
-pub fn vecvec_to_ndarray(vec: Vec<Array1<f32>>, rows : usize, columns: usize) -> Array2<f32> {
-
-    let mut flat = Vec::new();
-
-    vec.iter().for_each(|row| row.iter().for_each(|&elem| { flat.push(elem); }));
-
-    Array2::from_shape_vec((rows, columns), flat).unwrap()
-}
-
-pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighbours: usize) -> (Vec<Vec<usize>>,Vec<Vec<f32>>) {
+pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours: usize) -> (Vec<Vec<usize>>,Vec<Vec<f32>>) {
     let num_data = dao.num_data;
     let dims = dao.get_dim();
     let data = dao.get_data();
     let num_loops = num_data/chunk_size;
 
-    let mut result_indices = vec![vec![0; num_neighbours]; num_data];
-    let mut result_sims = vec![vec![f32::MAX; num_neighbours]; num_data];
+    let mut result_indices = Array2::<f64>::zeros((num_data,num_neighbours));
+    let mut result_sims = Array2::<f32>::from_elem((num_data,num_neighbours), f32::MAX);
 
     for i in 0..num_loops {
 
@@ -396,7 +386,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                     // then get their distance from the matrix
                     let this_sim = new_old_sims.get((new_ind1,new_ind2)).unwrap().clone();
                     // is the current distance greater than the biggest distance
-                    // in the row for u1_id? if it's not, then do nothing
+                    // in the row for u1Id? if it's not, then do nothing
 
                     if this_sim > global_mins[u1_id] { // Matlab line 191
                         // if it is, then u2Id actually can't already be there
@@ -406,7 +396,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                             similarities[u1_id][wh] = this_sim;
                             //println!( "3 Updating similarities {} {} {} ", u1_id, wh, this_sim );
                             neighbour_is_new[u1_id][wh] = true;
-                            global_mins[u1_id] = minimum_in(&similarities[u1_id]);  // Matlab line 198
+                            global_mins[u1_id] = minimum_in(&similarities[u1_id]);
                             c = c + 1;
                         }
                     }
@@ -434,7 +424,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
     let final_time = Instant::now();
     println!("Overall time 3: {} ms", ((final_time - start_time).as_millis() as f64) );
 
-    (neighbours.to_owned(), similarities.to_owned()) // TODO Does this copy - yes.
+    (neighbours.to_owned(), similarities.to_owned()) // TODO Does this copy?
 }
 
 fn get_selected_data(dao: Rc<Dao<Array1<f32>>>, dims: usize, old_row: &Vec<usize>) -> Array2<f32> {

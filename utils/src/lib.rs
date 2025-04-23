@@ -22,7 +22,12 @@ pub fn arg_sort_2d<T: PartialOrd + Copy>(dists: Vec<Vec<T>>) -> (Vec<Vec<usize>>
 }
 
 pub fn min_index_and_value(vector: &Vec<f32>) -> (usize,f32) {
-    let pair = vector.iter().enumerate().min_by(|best_so_far, to_compare| best_so_far.1.partial_cmp(to_compare.1).unwrap()).unwrap();
+    let pair = vector
+        .iter()
+        .enumerate()
+        .min_by(|best_so_far, to_compare| best_so_far.1.partial_cmp(to_compare.1)
+            .unwrap())
+        .unwrap();
     (pair.0,pair.1.clone())
 }
 
@@ -32,6 +37,31 @@ pub fn index_of_min(vector: &Vec<f32>) -> usize {
 
 pub fn minimum_in(vector: &Vec<f32>) -> f32 {
     *vector.iter().min_by(|best_so_far, to_compare| best_so_far.partial_cmp(to_compare).unwrap()).unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_min_index_and_value() {
+        let a = vec![-3.0, 0.0, -10.0, 5.0, -2.0];
+        let (index,val) = min_index_and_value( &a );
+        assert_eq!(val, -10.0);
+        assert_eq!(index, 2);
+    }
+
+    #[test]
+    pub fn test_index_of_min() {
+        let a = vec![-3.0, 0.0, -10.0, 5.0, -2.0];
+        assert_eq!(index_of_min( &a ), 2);
+    }
+
+    #[test]
+    pub fn test_minimum_in() {
+        let a = vec![-3.0, 0.0, -10.0, 5.0, -2.0];
+        assert_eq!(minimum_in( &a ), -10.0);
+    }
 }
 
 // Converts vectors of distances into vectors of indices and distances

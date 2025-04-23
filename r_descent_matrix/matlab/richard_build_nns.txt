@@ -1,0 +1,220 @@
+k = 16;
+rho = 1;
+delta = 0.01;
+reverseListSize = 64;
+pre = 20000;
+
+[B,ds] = initialise_table(data,pre,k);
+
+for i = 1 : size(B,1)
+	if sum(B(i,:) == i) == 0
+		B(i,2:end) = B(i,1:end-1);
+		B(i,1) = i;
+		ds(i,2:end) = ds(i,1:end-1);
+		ds(i,1) = 1;
+	end
+end
+
+
+[B,phaseTimes,reverseB] = getNNtable2(data,B,ds,k,rho,delta,reverseListSize);
+
+//--------------------
+
+function [B,bDists] = initialise_table(data,chunkSize,k)
+	B = int32(zeros(size(data,1),k));
+	bDists = zeros(size(data,1),k);
+	noOfLoops = round(size(data,1)/chunkSize);
+	if rem(size(data,1),chunkSize) ~= 0
+		noOfLoops = noOfLoops + 1;
+	end
+
+	for i = 1 : noOfLoops
+		startPos = (i - 1) * chunkSize + 1;
+		endPos = min(size(data,1),startPos + chunkSize - 1);
+		chunk = data(startPos:endPos,:);
+		randIds = randperm(size(data,1),chunkSize);
+
+		randData = data(randIds,:);
+		dists = randData * chunk';
+
+		[ds,ords] = maxk(dists,k);
+
+		B(startPos:endPos,:) = randIds(ords');
+		bDists(startPos:endPos,:) = ds';
+	end
+end
+
+//--------------------
+
+function [B,phaseTimes,reverseB] = getNNtable2(data, B, nnSims, k, rho, delta, reverseListSize)
+	%B is the near-neighbour table to be updated
+	%nnSims are the corresponding similarity values
+	
+	globalMinsInB = min(nnSims,[],2);
+	
+	% the algorithm loop, exactly as defined in paper; no attempt to optimise other than limited the size of reverse links to k
+	iters = 0;
+	phaseTimes = zeros(3,10);
+	nnNewFlags = true(size(B));
+	c = length(data);
+	
+	while c > length(data) * delta
+		iters = iters + 1;
+		
+		%phase 1
+		new = int32(zeros(size(B)));
+		old = int32(zeros(size(B)));
+		%just takes ages if code isn't inlined which is an inexplicable shame...
+		
+		% [new,old,time] = phase1(new,old,B,rho,nnNewFlags);
+			phase1timer = tic;
+			% phase 1: initialise old, new
+			%have to in-line this otherwise takes ages...!
+			
+			for i_phase1 = 1 : size(B,1)
+				flags = nnNewFlags(i_phase1,:);
+				newInd = find(flags);
+				oldInd = find(~flags);
+				sampled = newInd(randperm(length(newInd),round(rho * length(newInd))));
+				new(i_phase1,1:length(sampled)) = B(i_phase1,sampled);
+				old(i_phase1,1:length(oldInd)) = B(i_phase1,oldInd);
+				nnNewFlags(i_phase1,sampled) = false;
+			end
+			q
+			time = toc(phase1timer);
+			
+			phaseTimes(1,iters) = time;
+
+			%phase 2
+			phase2timer = tic;
+			%initialise old' and new'
+			%
+			reverseB = int32(zeros(size(B,1),reverseListSize));
+			reverseBsims = single(-ones(size(B,1),reverseListSize));
+			reverseBptr = int8(zeros(size(B,1),1));
+			%calculate newPrime and oldPrime less stupidly...
+			
+			for i_phase2 = 1 : size(B,1)
+				allIds = B(i_phase2,:);
+				for id = 1 : k
+					thisId = allIds(id);
+					localSim = nnSims(i_phase2,id);
+					nextReverseBlocation = reverseBptr(thisId) + 1;
+					
+					if reverseBptr(thisId) <= k
+						reverseBptr(thisId) = nextReverseBlocation;
+						reverseB(thisId,nextReverseBlocation) = i_phase2;
+						reverseBsims(thisId,nextReverseBlocation) = localSim;
+					else
+						[s,wh] = min(reverseBsims(thisId,:));
+						if s < localSim
+							reverseB(thisId,wh) = i_phase2;
+							reverseBsims(thisId,wh) = localSim;
+						end
+					end // 106 if
+				end
+			end
+			
+			phaseTimes(2,iters) = toc(phase2timer);
+			%phase 3
+			phase3timer = tic;
+			c = 0;
+
+			for i_phase3 = 1 : size(B,1)
+				oldRow = nonzeros(old(i_phase3,:));
+				newRow = nonzeros(new(i_phase3,:));
+				primeRow = nonzeros(reverseB(i_phase3,:));
+				if rho < 1
+					primeRow = primeRow(randperm(length(primeRow),round(rho * length(primeRow))));
+				end
+				if ~isempty(newRow)
+					newRowUnion = [newRow;primeRow];
+				else
+					newRowUnion = [];
+				end
+				
+				oldData = data(oldRow,:);
+				newData = data(newRow,:);
+				newUnionData = data(newRowUnion,:);
+				newNewSims = newUnionData * newUnionData';
+
+				%separate for loops for the two distance tables...
+				% for each pair of elements in the newNew list, their original ids
+				
+				for newInd1 = 1 : length(newRowUnion) - 1
+					u1Id = newRowUnion(newInd1);
+
+					for newInd2 = newInd1 + 1 : length(newRowUnion)
+						u2Id = newRowUnion(newInd2);
+						% then get their similarity from the matrix
+						thisSim = newNewSims(newInd1,newInd2);
+						% is the current similarity greater than the biggest distance
+						% in the row for u1Id? if it's not, then do nothing
+						
+						if thisSim > globalMinsInB(u1Id)
+							% if it is, then u2Id actually can't already be there
+							if sum(B(u1Id,:) == u2Id) == 0
+								[~,wh] = min(nnSims(u1Id,:));
+								B(u1Id,wh) = u2Id;
+								nnNewFlags(u1Id,wh) = true;
+								nnSims(u1Id,wh) = thisSim;
+								globalMinsInB(u1Id) = min(nnSims(u1Id,:));
+								c = c + 1;
+							end
+						end
+
+						if globalMinsInB(u2Id) < thisSim
+							if sum(B(u2Id,:) == u1Id) == 0
+								[~,wh] = min(nnSims(u2Id,:));
+								B(u2Id,wh) = u1Id;
+								nnNewFlags(u2Id,wh) = true;
+								nnSims(u2Id,wh) = thisSim;
+								globalMinsInB(u2Id) = min(nnSims(u2Id,:));
+								c = c + 1;
+							end
+						end
+					end
+				end // start 146
+
+				%now do the news vs the olds, no reverse links
+				newOldSims = newData * oldData';
+				%and do the same for each pair of elements in the newRow/oldRow
+
+				for newInd1 = 1 : length(newRow)
+					u1Id = newRow(newInd1);
+					for newInd2 = 1 : length(oldRow)
+						u2Id = oldRow(newInd2);
+						% then get their distance from the matrix
+						thisSim = newOldSims(newInd1,newInd2);
+						% is the current distance greater than the biggest distance
+						% in the row for u1Id? if it's not, then do nothing
+						if thisSim > globalMinsInB(u1Id)
+							% if it is, then u2Id actually can't already be there
+							if sum(B(u1Id,:) == u2Id) == 0
+								[~,wh] = min(nnSims(u1Id,:));
+								B(u1Id,wh) = u2Id;
+								nnSims(u1Id,wh) = thisSim;
+								nnNewFlags(u1Id,wh) = true;
+								globalMinsInB(u1Id) = min(nnSims(u1Id,:));
+								c = c + 1;
+							end
+						end
+
+						if thisSim > globalMinsInB(u2Id)
+							if sum(B(u2Id,:) == u1Id) == 0
+								[~,wh] = min(nnSims(u2Id,:));
+								B(u2Id,wh) = u1Id;
+								nnSims(u2Id,wh) = thisSim;
+								nnNewFlags(u2Id,wh) = true;
+								globalMinsInB(u2Id) = min(nnSims(u2Id,:));
+								c = c + 1;
+							end // start at 206
+						end // end of 205
+					end // 187 start
+		    end // line 185
+	    end
+	    phaseTimes(3,iters) = toc(phase3timer);
+    end
+end
+
+

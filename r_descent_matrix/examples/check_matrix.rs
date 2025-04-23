@@ -8,8 +8,8 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use dao::{Dao};
-use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::{Dao,DaoMatrix};
+use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use r_descent::{getNNtable2, initialise_table};
 
 
@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
-    let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
+    let dao_f32: Rc<DaoMatrix> = Rc::new(dao_matrix_from_csv_dir(
         data_file_name,
         num_data,
         num_queries,
@@ -38,18 +38,18 @@ fn main() -> Result<()> {
     let reverse_list_size = 5;
 
     println!("Initializing NN table");
-    let (mut ords,mut dists) = initialise_table( dao_f32.clone(),chunk_size,num_neighbours );
-
-    // show(ords,dists);
-
-    println!("Getting NN table");
-
-    let (ords,dists) = getNNtable2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
-
-    println!("Line 1 of table:" );
-    for i in 0..10 {
-        println!(" neighbours: {} dists: {}", ords[0][i], dists[0][i] );
-    }
+    let (mut ords,mut dists) = initialise_table_m( dao_f32.clone(),chunk_size,num_neighbours );
+    //
+    // // show(ords,dists);
+    //
+    // println!("Getting NN table");
+    //
+    // let (ords,dists) = getNNtable2_m(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+    //
+    // println!("Line 1 of table:" );
+    // for i in 0..10 {
+    //     println!(" neighbours: {} dists: {}", ords[0][i], dists[0][i] );
+    // }
 
     Ok(())
 }

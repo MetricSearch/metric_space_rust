@@ -772,25 +772,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array2d",
- "bincode",
  "bits",
  "bitvec_simd",
  "dao",
- "descent",
- "itertools",
  "metrics",
  "ndarray",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "randperm-crt",
- "rayon",
  "serde",
- "serde_json",
  "tracing",
- "tracing-subscriber",
- "twox-hash",
  "utils",
- "wide",
 ]
 
 [[package]]

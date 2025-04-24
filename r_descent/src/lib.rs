@@ -8,7 +8,7 @@ use dao::{Dao};
 use rand_chacha::rand_core::SeedableRng;
 use randperm_crt::{Permutation, RandomPermutation};
 use serde::{Deserialize, Serialize};
-use utils::{arg_sort_array2, index_of_min, min_index_and_value, minimum_in};
+use utils::{arg_sort_big_to_small, arg_sort_small_to_big, index_of_min, min_index_and_value, minimum_in};
 use utils::non_nan::NonNan;
 
 #[derive(Serialize, Deserialize)]
@@ -117,8 +117,7 @@ pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighb
         let end_pos = num_data.min(start_pos + chunk_size);
         let chunk = &data.select(Axis(0),&(start_pos..end_pos).collect::<Vec<usize>>());
 
-        let perm = RandomPermutation::new(num_data as u64).unwrap();
-        let rand_ids = perm.iter().take(chunk_size).map( |x| x as usize ).collect::<Vec<usize>>(); // random data ids from whole data set
+        let rand_ids = rand_perm(num_data, chunk_size);
 
         let rand_data: Array1<Array1<f32>> = data.select(Axis(0), &rand_ids.as_slice() );           // select random vectors to compare
         let flat= rand_data.iter().flatten().cloned().collect::<Array1<f32>>();          // and make them into a Matrix
@@ -130,7 +129,7 @@ pub fn initialise_table(dao: Rc<Dao<Array1<f32>>>, chunk_size: usize, num_neighb
 
         let chunk_dists: Array2<f32> = rand_data.dot( &chunk_transpose ); // matrix mult all the distances
 
-        let (sorted_ords, sorted_dists) = arg_sort_array2(chunk_dists); // largest first, relative to to rand_data
+        let (sorted_ords, sorted_dists) = arg_sort_big_to_small(chunk_dists); // largest first, relative to rand_data
 
         // get the num_neighbours closest original data indices
 
@@ -179,14 +178,13 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
 
     let mut iterations = 0;
     let mut neighbour_is_new: Vec<Vec<bool>> = vec![vec![true; num_neighbours]; num_data]; // TODO these should be contiguous
-    let mut c = num_data; // a count of the number of times a similarity minimum of row has changed - measure of flux
+    let mut work_done = num_data; // a count of the number of times a similarity minimum of row has changed - measure of flux
 
-    while c > (( num_data as f64 ) * delta ) as usize { // Matlab line 61
-        // condition is fraction of lines whose min similarity has changed
-        // when this gets low - no much work done then stop.
+    while work_done > (( num_data as f64 ) * delta ) as usize { // Matlab line 61
+        // condition is fraction of lines whose min similarity has changed when this gets low - no much work done then stop.
         iterations += 1;
 
-        println!("iterating: c: {} num_data: {} iters: {}", c, num_data, iterations);
+        println!("iterating: c: {} num_data: {} iters: {}", work_done, num_data, iterations);
 
         // phase 1
 
@@ -250,7 +248,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
         // all the distances from reverse NN table.
         let mut reverse_sims = vec![vec![-1.0f32; reverse_list_size]; num_data];
         // reverse_ptr - how many reverse pointers for each entry in the dataset
-        let mut reverse_ptr = vec![0; num_data];
+        let mut reverse_count = vec![0; num_data];
 
         // loop over all current entries in neighbours; add that entry to each row in the
         // reverse list if that id is in the forward NNs
@@ -270,35 +268,21 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                 // if the reverse list isn't full, we will just add this one
                 // this adds to a priority queue and keeps track of max
 
-                /*
-                    TODO check this:
-                    Richard e-mail:
+                // We are trying to find a set of reverse near neighbours with the
+                // biggest similarity of size reverse_list_size.
+                // first find all the forward links containing the row
 
-                    %if that reverse list isn't full, we will just add this one
-                    nextReverseBlocation = reverseBptr(thisId) + 1;
-                    if reverseBptr(thisId) <= reverseListSize % this should be reverseListSize!
-                           reverseBptr(thisId) = nextReverseBlocation;
-                           reverseB(thisId,nextReverseBlocation) = i_phase2;
-                           reverseBsims(thisId,nextReverseBlocation) = localSim;
-                    else
-                 */
-
-                // This code works other variations give index errors.
-
-                let next_reverse_location = reverse_ptr[*this_id]; // Matlab line 102 // THIS IS +1 in matlab ******** RICHARD ?????
-
-                if next_reverse_location < reverse_list_size { // al changed *** //<<<<<<<<<*****
-                    reverse_ptr[*this_id] = next_reverse_location; // BEN + 1; // Richard bug - +1 wasn't there.
-                    reverse[*this_id][next_reverse_location] = row;
-                    reverse_sims[*this_id][next_reverse_location] = local_sim;
+                if reverse_count[*this_id] < reverse_list_size { // if the list is not full
+                    // update the reverse pointer list and the similarities
+                    reverse[*this_id][reverse_count[*this_id]] = row;  // pop in this row into the reverse list
+                    reverse_sims[*this_id][reverse_count[*this_id]] = local_sim; // pop that in too
+                    reverse_count[*this_id] = reverse_count[*this_id] + 1; // increment the count
                 } else {
-                    // but it is, so we will only add it if it's more similar
-                    // than another one already there
+                    // but it is, so we will only add it if it's more similar than another one already there
 
                     let (position, value ) = min_index_and_value(&reverse_sims[*this_id]); // Matlab line 109
-
                     if value < local_sim { // Matlab line 110  if the value in reverse_sims is less similar we over write
-                        reverse[*this_id][position] = row;
+                        reverse[*this_id][position] = row;  // replace the old min with the new sim value
                         reverse_sims[*this_id][position] = local_sim;
                     }
                 }
@@ -313,39 +297,54 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
         println!( "phase 3..");
         let now = Instant::now();
 
-        c = 0;
+        work_done = 0;
         for row in 0..num_data { // Matlab line 123
 
             // TODO these should be ArrayView
 
             let old_row: Vec<usize> = old[row].iter().filter(|&&v| v != 0).map(|&x| x ).collect::<Vec<usize>>();
             let new_row: Vec<usize> = new[row].iter().filter(|&&v| v != 0).map(|&x| x ).collect::<Vec<usize>>();
-            let mut prime_row: Vec<usize> = reverse[row].iter().filter(|&&v| v != 0).map(|&x| x ).collect::<Vec<usize>>();
+            let mut reverse_link_row: Vec<usize> = reverse[row].iter().filter(|&&v| v != 0).map(|&x| x ).collect::<Vec<usize>>();
 
             if rho < 1.0 { // Matlab line 127
-                // randomly shorten the prime_row vector
-                prime_row = rand_perm(prime_row.len(), (rho * prime_row.len() as f64).round() as usize);
+                // randomly shorten the reverse_link_row vector
+                let reverse_indices = rand_perm(reverse_link_row.len(), (rho * reverse_link_row.len() as f64).round() as usize);
+                reverse_link_row = reverse_indices.iter().map(|&i| reverse_link_row[i]).collect::<Vec<usize>>();
             }
-            // Matlab line 130
-            let new_row_union: Vec<usize> = new_row.iter().copied().chain(prime_row.iter().copied()).collect::<Vec<usize>>();
+            let new_row_union = if new_row.len() == 0 {     // Matlab line 130
+                vec![]
+            } else {
+                new_row.iter().copied().chain(reverse_link_row.iter().copied()).collect::<Vec<usize>>()
+            };
 
             // ***** This seems to need lots of copying of the data  - once to make new_union_data and again in vecvec_to_ndarray.
-            // TODO Can you do more with slices?
 
             // index the data using the rows indicated in old_row
-
             let old_data= get_selected_data(dao.clone(), dims, &old_row); // Matlab line 136
             let new_data= get_selected_data(dao.clone(), dims, &new_row); // Matlab line 137
             let new_union_data= get_selected_data(dao.clone(), dims, &new_row_union); // Matlab line 137
+
             let new_new_sims : Array2<f32> = new_union_data.dot(&new_union_data.t()); // Matlab line 139
 
-            // separate for loops for the two distance tables...
-            // for each pair of elements in the newNew list, their original ids
+            if row == 1 {
+                println!("neighbours[1]: {:?}", neighbours[1]);
+                println!("similarities[1]: {:?}", similarities[1]);
+                println!("new_row[1]: {:?}", new_row);
+                println!("reverse_link_row[1]: {:?}", reverse_link_row);
+                println!("new_row_union[1]: {:?}", new_row_union);
+                println!("min_sims[1]): {:?}", global_mins[1]);
+                println!("reverse[1]: {:?}", reverse[1]);
+                // println!("new_new_sims: {:?}", new_new_sims);
+            }
 
-            for new_ind1 in 0 .. new_row_union.len() { // Matlab line 144
+            // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
+
+            // First iterate over new_new_sims.. upper triangular (since distance table)
+
+            for new_ind1 in 0 .. new_row_union.len() - 1  { // Matlab line 144 (-1 since don't want the diagonal)
                 let u1_id = new_row_union[new_ind1];
 
-                for new_ind2 in new_ind1 + 1..new_row_union.len() { // Matlab line 147
+                for new_ind2 in new_ind1 + 1 .. new_row_union.len() { // Matlab line 147
                     let u2_id = new_row_union[new_ind2];
                     // then get their similarity from the matrix
                     let this_sim = new_new_sims[[new_ind1, new_ind2]];
@@ -356,25 +355,31 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                         // if it is, then u2_id actually can't already be there
                         if ! neighbours[u1_id].iter().any(|x| *x == u2_id) { // Matlab line 156
                             // THIS IS LINE 157 of the text that is in richard_build_nns.txt (in matlab folder) and also below..
-                            let wh = index_of_min(&similarities[u1_id]); // Matlab line 157
-                            neighbours[u1_id][wh] = u2_id;
-                            neighbour_is_new[u1_id][wh] = true;
-                            similarities[u1_id][wh] = this_sim;
+                            let position = index_of_min(&similarities[u1_id]); // Matlab line 157
+                            neighbours[u1_id][position] = u2_id;
+                            neighbour_is_new[u1_id][position] = true;
+                            similarities[u1_id][position] = this_sim;
                             //println!( "1 Updating similarities {} {} {} ", u1_id, wh, this_sim );
                             global_mins[u1_id] = minimum_in(&similarities[u1_id]);
-                            c = c + 1;
+                            work_done = work_done + 1;
+
+                            // ALT CODE:
+                            // let (position,min_val) = min_index_and_value(&similarities[u1_id]); // Matlab line 157
+                            // ....
+                            // global_mins[u1_id] =  this_sim.min(min_val);
+                            // work_done = work_done + 1;
                         }
                     }
 
                     if global_mins[u2_id] < this_sim { // Matlab line 166
                         if ! neighbours[u2_id].iter().any(|x| *x == u1_id) {
-                            let wh = index_of_min(&similarities[u2_id]);
-                            neighbours[u2_id][wh] = u1_id;
-                            neighbour_is_new[u2_id][wh] = true;
-                            similarities[u2_id][wh] = this_sim;
+                            let position = index_of_min(&similarities[u2_id]);
+                            neighbours[u2_id][position] = u1_id;
+                            neighbour_is_new[u2_id][position] = true;
+                            similarities[u2_id][position] = this_sim;
                             //println!( "2 Updating similarities {} {} {} ", u2_id, wh, this_sim );
                             global_mins[u2_id] = minimum_in(&similarities[u2_id]);
-                            c = c + 1;
+                            work_done = work_done + 1;
                         }
                     }
                 } // Matlab line 175
@@ -383,44 +388,41 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
             // nnw do the news vs the olds, no reverse links
             // newOldSims = newData * oldData';
 
-            // TODO check the amount of copying!
-
             let new_old_sims = new_data.dot(&old_data.t());
 
             // and do the same for each pair of elements in the new_row/old_row
 
-            for new_ind1 in 0 .. new_row.len() { // Matlab line 183
+            for new_ind1 in 0 .. new_row.len() { // Matlab line 183  // rectangular matrix - need to look at all
                 let u1_id = new_row[new_ind1];
                 for new_ind2 in 0..old_row.len() {
                     let u2_id = old_row[new_ind2]; // Matlab line 186
                     // then get their distance from the matrix
-                    let this_sim = new_old_sims.get((new_ind1,new_ind2)).unwrap().clone();
+                    let this_sim = new_old_sims[[new_ind1,new_ind2]];
                     // is the current distance greater than the biggest distance
                     // in the row for u1_id? if it's not, then do nothing
 
                     if this_sim > global_mins[u1_id] { // Matlab line 191
                         // if it is, then u2Id actually can't already be there
                         if ! neighbours[u1_id].iter().any(|x| *x == u2_id) { // Matlab line 193
-                            let wh = index_of_min(&similarities[u1_id]);
-                            neighbours[u1_id][wh] = u2_id;
-                            similarities[u1_id][wh] = this_sim;
+                            let position = index_of_min(&similarities[u1_id]);
+                            neighbours[u1_id][position] = u2_id;
+                            similarities[u1_id][position] = this_sim;
                             //println!( "3 Updating similarities {} {} {} ", u1_id, wh, this_sim );
-                            neighbour_is_new[u1_id][wh] = true;
+                            neighbour_is_new[u1_id][position] = true;
                             global_mins[u1_id] = minimum_in(&similarities[u1_id]);  // Matlab line 198
-                            c = c + 1;
+                            work_done = work_done + 1;
                         }
                     }
 
-
                     if this_sim > global_mins[u2_id] { // Matlab line 203
                         if ! neighbours[u2_id].iter().any(|x| *x == u1_id) { // Matlab line 204
-                            let wh = index_of_min(&similarities[u2_id]);
-                            neighbours[u2_id][wh] = u1_id;
-                            similarities[u2_id][wh] = this_sim;
+                            let position = index_of_min(&similarities[u2_id]);
+                            neighbours[u2_id][position] = u1_id;
+                            similarities[u2_id][position] = this_sim;
                             //println!( "4 Updating similarities {} {} {} ", u2_id, wh, this_sim );
-                            neighbour_is_new[u2_id][wh] = true;
+                            neighbour_is_new[u2_id][position] = true;
                             global_mins[u2_id] = minimum_in(&similarities[u2_id]);
-                            c = c + 1;  // Matlab line 210
+                            work_done = work_done + 1;  // Matlab line 210
                         }
                     }
                 }
@@ -428,7 +430,12 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
         }
         let after = Instant::now();
         println!("Phase 3: {} ms", ((after - now).as_millis() as f64) );
-        println!("c: {}, termination threshold: {}",c,(( num_data as f64 ) * delta ) as usize);
+        println!("c: {}, termination threshold: {}", work_done, (( num_data as f64 ) * delta ) as usize);
+
+        let overall_min = minimum_in( &global_mins );
+        let min_sums : f32 = global_mins.iter().sum();
+        println!("Min sums: {} min: {}", min_sums, overall_min);
+        println!( "Sims line 0: {:?} min {}", similarities[0],global_mins[0] );
     }
 
     let final_time = Instant::now();

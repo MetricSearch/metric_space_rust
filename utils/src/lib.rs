@@ -65,7 +65,8 @@ mod tests {
 }
 
 // Converts vectors of distances into vectors of indices and distances
-pub fn arg_sort_array2(dists: Array2<f32>) -> (Vec<Vec<usize>>, Vec<Vec<f32>>) {
+// sorts into order from smaller to bigger.
+pub fn arg_sort_small_to_big(dists: Array2<f32>) -> (Vec<Vec<usize>>, Vec<Vec<f32>>) {
     dists
         .axis_iter(Axis(0))
         .map(|row: ArrayView<f32,Ix1> | {
@@ -77,6 +78,36 @@ pub fn arg_sort_array2(dists: Array2<f32>) -> (Vec<Vec<usize>>, Vec<Vec<f32>>) {
 }
 
 // Converts vectors of distances into vectors of indices and distances
+// sorts into order from bigger to smaller
+pub fn arg_sort_big_to_small(dists: Array2<f32>) -> (Vec<Vec<usize>>, Vec<Vec<f32>>) {
+    dists
+        .axis_iter(Axis(0))
+        .map(|row: ArrayView<f32,Ix1> | {
+            let mut enumerated  = row.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
+            enumerated.sort_by(|a, b| NonNan(*b.1).partial_cmp(&NonNan(*a.1)).unwrap());
+            enumerated.into_iter().unzip()
+        })
+        .collect()
+}
+
+// Converts vectors of distances into 2d arrays of indices and distances
+// sorts into order from smaller to bigger.
+pub fn arg_sort_matrix(dists: Array2<f32>) -> (Array2<usize>, Array2<f32>) { // ******* AL IS HERE !!!!!
+    todo!();
+    //dists
+        // .axis_iter(Axis(0))
+        // .map(|row: ArrayView<f32,Ix1> | {
+        //     let mut enumerated  = row.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
+        //     enumerated.sort_by(|a, b| NonNan(*a.1).partial_cmp(&NonNan(*b.1)).unwrap());
+        //     enumerated.into_iter().unzip()
+        // })
+        // .collect()
+}
+
+
+
+// Converts vectors of distances into vectors of indices and distances
+// sorts into order from smaller to bigger.
 pub fn arg_sort<T: PartialOrd + Copy>(dists: Vec<T>) -> (Vec<usize>, Vec<T>) {
     let mut enumerated = dists.iter().enumerate().collect::<Vec<(usize, &T)>>();
 

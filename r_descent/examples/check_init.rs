@@ -32,13 +32,17 @@ fn main() -> Result<()> {
     )?);
 
     let num_neighbours = 10;
-    let chunk_size = 100;
+    let chunk_size = 10_000;
     let rho = 1.0;
-    let delta = 0.8; // Was 0.01
-    let reverse_list_size = 5;
+    let delta = 0.01;
+    let reverse_list_size = 16;
 
     println!("Initializing NN table");
     let (mut ords,mut dists) = initialise_table( dao_f32.clone(),chunk_size,num_neighbours );
+
+    println!( "After initialise_table" );
+    println!("ords[1]: {:?}", ords[1]);
+    println!("dists[1]: {:?}", dists[1]);
 
     // show(ords,dists);
 

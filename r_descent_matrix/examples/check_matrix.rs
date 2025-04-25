@@ -1,16 +1,16 @@
-use std::collections::HashSet;
 use anyhow::Result;
 use bits::{f32_data_to_cubic_bitrep, hamming_distance};
 use bitvec_simd::BitVecSimd;
+use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
+use dao::{Dao, DaoMatrix};
 use metrics::euc;
-use ndarray::{Array1};
+use ndarray::Array1;
+use r_descent_matrix::initialise_table_m;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use dao::{Dao,DaoMatrix};
-use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
-use r_descent::{getNNtable2, initialise_table};
 
 
 fn main() -> Result<()> {

@@ -8,7 +8,7 @@ use dao::{Dao};
 use rand_chacha::rand_core::SeedableRng;
 use randperm_crt::{Permutation, RandomPermutation};
 use serde::{Deserialize, Serialize};
-use utils::{arg_sort_big_to_small, arg_sort_small_to_big, index_of_min, min_index_and_value, minimum_in};
+use utils::{arg_sort_big_to_small, arg_sort_small_to_big, index_of_min_v, min_index_and_value_a, min_index_and_value_v, minimum_in_v};
 use utils::non_nan::NonNan;
 
 #[derive(Serialize, Deserialize)]
@@ -280,7 +280,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                 } else {
                     // but it is, so we will only add it if it's more similar than another one already there
 
-                    let (position, value ) = min_index_and_value(&reverse_sims[*this_id]); // Matlab line 109
+                    let (position, value ) = min_index_and_value_v(&reverse_sims[*this_id]); // Matlab line 109
                     if value < local_sim { // Matlab line 110  if the value in reverse_sims is less similar we over write
                         reverse[*this_id][position] = row;  // replace the old min with the new sim value
                         reverse_sims[*this_id][position] = local_sim;
@@ -355,30 +355,24 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                         // if it is, then u2_id actually can't already be there
                         if ! neighbours[u1_id].iter().any(|x| *x == u2_id) { // Matlab line 156
                             // THIS IS LINE 157 of the text that is in richard_build_nns.txt (in matlab folder) and also below..
-                            let position = index_of_min(&similarities[u1_id]); // Matlab line 157
+                            let position = index_of_min_v(&similarities[u1_id]); // Matlab line 157
                             neighbours[u1_id][position] = u2_id;
                             neighbour_is_new[u1_id][position] = true;
                             similarities[u1_id][position] = this_sim;
                             //println!( "1 Updating similarities {} {} {} ", u1_id, wh, this_sim );
-                            global_mins[u1_id] = minimum_in(&similarities[u1_id]);
+                            global_mins[u1_id] = minimum_in_v(&similarities[u1_id]);
                             work_done = work_done + 1;
-
-                            // ALT CODE:
-                            // let (position,min_val) = min_index_and_value(&similarities[u1_id]); // Matlab line 157
-                            // ....
-                            // global_mins[u1_id] =  this_sim.min(min_val);
-                            // work_done = work_done + 1;
                         }
                     }
 
                     if global_mins[u2_id] < this_sim { // Matlab line 166
                         if ! neighbours[u2_id].iter().any(|x| *x == u1_id) {
-                            let position = index_of_min(&similarities[u2_id]);
+                            let position = index_of_min_v(&similarities[u2_id]);
                             neighbours[u2_id][position] = u1_id;
                             neighbour_is_new[u2_id][position] = true;
                             similarities[u2_id][position] = this_sim;
                             //println!( "2 Updating similarities {} {} {} ", u2_id, wh, this_sim );
-                            global_mins[u2_id] = minimum_in(&similarities[u2_id]);
+                            global_mins[u2_id] = minimum_in_v(&similarities[u2_id]);
                             work_done = work_done + 1;
                         }
                     }
@@ -404,24 +398,24 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
                     if this_sim > global_mins[u1_id] { // Matlab line 191
                         // if it is, then u2Id actually can't already be there
                         if ! neighbours[u1_id].iter().any(|x| *x == u2_id) { // Matlab line 193
-                            let position = index_of_min(&similarities[u1_id]);
+                            let position = index_of_min_v(&similarities[u1_id]);
                             neighbours[u1_id][position] = u2_id;
                             similarities[u1_id][position] = this_sim;
                             //println!( "3 Updating similarities {} {} {} ", u1_id, wh, this_sim );
                             neighbour_is_new[u1_id][position] = true;
-                            global_mins[u1_id] = minimum_in(&similarities[u1_id]);  // Matlab line 198
+                            global_mins[u1_id] = minimum_in_v(&similarities[u1_id]);  // Matlab line 198
                             work_done = work_done + 1;
                         }
                     }
 
                     if this_sim > global_mins[u2_id] { // Matlab line 203
                         if ! neighbours[u2_id].iter().any(|x| *x == u1_id) { // Matlab line 204
-                            let position = index_of_min(&similarities[u2_id]);
+                            let position = index_of_min_v(&similarities[u2_id]);
                             neighbours[u2_id][position] = u1_id;
                             similarities[u2_id][position] = this_sim;
                             //println!( "4 Updating similarities {} {} {} ", u2_id, wh, this_sim );
                             neighbour_is_new[u2_id][position] = true;
-                            global_mins[u2_id] = minimum_in(&similarities[u2_id]);
+                            global_mins[u2_id] = minimum_in_v(&similarities[u2_id]);
                             work_done = work_done + 1;  // Matlab line 210
                         }
                     }
@@ -432,7 +426,7 @@ pub fn getNNtable2(dao: Rc<Dao<Array1<f32>>>,
         println!("Phase 3: {} ms", ((after - now).as_millis() as f64) );
         println!("c: {}, termination threshold: {}", work_done, (( num_data as f64 ) * delta ) as usize);
 
-        let overall_min = minimum_in( &global_mins );
+        let overall_min = minimum_in_v( &global_mins );
         let min_sums : f32 = global_mins.iter().sum();
         println!("Min sums: {} min: {}", min_sums, overall_min);
         println!( "Sims line 0: {:?} min {}", similarities[0],global_mins[0] );

@@ -30,7 +30,7 @@ pub fn csv_dao_matrix_load(data_path: &String) -> anyhow::Result<Array2<f32>> {
     tracing::info!("Ingested {count} records");
 
     Ok(Array::from_shape_vec(
-        (rows, count / rows),
+        (rows, data_vec.len() / rows),
         data_vec,
     )?)
 }

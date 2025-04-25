@@ -123,15 +123,21 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
             }
         }
 
+        // // Assign the nearest distances and neighbours to the result vectors
+        // for index in 0..sorted_dists.len()  {
+        //     result_indices[start_pos + index] = closest_dao_indices[index].to_vec();
+        //     result_sims[start_pos + index] = sorted_dists[index][0..num_neighbours].to_vec();
+        // }
+
         // Assign the nearest distances and neighbours to the result rows
         for index in 0..sorted_dists.nrows() {
             result_indices
                 .row_mut(start_pos + index)
-                .assign(&closest_dao_indices.row(index));
+                .assign(&closest_dao_indices.row(index).iter().take(num_neighbours).map(|x| *x ).collect::<Array1<usize>>());
 
             result_sims
                 .row_mut(start_pos + index)
-                .assign(&sorted_dists.row(index));
+                .assign(&sorted_dists.row(index).iter().take(num_neighbours).map(|x| *x ).collect::<Array1<f32>>());
 
         }
     }
@@ -312,12 +318,10 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
 
             let new_row_union: ArrayViewMut1<usize> = new_row_union.view_mut();
 
-            // AL IS HERE << **********************************
-
             // index the data using the rows indicated in old_row
-            let old_data = get_slice_using_selected_m(&data, old_row, old_row.shape());                         // Matlab line 136
-            let new_data = get_slice_using_selected_m(&data, new_row,new_row.shape());                          // Matlab line 137
-            let new_union_data = get_slice_using_selected_m(&data, &new_row_union, new_row_union.shape());      // Matlab line 137
+            let old_data = get_slice_using_selected_m(&data, old_row, [old_row.len(), dims]);                         // Matlab line 136
+            let new_data = get_slice_using_selected_m(&data, new_row,[new_row.len(),dims]);                          // Matlab line 137
+            let new_union_data = get_slice_using_selected_m(&data, &new_row_union, [new_row_union.len(),dims]);      // Matlab line 137
 
             let new_new_sims : Array2<f32> = new_union_data.dot(&new_union_data.t()); // Matlab line 139
 
@@ -473,8 +477,8 @@ fn get_slice_using_selected(from: &ArrayView2<f32>, selectors: Vec<usize>, resul
     }
 }
 
-fn get_slice_using_selected_m(from: &ArrayView2<f32>, selectors: &ArrayViewMut1<usize>, result_shape: &[usize]) -> Array2<f32> {
-    let mut sliced = Array2::uninit([result_shape[0],result_shape[1]]);
+fn get_slice_using_selected_m(from: &ArrayView2<f32>, selectors: &ArrayViewMut1<usize>, result_shape: [usize; 2]) -> Array2<f32> {
+    let mut sliced = Array2::uninit([result_shape[0],result_shape[1]]); //
 
     for count in 0..result_shape[0] {
         from.slice(s![selectors[count],0..]).assign_to(sliced.slice_mut(s![count,0..]));

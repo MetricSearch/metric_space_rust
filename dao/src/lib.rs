@@ -168,13 +168,11 @@ impl DaoMatrix {
     }
 
     pub fn get_data(&self) -> ArrayView2<f32> {
-        let (data , _) = self.embeddings.view().split_at(Axis(0), self.num_data * self.meta.dim);
-        data
+        self.embeddings.slice( s![..self.num_data, ..] )
     }
 
     pub fn get_queries(&self) -> ArrayView2<f32> {
-        let (_ , queries) = self.embeddings.view().split_at(Axis(0), self.num_data * self.meta.dim);
-        queries
+        self.embeddings.slice( s![self.num_data.., ..] )
     }
 }
 

@@ -5,7 +5,7 @@ use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
 use metrics::euc;
 use ndarray::Array1;
-use r_descent_matrix::initialise_table_m;
+use r_descent_matrix::{get_nn_table2, initialise_table_m};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
@@ -39,17 +39,15 @@ fn main() -> Result<()> {
 
     println!("Initializing NN table");
     let (mut ords,mut dists) = initialise_table_m( dao_f32.clone(),chunk_size,num_neighbours );
-    //
-    // // show(ords,dists);
-    //
-    // println!("Getting NN table");
-    //
-    // let (ords,dists) = getNNtable2_m(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
-    //
-    // println!("Line 1 of table:" );
-    // for i in 0..10 {
-    //     println!(" neighbours: {} dists: {}", ords[0][i], dists[0][i] );
-    // }
+
+    println!("Getting NN table");
+
+    let (ords,dists) = get_nn_table2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+
+    println!("Line 1 of table:" );
+    for i in 0..10 {
+        println!(" neighbours: {} dists: {}", ords[[0,i]], dists[[0,i]] );
+    }
 
     Ok(())
 }

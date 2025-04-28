@@ -11,9 +11,24 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
+use clap::Parser;
 
+/// clap parser
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long)]
+    name: String,
+
+    /// Number of times to greet
+    #[arg(short, long, default_value_t = 1)]
+    count: u8,
+}
 
 fn main() -> Result<()> {
+    // let args = Args::parse();
+
     tracing::info!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
@@ -47,7 +62,7 @@ fn main() -> Result<()> {
 
     println!("Getting NN table");
 
-    let (ords,dists) = get_nn_table2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+    get_nn_table2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
     println!("Line 0 of table:" );
     for i in 0..10 {

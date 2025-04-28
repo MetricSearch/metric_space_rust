@@ -27,7 +27,7 @@ impl RDescentMatrix {
         let (mut ords, mut dists) = initialise_table_m(dao.clone(), chunk_size, num_neighbours);
 
         // TODO get rid of this copy
-        let (ords,dists) = get_nn_table2(dao.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+        get_nn_table2(dao.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
         Self { indices: ords,
             dists: dists   }
@@ -91,7 +91,7 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                      mut neighbours: &mut Array2<usize>,
                      mut similarities: &mut Array2<f32>, // bigger is better
                      num_neighbours: usize,
-                     rho: f64, delta: f64, reverse_list_size: usize ) -> (Array2<usize>,Array2<f32>) {
+                     rho: f64, delta: f64, reverse_list_size: usize ) {
 
     let start_time = Instant::now();
 
@@ -358,8 +358,6 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
 
     let final_time = Instant::now();
     println!("Overall time 3: {} ms", ((final_time - start_time).as_millis() as f64) );
-
-    (neighbours.to_owned(), similarities.to_owned()) // TODO Does this copy - yes.
 }
 
 //***** Utility functions *****

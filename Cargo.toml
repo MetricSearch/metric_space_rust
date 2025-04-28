@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "benchmarking", "bits","dao", "metrics", "descent", "rp_forest", "utils", "r_descent", "r_descent_matrix"]
+members = [ "benchmarking", "bits","dao", "metrics", "descent", "rp_forest", "utils", "r_descent", "r_descent"]
 
 [profile.release]
 debug = false

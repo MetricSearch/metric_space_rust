@@ -16,9 +16,9 @@
       <sourceFolder url="file://$MODULE_DIR$/descent/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utils/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/r_descent/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/r_descent/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/r_descent/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/r_descent_matrix/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/r_descent_matrix/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/r_descent/examples" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

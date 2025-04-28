@@ -767,25 +767,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74765f6d916ee2faa39bc8e68e4f3ed8949b48cccdac59983d287a7cb71ce9c5"
 
 [[package]]
-name = "r_descent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "array2d",
- "bits",
- "bitvec_simd",
- "dao",
- "metrics",
- "ndarray",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "randperm-crt",
- "serde",
- "tracing",
- "utils",
-]
-
-[[package]]
 name = "r_descent_matrix"
 version = "0.1.0"
 dependencies = [
@@ -798,7 +779,6 @@ dependencies = [
  "ndarray",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "randperm-crt",
  "serde",
  "tracing",
  "utils",
@@ -1250,6 +1230,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_distr",
+ "randperm-crt",
  "rayon",
  "serde",
  "serde_json",

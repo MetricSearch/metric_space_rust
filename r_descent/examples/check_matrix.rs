@@ -22,6 +22,9 @@ fn main() -> Result<()> {
     let descent_file_name = "_scratch/nn_table_100.bin";
     let rng_star_file_name = "_scratch/rng_table_100.bin";
 
+
+    let start = Instant::now();
+
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
@@ -31,11 +34,13 @@ fn main() -> Result<()> {
         num_queries,
     )?);
 
+    let start_post_load = Instant::now();
+
     let num_neighbours = 10;
-    let chunk_size = 100;
+    let chunk_size = 2_000;
     let rho = 1.0;
-    let delta = 0.8; // Was 0.01
-    let reverse_list_size = 5;
+    let delta = 0.01;
+    let reverse_list_size = 8;
 
     println!("Initializing NN table");
     let (mut ords,mut dists) = initialise_table_m( dao_f32.clone(),chunk_size,num_neighbours );
@@ -44,17 +49,19 @@ fn main() -> Result<()> {
 
     let (ords,dists) = get_nn_table2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
-    println!("Line 1 of table:" );
+    println!("Line 0 of table:" );
     for i in 0..10 {
         println!(" neighbours: {} dists: {}", ords[[0,i]], dists[[0,i]] );
     }
 
+    let end = Instant::now();
+
+    println!("Finished (including load time in {} s", (end - start).as_secs());
+    println!("Finished (post time in {} s", (end - start_post_load).as_secs());
+
     Ok(())
 }
 
-fn show(ords: Vec<Vec<usize>>, dists: Vec<Vec<f32>>) {
-    println!("line 1: {:?} {:?} ", ords[1], dists[1]);
-}
 
 
 

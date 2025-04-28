@@ -17,20 +17,17 @@ pub struct RDescentMatrix {
 }
 
 impl RDescentMatrix {
-    pub fn new( dao: Rc<DaoMatrix>, num_neighbours: usize) -> RDescentMatrix {
+    pub fn new( dao: Rc<DaoMatrix>, num_neighbours: usize, reverse_list_size : usize, chunk_size : usize, rho: f64, delta : f64 ) -> RDescentMatrix {
 
-        let reverse_list_size = 64;
-        let rho: f64 = 1.0;
-        let delta = 0.01;
-        let chunk_size = 20000;
+        // let reverse_list_size = 64;
+        // let rho: f64 = 1.0;
+        // let delta = 0.01;
+        // let chunk_size = 20000;
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); // random number
         let (mut ords, mut dists) = initialise_table_m(dao.clone(), chunk_size, num_neighbours);
-
-        // TODO get rid of this copy
         get_nn_table2(dao.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
-        Self { indices: ords,
-            dists: dists   }
+        Self { indices: ords, dists: dists   }
     }
 }
 

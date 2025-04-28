@@ -6,11 +6,12 @@ edition = "2021"
 [dependencies]
 
 dao = {path="../dao"}
-array2d = "0.3.2"
 utils = {path="../utils"}
 bits = {path="../bits"}
 metrics = {path="../metrics"}
-ndarray = { version="0.16.1", features=["serde"] }
+ndarray = { version="0.16.1", features=["serde","matrixmultiply-threading", "rayon"] }  # "matrixmultiply-threading"
+#blas-src = { version = "0.10", features = ["openblas"] }
+#openblas-src = { version = "0.10", features = ["cblas", "static"] }
 serde = "1.0.217"
 anyhow = "1.0.94"
 tracing = "0.1.41"

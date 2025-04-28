@@ -43,8 +43,10 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
     let mut result_indices = Array2::<usize>::zeros((num_data, num_neighbours));
     let mut result_sims = Array2::<f32>::from_elem((num_data, num_neighbours), f32::MAX);
 
-    for i in 0..num_loops {
-        let start_pos = i * chunk_size;
+    (0..num_loops)
+        .map(|i| i * chunk_size)
+        .for_each(|start_pos| {
+
         let end_pos = num_data.min(start_pos + chunk_size);
         let chunk = data.slice(s![start_pos..end_pos, 0..]);  //select(Axis(0),&(start_pos..end_pos).collect::<Vec<usize>>());
 
@@ -58,6 +60,7 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
         // get the num_neighbours closest original data indices
 
         let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((chunk_size, num_neighbours));
+
 
         for row in 0..sorted_ords.nrows() {
             for col in 0..num_neighbours {
@@ -76,7 +79,9 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
                 .assign(&sorted_dists.row(index).iter().take(num_neighbours).map(|x| *x ).collect::<Array1<f32>>());
 
         }
-    }
+    });
+
+
     let end_time = Instant::now();
     println!("Initialistion in {:?}ms", ((end_time - start_time).as_millis() as f64) );
 

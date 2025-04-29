@@ -1,7 +1,10 @@
 //! This implementation of Richard's NN table builder
 
+mod updates;
+
 use std::cmp::Ordering;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use ndarray::{s, Array, Array1, Array2, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, CowArray, Dim, Ix, Ix1, Ix2, Order};
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
@@ -10,8 +13,9 @@ use rand_chacha::rand_core::SeedableRng;
 use serde::{Deserialize, Serialize};
 use utils::{arg_sort_big_to_small, arg_sort_small_to_big, index_of_min, min_index_and_value, minimum_in, rand_perm};
 use utils::non_nan::NonNan;
-
-// use ndarray::parallel::prelude::ParallelIterator;
+use crate::updates::Updates;
+use rayon::prelude::*;
+use ndarray::parallel::prelude::*;
 
 
 #[derive(Serialize, Deserialize)]
@@ -107,16 +111,16 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
 
     // Matlab lines refer to richard_build.txt file in the matlab dir
 
-    let mut global_mins = similarities // Matlab line 53
-        .rows()
-        .into_iter()
-        .map(|row| {
-            row
-                .iter()
-                .map(|f| NonNan(*f))
-                .min().unwrap().0
-        })
-        .collect::<Array1<f32>>();
+    // let mut global_mins = similarities // Matlab line 53
+    //     .rows()
+    //     .into_iter()
+    //     .map(|row| {
+    //         row
+    //             .iter()
+    //             .map(|f| NonNan(*f))
+    //             .min().unwrap().0
+    //     })
+    //     .collect::<Array1<f32>>();
 
     let mut iterations = 0;
     let mut neighbour_is_new = Array2::from_elem((num_data, num_neighbours), true);
@@ -237,10 +241,14 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
 
         work_done = 0;
 
-        old.rows_mut()
-            .into_iter()
+        let mut updates = Updates::new(num_data);
+
+
+        old
+            .axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()
-            .zip( new.rows_mut() )
+            .zip( new.axis_iter_mut(Axis(0)) )
+            .par_bridge()
             .map( |((row,old_row), new_row)| {
 
                 let mut reverse_link_row: Array1<usize> = reverse.row(row).iter().filter(|&&v| v != 0).map(|&x| x).collect::<Array1<usize>>();
@@ -296,28 +304,33 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                     // is the current similarity greater than the biggest distance
                     // in the row for u1_id? if it's not, then do nothing
 
-                    if this_sim > global_mins[u1_id] { // Matlab line 154
+                    if this_sim > minimum_in(&similarities.row(u1_id))     { // Matlab line 154 // global_mins[u1_id]
                         // if it is, then u2_id actually can't already be there
-                        if ! neighbours.row(u1_id).iter().any(|x| *x == u2_id) { // Matlab line 156
-                            // THIS IS LINE 157 of the text that is in richard_build_nns.txt (in matlab folder) and also below..
-                            let position = index_of_min(&similarities.row(u1_id)); // Matlab line 157
-                            neighbours[[u1_id,position]] = u2_id;
-                            neighbour_is_new[[u1_id,position]] = true;
-                            similarities[[u1_id,position]] = this_sim;
-                            global_mins[u1_id] = minimum_in(&similarities.row(u1_id));
-                            work_done = work_done + 1;
-                        }
+
+                        updates.add(u1_id, u2_id, this_sim);
+
+                        // if ! neighbours.row(u1_id).iter().any(|x| *x == u2_id) { // Matlab line 156
+                        //     // THIS IS LINE 157 of the text that is in richard_build_nns.txt (in matlab folder) and also below..
+                        //     let position = index_of_min(&similarities.row(u1_id)); // Matlab line 157
+                        //     neighbours[[u1_id,position]] = u2_id;
+                        //     neighbour_is_new[[u1_id,position]] = true;
+                        //     similarities[[u1_id,position]] = this_sim;
+                        //     global_mins[u1_id] = minimum_in(&similarities.row(u1_id));
+                        //     work_done = work_done + 1;
+                        // }
                     }
 
-                    if global_mins[u2_id] < this_sim { // Matlab line 166
-                        if ! neighbours.row(u2_id).iter().any(|x| *x == u1_id) {
-                            let position = index_of_min(&similarities.row(u2_id));
-                            neighbours[[u2_id,position]] = u1_id;
-                            neighbour_is_new[[u2_id,position]] = true;
-                            similarities[[u2_id,position]] = this_sim;
-                            global_mins[u2_id] = minimum_in(&similarities.row(u2_id));
-                            work_done = work_done + 1;
-                        }
+                    if minimum_in(&similarities.row(u2_id)) < this_sim { // Matlab line 166 // was global_mins[u2_id]
+
+                        updates.add(u2_id, u1_id, this_sim);
+                        // if ! neighbours.row(u2_id).iter().any(|x| *x == u1_id) {
+                        //     let position = index_of_min(&similarities.row(u2_id));
+                        //     neighbours[[u2_id,position]] = u1_id;
+                        //     neighbour_is_new[[u2_id,position]] = true;
+                        //     similarities[[u2_id,position]] = this_sim;
+                        //     global_mins[u2_id] = minimum_in(&similarities.row(u2_id));
+                        //     work_done = work_done + 1;
+                        // }
                     }
                 } // Matlab line 175
             }
@@ -338,36 +351,74 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                     // is the current distance greater than the biggest distance
                     // in the row for u1_id? if it's not, then do nothing
 
-                    if this_sim > global_mins[u1_id] { // Matlab line 191
+                    if this_sim > minimum_in(&similarities.row(u1_id))  { // Matlab line 191 // global_mins[u1_id]
                         // if it is, then u2Id actually can't already be there
-                        if ! neighbours.row(u1_id).iter().any(|x| *x == u2_id) { // Matlab line 193
-                            let position = index_of_min(&similarities.row(u1_id));
-                            neighbours[[u1_id,position]] = u2_id;
-                            similarities[[u1_id,position]] = this_sim;
-                            neighbour_is_new[[u1_id,position]] = true;
-                            global_mins[u1_id] = minimum_in(&similarities.row(u1_id));  // Matlab line 198
-                            work_done = work_done + 1;
-                        }
+
+                        updates.add(u1_id, u2_id, this_sim);
+
+                        // if ! neighbours.row(u1_id).iter().any(|x| *x == u2_id) { // Matlab line 193
+                        //     let position = index_of_min(&similarities.row(u1_id));
+                        //     neighbours[[u1_id,position]] = u2_id;
+                        //     similarities[[u1_id,position]] = this_sim;
+                        //     neighbour_is_new[[u1_id,position]] = true;
+                        //     global_mins[u1_id] = minimum_in(&similarities.row(u1_id));  // Matlab line 198
+                        //     work_done = work_done + 1;
+                        // }
                     }
 
-                    if this_sim > global_mins[u2_id] { // Matlab line 203
-                        if ! neighbours.row(u2_id).iter().any(|x| *x == u1_id) { // Matlab line 204
-                            let position = index_of_min(&similarities.row(u2_id));
-                            neighbours[[u2_id,position]] = u1_id;
-                            similarities[[u2_id,position]] = this_sim;
-                            neighbour_is_new[[u2_id,position]] = true;
-                            global_mins[u2_id] = minimum_in(&similarities.row(u2_id));
-                            work_done = work_done + 1;  // Matlab line 210
-                        }
+                    if this_sim > minimum_in(&similarities.row(u2_id)) { // Matlab line 203 // was global_mins[u2_id]
+
+                        updates.add(u2_id, u1_id, this_sim);
+
+                        // if ! neighbours.row(u2_id).iter().any(|x| *x == u1_id) { // Matlab line 204
+                        //     let position = index_of_min(&similarities.row(u2_id));
+                        //     neighbours[[u2_id,position]] = u1_id;
+                        //     similarities[[u2_id,position]] = this_sim;
+                        //     neighbour_is_new[[u2_id,position]] = true;
+                        //     global_mins[u2_id] = minimum_in(&similarities.row(u2_id));
+                        //     work_done = work_done + 1;  // Matlab line 210
+                        // }
                     }
                 }
             }
         } );
+
+        // Now apply all the updates.
+
+        work_done = updates
+            .into_inner()
+            .into_par_iter()
+            .zip( neighbours.axis_iter_mut(Axis(0)).into_par_iter() )
+            .zip( similarities.axis_iter_mut(Axis(0)).into_par_iter() )
+            .zip( neighbour_is_new.axis_iter_mut(Axis(0)).into_par_iter() )
+            .enumerate()
+            .map( |(row_id,(((updates,mut neighbours_row),mut similarities_row),mut neighbour_is_new_row)) | {
+
+                updates
+                    .into_iter()
+                    .map( |update| {
+                        let this_sim = update.sim;
+                        let new_index = update.index;
+                        if ! neighbours_row.iter().any(|x| *x == new_index) { // Matlab line 204
+                            let insert_pos = index_of_min(&similarities_row.view());
+                            neighbours_row[ insert_pos] = new_index;
+                            similarities_row[insert_pos] = this_sim;
+                            neighbour_is_new_row[insert_pos] = true;
+                            // global_mins[row_id] = minimum_in(&similarities.row(row_id));  // Matlab line 198 Do this later.
+                            true
+                        } else {
+                            false
+                        }
+                    } )
+                    .fold(false, |acc, x| acc | x) as usize // .any() but it won't short circuit so all updates are applied!
+
+            }).sum::<usize>() ;
+
+
+
         let after = Instant::now();
         println!("Phase 3: {} ms", ((after - now).as_millis() as f64) );
 
-        let overall_min = minimum_in( &global_mins.view() );
-        let min_sums : f32 = global_mins.iter().sum();
         // println!("Min sums: {} min: {}", min_sums, overall_min);
         // println!( "Sims line 0: {:?} min {}", similarities.row(0),global_mins[0] );
     }

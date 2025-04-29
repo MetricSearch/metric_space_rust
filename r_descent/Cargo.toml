@@ -17,4 +17,5 @@ bitvec_simd = "0.20.5"
 rand_chacha = "0.3.1"
 rand = "0.8.5"
 clap = { version = "4.5.37", features = ["derive"] }
+rayon = "1.10.0"
 

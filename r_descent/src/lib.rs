@@ -48,52 +48,53 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
     let data = dao.get_data();
     let num_loops = num_data / chunk_size;
 
-    let mut result_indices = Array2::<usize>::zeros((num_data, num_neighbours));
-    let mut result_sims = Array2::<f32>::from_elem((num_data, num_neighbours), f32::MAX);
+    let mut result_indices = unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init()};
+    let mut result_sims = unsafe {Array2::<f32>::uninit((num_data, num_neighbours)).assume_init()};
 
-    (0..num_loops)
-        .map(|i| i * chunk_size)
-        .for_each(|start_pos| {
+    result_indices
+        .axis_chunks_iter_mut(Axis(0),chunk_size)
+        .into_par_iter()
+        .zip(result_sims.axis_chunks_iter_mut(Axis(0),chunk_size)
+            .into_par_iter())
+        .enumerate()
+        .for_each(|(i, (mut result_indices_chunk, mut result_sims_chunk))| {
+            let start_pos = i * chunk_size;
+            let end_pos = start_pos + chunk_size;
 
-        let end_pos = num_data.min(start_pos + chunk_size);
-        let chunk = data.slice(s![start_pos..end_pos, 0..]);  //select(Axis(0),&(start_pos..end_pos).collect::<Vec<usize>>());
+            let chunk = data.slice(s![start_pos..end_pos, 0..]);
 
-        let rand_ids = rand_perm(num_data, chunk_size);  // random data ids from whole data set
-        let rand_data = get_slice_using_selected(&data, &rand_ids.view(), chunk.shape().try_into().unwrap());
+            let rand_ids = rand_perm(num_data, chunk_size);  // random data ids from whole data set
+            let rand_data = get_slice_using_selected(&data, &rand_ids.view(), chunk.shape().try_into().unwrap());
 
-        let chunk_dists: Array2<f32> = rand_data.dot(&chunk.t()); // matrix mult all the distances
+            let chunk_dists: Array2<f32> = rand_data.dot(&chunk.t()); // matrix mult all the distances
 
-        let (sorted_ords, sorted_dists)= arg_sort_big_to_small(&chunk_dists);
+            let (sorted_ords, sorted_dists)= arg_sort_big_to_small(&chunk_dists);
 
-        // get the num_neighbours closest original data indices
+            // get the num_neighbours closest original data indices
 
-        let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((chunk_size, num_neighbours));
+            let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((chunk_size, num_neighbours));
 
 
-        for row in 0..sorted_ords.nrows() {
-            for col in 0..num_neighbours {
-                closest_dao_indices[[row,col]] = rand_ids[sorted_ords[[row,col]]] as usize;
+            for row in 0..sorted_ords.nrows() {
+                for col in 0..num_neighbours {
+                    closest_dao_indices[[row,col]] = rand_ids[sorted_ords[[row,col]]] as usize;
+                }
             }
-        }
 
-        // Assign the nearest distances and neighbours to the result rows
-        for index in 0..sorted_dists.nrows() {
-            result_indices
-                .row_mut(start_pos + index)
-                .assign(&closest_dao_indices.row(index).iter().take(num_neighbours).map(|x| *x ).collect::<Array1<usize>>());
 
-            result_sims
-                .row_mut(start_pos + index)
-                .assign(&sorted_dists.row(index).iter().take(num_neighbours).map(|x| *x ).collect::<Array1<f32>>());
 
-        }
-    });
+                result_indices_chunk
+                    .assign(&closest_dao_indices.slice(s![.., 0..num_neighbours]));
+                result_sims_chunk
+                    .assign(&sorted_dists.slice(s![.., 0..num_neighbours]));
 
+
+        });
 
     let end_time = Instant::now();
     println!("Initialistion in {:?}ms", ((end_time - start_time).as_millis() as f64) );
 
-    (result_indices, result_sims)
+   (result_indices, result_sims)
 }
 
 

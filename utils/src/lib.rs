@@ -204,12 +204,12 @@ fn calc_relevance(correct_position : f32, num_nns : f32) -> f32 {
 /*
     randperm(n,k) returns a vector containing k unique integers selected randomly from 1 to n.
 */
-pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Vec<usize> {
+pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Array1<usize> {
     if drawn_from == 0 {
-        return Vec::new();
+        return Array1::default([0]);
     }
     let perm = RandomPermutation::new(drawn_from as u64).unwrap();
-    perm.iter().take(how_many).map(|x| x as usize).collect::<Vec<usize>>()
+    perm.iter().take(how_many).map(|x| x as usize).collect::<Array1<usize>>()
 }
 
 #[cfg(test)]

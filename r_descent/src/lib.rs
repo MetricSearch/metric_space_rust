@@ -4,11 +4,15 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 use std::time::Instant;
 use ndarray::{s, Array, Array1, Array2, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, CowArray, Dim, Ix, Ix1, Ix2, Order};
-use dao::{Dao,DaoMatrix};
+use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
+use dao::{Dao, DaoMatrix};
 use rand_chacha::rand_core::SeedableRng;
 use serde::{Deserialize, Serialize};
 use utils::{arg_sort_big_to_small, arg_sort_small_to_big, index_of_min, min_index_and_value, minimum_in, rand_perm};
 use utils::non_nan::NonNan;
+
+// use ndarray::parallel::prelude::ParallelIterator;
+
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
@@ -51,7 +55,7 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
         let chunk = data.slice(s![start_pos..end_pos, 0..]);  //select(Axis(0),&(start_pos..end_pos).collect::<Vec<usize>>());
 
         let rand_ids = rand_perm(num_data, chunk_size);  // random data ids from whole data set
-        let rand_data = get_slice_using_selected(&data, rand_ids.clone(), chunk.shape());   // <<<<<<<<<<<<<<< clone() here
+        let rand_data = get_slice_using_selected(&data, &rand_ids.view(), chunk.shape().try_into().unwrap());
 
         let chunk_dists: Array2<f32> = rand_data.dot(&chunk.t()); // matrix mult all the distances
 
@@ -150,7 +154,7 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                 .iter()
                 .enumerate()
                 .filter_map(|(index,flag)| { if ! *flag  { Some(index) } else {None} } )
-                .collect::<Vec<usize>>();
+                .collect::<Array1<usize>>();
 
             // random data ids from whole data set
             // in matlab p = randperm(n,k) returns a row vector containing k unique integers selected randomly from 1 to n
@@ -162,9 +166,9 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
             let mut new_row_view: ArrayViewMut1<usize> = new.row_mut(row);
             let mut neighbour_row_view: ArrayViewMut1<bool> = neighbour_is_new.row_mut(row);
 
-            fill_selected( &mut new_row_view, &neighbours.row(row), &sampled );    // Matlab line 79
-            fill_selected( &mut new_row_view,&neighbours.row(row), &old_indices );
-            fill_false( &mut neighbour_row_view, &sampled)
+            fill_selected( &mut new_row_view, &neighbours.row(row), &sampled.view() );    // Matlab line 79
+            fill_selected( &mut new_row_view,&neighbours.row(row), &old_indices.view() );
+            fill_false( &mut neighbour_row_view, &sampled.view())
         }
 
         let after = Instant::now();
@@ -232,31 +236,41 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
         let now = Instant::now();
 
         work_done = 0;
-        for row in 0..num_data { // Matlab line 123
 
-            let old_row  = &old.row_mut(row);
-            let new_row  = &new.row_mut(row);
-            let mut reverse_link_row: Array1<usize> = reverse.row(row).iter().filter(|&&v| v != 0).map(|&x| x ).collect::<Array1<usize>>();
+        old.rows_mut()
+            .into_iter()
+            .enumerate()
+            .zip( new.rows_mut() )
+            .map( |((row,old_row), new_row)| {
 
-            if rho < 1.0 { // Matlab line 127
-                // randomly shorten the reverse_link_row vector
-                let reverse_indices = rand_perm(reverse_link_row.len(), (rho * reverse_link_row.len() as f64).round() as usize);
-                reverse_link_row = reverse_indices.iter().map(|&i| reverse_link_row[i]).collect::<Array1<usize>>();
-            }
-            let mut new_row_union: Array1<usize> = if new_row.len() == 0 {     // Matlab line 130
-                Array1::from( vec![] )
-            } else {
-                new_row.iter().copied().chain(reverse_link_row.iter().copied()).collect::<Array1<usize>>()
-            };
+                let mut reverse_link_row: Array1<usize> = reverse.row(row).iter().filter(|&&v| v != 0).map(|&x| x).collect::<Array1<usize>>();
 
-            let new_row_union: ArrayViewMut1<usize> = new_row_union.view_mut();
+                if rho < 1.0 { // Matlab line 127
+                    // randomly shorten the reverse_link_row vector
+                    let reverse_indices = rand_perm(reverse_link_row.len(), (rho * reverse_link_row.len() as f64).round() as usize);
+                    reverse_link_row = reverse_indices.iter().map(|&i| reverse_link_row[i]).collect::<Array1<usize>>();
+                }
+                let mut new_row_union: Array1<usize> = if new_row.len() == 0 {     // Matlab line 130
+                    Array1::from(vec![])
+                } else {
+                    new_row.iter().copied().chain(reverse_link_row.iter().copied()).collect::<Array1<usize>>()   // <<<<< 2 row copies here
+                };
 
-            // index the data using the rows indicated in old_row
-            let old_data = get_slice_using_selected_m(&data, old_row, [old_row.len(), dims]);                         // Matlab line 136
-            let new_data = get_slice_using_selected_m(&data, new_row,[new_row.len(),dims]);                          // Matlab line 137
-            let new_union_data = get_slice_using_selected_m(&data, &new_row_union, [new_row_union.len(),dims]);      // Matlab line 137
+                // let new_row_union: ArrayViewMut1<usize> = new_row_union.view_mut();
 
-            let new_new_sims : Array2<f32> = new_union_data.dot(&new_union_data.t()); // Matlab line 139
+                let new_row_union_len = new_row_union.len();
+
+                // index the data using the rows indicated in old_row
+                let old_data = get_slice_using_selected(&data, &old_row.view(), [old_row.len(), dims]);                         // Matlab line 136
+                let new_data = get_slice_using_selected(&data, &new_row.view(), [new_row.len(), dims]);                          // Matlab line 137
+                let new_union_data = get_slice_using_selected(&data, &new_row_union.view(), [new_row_union_len, dims]);      // Matlab line 137
+
+                let new_new_sims: Array2<f32> = new_union_data.dot(&new_union_data.t()); // Matlab line 139
+
+                (row,new_row,old_row,new_row_union,new_new_sims,new_data,old_data)
+            } )
+            .for_each( |(row,new_row,old_row,new_row_union,new_new_sims,new_data,old_data)| {
+
 
             // if row == 1 {
             //     println!("neighbours[1]: {:?}", neighbours.row(1));
@@ -348,7 +362,7 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                     }
                 }
             }
-        }
+        } );
         let after = Instant::now();
         println!("Phase 3: {} ms", ((after - now).as_millis() as f64) );
 
@@ -378,32 +392,20 @@ fn get_selected_data(dao: Rc<Dao<Array1<f32>>>, dims: usize, old_row: &Vec<usize
             .to_owned()
 }
 
-fn fill_false(row: &mut ArrayViewMut1<bool>, selector: &Vec<usize>) {
+fn fill_false(row: &mut ArrayViewMut1<bool>, selector: &ArrayView1<usize>) {
     for i in 0..selector.len() {
         row[selector[i]] = false;
     }
 }
 
-fn fill_selected(to_fill: &mut ArrayViewMut1<usize>, fill_from: &ArrayView1<usize>, selector: &Vec<usize>) {
+fn fill_selected(to_fill: &mut ArrayViewMut1<usize>, fill_from: &ArrayView1<usize>, selector: &ArrayView1<usize>) {
     for (i, &sel_index) in selector.iter().enumerate() {
         to_fill[i] = fill_from[sel_index];
     }
 }
 
-fn get_slice_using_selected(from: &ArrayView2<f32>, selectors: Vec<usize>, result_shape: &[usize]) -> Array2<f32> {
-    let mut sliced = Array2::uninit([result_shape[0],result_shape[1]]);
-
-    for count in 0..result_shape[0] {
-        from.slice(s![selectors[count],0..]).assign_to(sliced.slice_mut(s![count,0..]));
-    }
-
-    unsafe {
-        sliced.assume_init()
-    }
-}
-
-fn get_slice_using_selected_m(from: &ArrayView2<f32>, selectors: &ArrayViewMut1<usize>, result_shape: [usize; 2]) -> Array2<f32> {
-    let mut sliced = Array2::uninit([result_shape[0],result_shape[1]]); //
+fn get_slice_using_selected(from: &ArrayView2<f32>, selectors: &ArrayView1<usize>, result_shape: [usize; 2]) -> Array2<f32> {
+    let mut sliced = Array2::uninit(result_shape); //
 
     for count in 0..result_shape[0] {
         from.slice(s![selectors[count],0..]).assign_to(sliced.slice_mut(s![count,0..]));

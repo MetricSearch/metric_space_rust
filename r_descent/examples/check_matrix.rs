@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 10;
-    let chunk_size = 10_000;
+    let chunk_size = 2000;
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 8;
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
     let end = Instant::now();
 
     println!("Finished (including load time in {} s", (end - start).as_secs());
-    println!("Finished (post time in {} s", (end - start_post_load).as_secs());
+    println!("Finished (post load time) in {} s", (end - start_post_load).as_secs());
 
     Ok(())
 }

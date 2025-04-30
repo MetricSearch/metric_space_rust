@@ -185,8 +185,6 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
 
         // initialise old' and new'  Matlab line 90
 
-        // TODO these should be contiguous arrays...
-
         // the reverse NN table  Matlab line 91
         let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), 0);
         // all the distances from reverse NN table.

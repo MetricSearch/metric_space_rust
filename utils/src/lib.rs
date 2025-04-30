@@ -3,11 +3,17 @@ pub mod non_nan;
 pub mod pair;
 
 use std::rc::Rc;
+use std::sync::{LazyLock, Mutex};
 use ndarray::{Array, Array1, Array2, ArrayView, ArrayView1, Axis, Ix1, ShapeBuilder};
+use rand::SeedableRng;
+use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
 use crate::pair::Pair;
 use crate::non_nan::NonNan;
 use randperm_crt::{Permutation, RandomPermutation};
+
+const SEED: u64 = 323 * 162;
+static RNG : LazyLock<Mutex<ChaCha8Rng>> = LazyLock::new( || Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
 
 // Converts vectors of distances into vectors of indices and distances
 pub fn arg_sort_2d<T: PartialOrd + Copy>(dists: Vec<Vec<T>>) -> (Vec<Vec<usize>>, Vec<Vec<T>>) {
@@ -208,7 +214,7 @@ pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Array1<usize> {
     if drawn_from == 0 {
         return Array1::default([0]);
     }
-    let perm = RandomPermutation::new(drawn_from as u64).unwrap();
+    let perm = RandomPermutation::with_rng(drawn_from as u64,&mut RNG.lock().unwrap() ).unwrap();
     perm.iter().take(how_many).map(|x| x as usize).collect::<Array1<usize>>()
 }
 

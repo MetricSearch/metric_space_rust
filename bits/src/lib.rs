@@ -1,16 +1,9 @@
-
+use std::rc::Rc;
 use bitvec_simd::BitVecSimd;
 use ndarray::{Array1, ArrayView1};
+use wide::u64x4;
 use utils::arg_sort;
-/*
- Also look at:
-    bitm
-    Crate bva: (no mention of SIMD)
-        Struct Bvf: A bit vector using a statically allocated (stack allocated) memory implementation operates over: u8, u16, u32, u64, u128, usize
-        Bv512
-        Trait BitVector
 
- */
 pub fn f32_embedding_to_cubic_bitrep(embedding: &Array1<f32>) -> BitVecSimd<[wide::u64x4; 4], 4> {
     BitVecSimd::from_bool_iterator(embedding.iter().map(|&x| x < 0.0))
 }
@@ -49,6 +42,41 @@ pub fn f32_embedding_to_cubeoct_bitrep(embedding: &Array1<f32>) -> BitVecSimd<[w
 
     BitVecSimd::from_bool_iterator(bit_vec.into_iter())
 }
+
+pub fn f32_data_to_evp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_zeros: usize) -> Vec<BitVecSimd<[u64x4; D],4>> {
+    embeddings
+        .iter()
+        .map(|embedding| f32_embedding_to_evp(embedding,non_zeros))
+        .collect::<Vec<BitVecSimd<[u64x4; D],4>>>()
+}
+
+pub fn f32_embedding_to_evp<const D: usize>(embedding: &Array1<f32>, non_zeros: usize) ->  BitVecSimd<[u64x4; D],4> {
+
+    let mut bit_vec = vec![];
+
+    let embedding_len = embedding.len();
+
+    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| { x.abs() } ).collect() );
+    let ( _smallest_indices, biggest_indices ) = indices.split_at(embedding_len - non_zeros);
+
+    (0..embedding.len()).for_each( |index| {
+        if biggest_indices.contains(&index) {
+            if embedding[index] > 0.0 {
+                bit_vec.push(true);
+                bit_vec.push(true);
+            } else {
+                bit_vec.push(false);
+                bit_vec.push(false);
+            }
+        } else {
+            bit_vec.push(false);
+            bit_vec.push(true);
+        }
+    });
+
+    BitVecSimd::from_bool_iterator(bit_vec.into_iter())
+}
+
 
 // returns a Vector of BitVecSimds corresponding to standard cubeoctohedral mapping
 pub fn f32_data_to_cubeoct_bitrep(embeddings: ArrayView1<Array1<f32>>) -> Vec<BitVecSimd<[wide::u64x4; 4], 4>> {

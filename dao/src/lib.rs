@@ -9,6 +9,9 @@ pub mod convert_f32_to_cubic;
 pub mod convert_f32_to_cube_oct;
 pub mod csv_dao_matrix_loader;
 mod hdf5_dao_matrix_loader;
+pub mod glove100_hdf5_dao_loader;
+pub mod laion_10M_hdf5_dao_loader;
+pub mod convert_f32_to_evp;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{Result};
@@ -19,8 +22,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use wide::u64x4;
-use crate::csv_dao_loader::csv_f32_load;
-use crate::hdf5_dao_loader::hdf5_f32_load;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Normed {
@@ -55,7 +56,17 @@ impl DataType for Array1<f32> {
     }
 }
 
-impl DataType for BitVecSimd<[u64x4; 4], 4> {
+// impl DataType for BitVecSimd<[u64x4; 4], 4> {
+//     fn dot_product(p0: &Self, p1: &Self) -> f32 {
+//         p0.and_cloned(p1).count_ones() as f32
+//     }
+//
+//     fn dist(a: &Self, b: &Self) -> f32 {
+//         a.xor_cloned(b).count_ones() as f32
+//     }
+// }
+
+impl<const D: usize> DataType for BitVecSimd<[u64x4; D], 4> {
     fn dot_product(p0: &Self, p1: &Self) -> f32 {
         p0.and_cloned(p1).count_ones() as f32
     }

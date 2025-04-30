@@ -177,7 +177,7 @@ fn do_queries(queries: &[Array1<f32>],
 }
 
 // TODO fix this mess somehow!
-fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
+pub fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
 }
 

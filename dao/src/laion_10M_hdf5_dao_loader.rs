@@ -1,10 +1,12 @@
 use crate::{Dao, DaoMetaData, Normed};
-use hdf5::{Dataset, File};
+use hdf5::{File};
 use ndarray::{s, Array1, Array2};
 //use tracing::metadata;
 
 pub fn hdf5_laion_f32_load(
     data_path: &str,
+    num_records: usize,
+    num_queries: usize,
 ) -> anyhow::Result<Dao<Array1<f32>>> {
     let file = File::open(data_path)?; // open for reading
     let ds_data = file.dataset("emb")?; // open the test dataset
@@ -12,8 +14,8 @@ pub fn hdf5_laion_f32_load(
     let name = "Laion-clip";
     let description ="Laion-clip-768v2-n=10M";
     let dim = 768;
-    let num_records = 10_000_000;
-    let num_queries= 1000;
+    // let num_records = 10_000_000;
+    // let num_queries= 1000;
 
     let normed = Normed::L2; //?????
 

@@ -4,11 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [[bench]]
+name = "evp_distance_3"
+harness = false
+
+[[bench]]
 name = "hamming_distance"
 harness = false
 
 [[bench]]
-name = "euc_distance_matrix"
+name = "bsp_similarity"
 harness = false
 
 [[bench]]
@@ -19,12 +23,6 @@ harness = false
 dao = {path="../dao"}
 bits = {path="../bits"}
 metrics = {path="../metrics"}
-utils = {path="../utils"}
-bitvec_simd = "0.20.5"
-anyhow = "1.0.95"
-tracing = "0.1.41"
-wide = "0.7.32"
-rayon = "1.10.0"
 ndarray = "0.16.1"
 
 [dev-dependencies]

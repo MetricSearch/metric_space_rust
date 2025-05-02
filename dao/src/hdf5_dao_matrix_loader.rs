@@ -1,6 +1,6 @@
-use crate::{Dao, DaoMatrix, DaoMetaData, Normed};
+use crate::{DaoMatrix, DaoMetaData, Normed};
 use hdf5::{Dataset, File};
-use ndarray::{s, Array1, Array2};
+use ndarray::{s, Array2};
 //use tracing::metadata;
 
 pub fn hdf5_matrix_load(

@@ -1,6 +1,6 @@
 use crate::{Dao, DaoMetaData, Normed};
 use hdf5::{Dataset, File};
-use ndarray::{s, stack, Array1, Array2, Axis};
+use ndarray::{s, Array1, Array2};
 //use tracing::metadata;
 
 pub fn hdf5_glove_f32_load(

@@ -17,7 +17,7 @@ pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{Result};
 use bitvec_simd::BitVecSimd;
 
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Ix1, ViewRepr};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;

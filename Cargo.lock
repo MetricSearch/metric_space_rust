@@ -127,17 +127,11 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 name = "benchmarking"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bits",
- "bitvec_simd",
  "dao",
  "divan",
  "metrics",
  "ndarray",
- "rayon",
- "tracing",
- "utils",
- "wide",
 ]
 
 [[package]]
@@ -159,13 +153,12 @@ checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
 name = "bits"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bitvec_simd",
  "divan",
- "metrics",
  "ndarray",
+ "rand 0.9.1",
+ "rand_chacha 0.9.0",
  "rayon",
- "tracing",
  "utils",
  "wide",
 ]

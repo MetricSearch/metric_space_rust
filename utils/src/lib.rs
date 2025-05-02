@@ -2,9 +2,9 @@
 pub mod non_nan;
 pub mod pair;
 
-use std::rc::Rc;
+
 use std::sync::{LazyLock, Mutex};
-use ndarray::{Array, Array1, Array2, ArrayView, ArrayView1, Axis, Ix1, ShapeBuilder};
+use ndarray::{Array1, Array2, ArrayView, ArrayView1, Axis, Ix1};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     pub fn test_rnd_perm1() {
         let mut x = rand_perm(10,10);
-        x.sort();
+        x.to_vec().sort();
         assert_eq!(x.len(), 10);
         assert_eq!(x[0],0);
         assert_eq!(x[5],5);
@@ -237,7 +237,7 @@ mod tests {
         assert_eq!(y.len(), 5);
         assert!( y.iter().all(|&x| x >= 0 && x < 10 ) );
 
-        y.sort();
+        y.to_vec().sort();
 
         for i in 0..4 {
             assert!( y[i] < y[i+1] );

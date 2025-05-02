@@ -8,7 +8,7 @@ use wide::u64x4;
 use ndarray::{Array1};
 //use tracing_subscriber::EnvFilter;
 use bitvec_simd::BitVecSimd;
-use bits::{hamming_distance};
+use bits::{whamming_distance};
 use std::time::Instant;
 use metrics::euc;
 
@@ -62,7 +62,7 @@ fn main() -> Result<()> {
 
         for i in 0..num_data {
             let data = dao_hamming.get_datum(i);
-            let dist = hamming_distance(&query_bits, &data);
+            let dist = whamming_distance(&query_bits, &data);
             add_to_nns(&mut distances_bits, &mut indices_bits, &(dist as f32), &i);
         }
 

@@ -12,7 +12,6 @@ use itertools::Itertools;
 use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
-use rayon::prelude::*;
 use rp_forest::tree::RPForest;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
@@ -107,12 +106,13 @@ impl Descent {
         nn_table: &Vec<Vec<usize>>,
         dao: Rc<Dao<T>>,
         swarm_size: usize,
+        // dist_fn: fn(&T, &T) -> NonNan,
     ) -> (usize, Vec<Pair>) {
         let entry_point_simple = get_entry_point(&nn_table);
         //println!("getting entry point");
-        let entry_point_good = find_good_entry_point(&query, dao.clone(), 100);
+        // let entry_point_good = find_good_entry_point(&query, dao.clone(), 100);
         // println!("doing search with: {entry_point_simple} {entry_point_good}");
-        return knn_search_internal(query, nn_table, dao, entry_point_simple, swarm_size);
+        return knn_search_internal(query, nn_table, dao, entry_point_simple, swarm_size); // dist_fn);
     }
 }
 
@@ -152,6 +152,7 @@ fn knn_search_internal<T: Clone + DataType>(
     dao: Rc<Dao<T>>,
     entry_point: usize,
     ef: usize,
+    // dist_fn: fn(&T, &T) -> NonNan,
 ) -> (usize, Vec<Pair>) {
     let mut visited_set: HashSet<usize,BuildHasherDefault<XxHash64>> = HashSet::default();
 
@@ -199,8 +200,9 @@ fn knn_search_internal<T: Clone + DataType>(
                         }
                     })
                     .map(|unseen_neighbour| {
-                        let distance_q_next_neighbour =
-                            NonNan(T::dist(&query, &unseen_neighbour.1));
+                        let distance_q_next_neighbour = NonNan(T::dist(&query, &unseen_neighbour.1));
+
+                        // let distance_q_next_neighbour = dist_fn(&query, &unseen_neighbour.1);
                         Reverse(Pair::new(distance_q_next_neighbour, unseen_neighbour.0))
                     })
                     .collect();

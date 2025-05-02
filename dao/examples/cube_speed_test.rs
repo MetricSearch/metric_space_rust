@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{f32_data_to_cubic_bitrep, hamming_distance};
+use bits::{f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};
@@ -114,7 +114,7 @@ fn generate_hamming_dists(
         .map(|query| {
             data_bitreps
                 .iter()
-                .map(|data| hamming_distance(&query, &data))
+                .map(|data| whamming_distance(&query, &data))
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()

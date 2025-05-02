@@ -4,14 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-metrics = {path="../metrics"}
 utils = {path="../utils"}
 bitvec_simd = "0.20.5"
-anyhow = "1.0.95"
-tracing = "0.1.41"
 wide = "0.7.32"
 rayon = "1.10.0"
 ndarray = "0.16.1"
+rand_chacha = "0.9.0"
+rand = "0.9.1"
 
 [dev-dependencies]
 divan = "0.1.17"

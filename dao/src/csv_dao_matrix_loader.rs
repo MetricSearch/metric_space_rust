@@ -1,6 +1,6 @@
-use crate::{dao_metadata_from_dir, Dao, DaoMatrix};
+use crate::{dao_metadata_from_dir, DaoMatrix};
 use anyhow::anyhow;
-use ndarray::{Array, Array1, Array2};
+use ndarray::{Array, Array2};
 
 pub fn csv_dao_matrix_load(data_path: &String) -> anyhow::Result<Array2<f32>> {
     // returns a tuple stores data in single Vector

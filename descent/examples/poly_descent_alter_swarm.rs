@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, hamming_distance};
+use bits::{f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::{s, Array1, ArrayView1};

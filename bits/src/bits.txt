@@ -22,3 +22,10 @@ Clip 768		=>  5 bits 768 * 2 = 3840 bits => Need BitVecSimd<[u64x4; 15],4>   64 
 
 Glove 100		=> 500 bits =>  Need BitVecSimd<[u64x4; 2],4>                      64 * 4 * 2 =         512 bits     =  64 bytes = 16 words
 
+Bits required for BSP:
+
+Dino 384		-> 1 bit/bitvec  384 * 1 = 384 bits =>  Need BitVecSimd<[u64x4; 2],4>     64 * 4 * 2 = 512
+
+Clip 768		=>  1 bits 768 * 1 = 768 bits => Need BitVecSimd<[u64x4; 3],4>             64 * 4 * 3 = 768
+
+Glove 100		=> 100 bits => Need BitVecSimd<[u64x4; 1],4>                               64 * 4 * 1 = 256

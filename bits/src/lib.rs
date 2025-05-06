@@ -150,34 +150,6 @@ fn iter_2bit_chunks<'a, const D: usize>(
     })
 }
 
-// Bit Scalar Product
-
-pub fn f32_embedding_to_bsp<const D: usize>(embedding: &Array1<f32>, non_zeros: usize) -> bsp<D> {
-    let mut ones = vec![];
-    let mut negative_ones = vec![];
-    let embedding_len = embedding.len();
-
-    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| { x.abs() } ).collect() );
-    let ( _smallest_indices, biggest_indices ) = indices.split_at(embedding_len - non_zeros);
-
-    (0..embedding.len()).for_each( |index| {
-        if biggest_indices.contains(&index) {
-            if embedding[index] > 0.0 {
-                ones.push(true);
-            } else {
-                ones.push(false);
-            }
-            if embedding[index] < 0.0 {
-                negative_ones.push(true);
-            } else {
-                negative_ones.push(false);
-            }
-        } } );
-
-    bsp::<D>{ ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
-        negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()) }
-}
-
 // dot: a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 
 // Real hamming distance:
@@ -200,24 +172,73 @@ pub fn whamming_distance<const D: usize>(
     } ).sum()
 }
 
-// BSP similarity
+// Bit Scalar Product
 
 #[derive(Debug, Clone)]
 pub struct bsp<const X: usize> {
-    ones          : BitVecSimd<[u64x4; X],4>,
-    negative_ones : BitVecSimd<[u64x4; X],4>,
+    pub ones          : BitVecSimd<[u64x4; X],4>,
+    pub negative_ones : BitVecSimd<[u64x4; X],4>,
+}
+
+pub fn f32_embedding_to_bsp<const D: usize>(embedding: &Array1<f32>, non_zeros: usize) -> bsp<D> {
+    let mut ones = vec![];
+    let mut negative_ones = vec![];
+    let embedding_len = embedding.len();
+
+    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| { x.abs() } ).collect() );
+
+    let ( _smallest_indices, biggest_indices ) = indices.split_at(embedding_len - non_zeros);
+
+    (0..embedding.len()).for_each( |index| {
+        if biggest_indices.contains(&index) {
+            if embedding[index] > 0.0 {
+                ones.push(true);
+            } else {
+                ones.push(false);
+            }
+            if embedding[index] < 0.0 {
+                negative_ones.push(true);
+            } else {
+                negative_ones.push(false);
+            }
+        } else {
+            ones.push(false);
+            negative_ones.push(false);
+    } } );
+
+    bsp::<D>{ ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
+              negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()) }
+}
+pub fn f32_data_to_bsp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_zeros: usize) -> Vec<bsp<D>> {
+    embeddings
+        .iter()
+        .map(|embedding| f32_embedding_to_bsp::<D>(embedding,non_zeros))
+        .collect::<Vec<bsp<D>>>()
 }
 
 pub fn bsp_similarity<const X: usize>( a: &bsp<X>, b: &bsp<X>) -> usize {
-                                       // a : (BitVecSimd<[u64x4; X],4>,BitVecSimd<[u64x4; X],4>),
-                                        // b : (BitVecSimd<[u64x4; X],4>,BitVecSimd<[u64x4; X],4>) ) -> usize {
 
     let A = a.ones.and_cloned(&b.ones).count_ones() as usize;
     let B = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
     let C = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
     let D = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
 
-    A + B - (C + D )
+    // println!( "a {:?} b {:?}", a, b) ;
+
+    // adding X * 256 * 2 means the result must be positive since second term is maximally X * 256 * 2  ( BitVecSimd<[u64x4; X],4> )
+    // min is zero (not in practice) max is 2048 (not in practice).
+    // println!("A={} B={} C={} D={} result ={}", A, B, C, D, (A + B+X*256*2) - (C + D ));
+
+    (A + B + X*256*2) - ( C + D )
+}
+
+pub fn bsp_distance<const X: usize>( a: &bsp<X>, b: &bsp<X>) -> usize {
+    let A = a.ones.and_cloned(&b.ones).count_ones() as usize;
+    let B = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let C = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let D = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+
+    ( C + D + X*256*2) - ( A + B )
 }
 
 

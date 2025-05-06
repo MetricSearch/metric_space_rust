@@ -1,16 +1,14 @@
 use anyhow::Result;
-use bits::{f32_data_to_hamming5bit, whamming_distance};
-use bitvec_simd::BitVecSimd;
+use bits::{bsp, bsp_distance, bsp_similarity, f32_data_to_bsp};
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
-use wide::u64x4;
 use dao::{Dao};
 use dao::csv_dao_loader::{dao_from_csv_dir};
-use utils::arg_sort_2d;
+use utils::{arg_sort_2d};
 
 fn main() -> Result<()> {
 
@@ -33,10 +31,10 @@ fn main() -> Result<()> {
 
     let num_queries = queries.len() as f64;
 
-    // This is a 2 bit encoding => need whamming distance
+    // This is a 5 bit encoding => need hamming distance
 
-    let data_bitreps = f32_data_to_hamming5bit::<8>(data,200);                      // 200 bits selected
-    let queries_bitreps = f32_data_to_hamming5bit::<8>(queries,200);
+    let data_bsp_reps = f32_data_to_bsp::<2>(data,200);
+    let queries_bsp_reps = f32_data_to_bsp::<2>(queries,200);
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();
@@ -51,38 +49,47 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let hamming_distances = generate_hamming_dists::<8>(queries_bitreps,data_bitreps);
+    let bsp_distances = generate_bsp_dists::<2>(queries_bsp_reps, data_bsp_reps);
+
+    // for i in 0..100 {
+    //     for j in 0..10 {
+    //         println!( "bsp dists[{}][{}] {} ", i, j, &bsp_distances[i][j] );
+    //     }
+    // }
+
+
     let after = Instant::now();
 
-    println!("Time per hamming query 1_000_000 dists: {} ns", ((after - now).as_nanos() as f64) / num_queries );
+    println!("Time per BSP query 1_000_000 dists: {} ns", ((after - now).as_nanos() as f64) / num_queries );
 
-    let (hamming_nns, hamming_dists ) = arg_sort_2d(hamming_distances);
+    let (bsp_nns, bsp_dists ) = arg_sort_2d(bsp_distances); // reverse arg sort since similarities not distances
 
     let gt_nns_0 = &gt_nns[0];
     let gt_dists_0 = &gt_dists[0];
 
-    let bsp_nns_0 = &hamming_nns[0];
-    let bsp_dists_0 = &hamming_dists[0];
+    let bsp_nns_0 = &bsp_nns[0];
+    let bsp_dists_0 = &bsp_dists[0];
 
-    println!( "gt_nns gt_dists: {:?} {:?}", &gt_nns_0[0..10], &gt_dists_0[0..10] );
+    let num_neighbours = 10;
 
-    println!( "wham_nns bsp_dists: {:?} {:?}", &bsp_nns_0[0..10], &bsp_dists_0[0..10] );
+    // println!( "gt_nns gt_dists: {:?} {:?}", &gt_nns_0[0..num_neighbours], &gt_dists_0[0..num_neighbours] );
+    // println!( "bsp_nns bsp_dists: {:?} {:?}", &bsp_nns_0[0..num_neighbours], &bsp_dists_0[0..num_neighbours] );
 
     for gt_size in (10..101).step_by(5) {
-            report_queries(queries.len(), &gt_nns, &hamming_nns, 10, gt_size);
+            report_queries(queries.len(), &gt_nns, &bsp_nns, 10, gt_size);
     }
 
     Ok(())
 }
 
-fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, hamming_nns: &Vec<Vec<usize>>, hamming_set_size: usize, gt_size: usize) {
-    println!("Benchmarking queries: hamming_set_size: {} gt_size: {}", hamming_set_size, gt_size);
+fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, bsp_nns: &Vec<Vec<usize>>, bsp_set_size: usize, gt_size: usize) {
+    println!("Benchmarking queries: BSP_set_size: {} gt_size: {}", bsp_set_size, gt_size);
     let mut sum = 0;
     let mut min = 100;
     let mut max = 0;
     (0..num_queries).into_iter().for_each(|qi| {
 
-        let (hamming_nns, _rest_nns) = hamming_nns.get(qi).unwrap().split_at(hamming_set_size);
+        let (hamming_nns, _rest_nns) = bsp_nns.get(qi).unwrap().split_at(bsp_set_size);
         let (gt_nns, _rest_gt_nns) = gt_nns.get(qi).unwrap().split_at(gt_size);
 
         let hamming_set: HashSet<usize> = hamming_nns.into_iter().map(|x| *x ).collect();
@@ -113,16 +120,16 @@ fn brute_force_all_dists(
 }
 
 
-fn generate_hamming_dists<const D: usize>(
-    queries_bitreps: Vec<BitVecSimd<[u64x4; D], 4>>,
-    data_bitreps: Vec<BitVecSimd<[u64x4; D], 4>>,
+fn generate_bsp_dists<const D: usize>(
+    queries_bitreps: Vec<bsp<D>>,
+    data_bitreps: Vec<bsp<D>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .par_iter()
         .map(|query| {
             data_bitreps
                 .iter()
-                .map(|data| whamming_distance::<D>(&query, &data))
+                .map(|data| bsp_distance::<D>(&query, &data) )
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()

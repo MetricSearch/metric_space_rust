@@ -75,18 +75,21 @@ fn main() -> Result<()> {
     // println!( "gt_nns gt_dists: {:?} {:?}", &gt_nns_0[0..num_neighbours], &gt_dists_0[0..num_neighbours] );
     // println!( "bsp_nns bsp_dists: {:?} {:?}", &bsp_nns_0[0..num_neighbours], &bsp_dists_0[0..num_neighbours] );
 
-    for gt_size in (10..101).step_by(5) {
-            report_queries(queries.len(), &gt_nns, &bsp_nns, 10, gt_size);
+    println!("Dino:");
+    println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
+    for bsp_set_size in (30..101).step_by(5) {
+            report_queries(queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
     }
 
     Ok(())
 }
 
 fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, bsp_nns: &Vec<Vec<usize>>, bsp_set_size: usize, gt_size: usize) {
-    println!("Benchmarking queries: BSP_set_size: {} gt_size: {}", bsp_set_size, gt_size);
     let mut sum = 0;
     let mut min = 100;
     let mut max = 0;
+
+    let mut intersection_sizes = vec![];
     (0..num_queries).into_iter().for_each(|qi| {
 
         let (hamming_nns, _rest_nns) = bsp_nns.get(qi).unwrap().split_at(bsp_set_size);
@@ -101,11 +104,25 @@ fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, bsp_nns: &Vec<Ve
         sum = sum + intersection_size;
         max = max.max(intersection_size);
         min = min.min(intersection_size);
+        intersection_sizes.push(intersection_size);
 
         // println!("Intersection of q{} {} hamming sists in {} gt_nns, intersection size: {}", qi, hamming_set_size, nns_size, intersection_size);
     }
     );
-    println!("Mean intersection size = {}, Max = {}, Min = {}", sum / num_queries , max, min);
+
+    let mean = ( sum as f64 / num_queries as f64 );
+    println!("{},{},{},{},{},{} ",  bsp_set_size, gt_size, mean, max, min, std_dev(mean,intersection_sizes) );
+}
+
+fn std_dev(mean: f64, data: Vec<usize>) -> f64 {
+    let variance = data.iter()
+        .map(|value| {
+            let diff = mean - *value as f64;
+            diff * diff
+        })
+        .sum::<f64>() / data.len() as f64;
+
+    variance.sqrt()
 }
 
 //Returns the nn(k) using Euc as metric for queries

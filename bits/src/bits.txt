@@ -26,6 +26,8 @@ Bits required for BSP:
 
 Dino 384		-> 1 bit/bitvec  384 * 1 = 384 bits =>  Need BitVecSimd<[u64x4; 2],4>     64 * 4 * 2 = 512
 
+Glove 100		=> 100 bits => Need BitVecSimd<[u64x4; 1],4>                               64 * 4 * 1 = 256
+
 Clip 768		=>  1 bits 768 * 1 = 768 bits => Need BitVecSimd<[u64x4; 3],4>             64 * 4 * 3 = 768
 
-Glove 100		=> 100 bits => Need BitVecSimd<[u64x4; 1],4>                               64 * 4 * 1 = 256
+Clip 500 bit    => 1 bits 500 X 1 = 512 bits =>  Need BitVecSimd<[u64x4; 2],4>  64 * 4 * 2 = 512

@@ -7,23 +7,15 @@ name = "SISAP_2025_experiments"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bincode",
  "bits",
  "bitvec_simd",
  "dao",
  "descent",
- "itertools",
  "metrics",
  "ndarray",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
  "rayon",
- "rp_forest",
- "serde",
- "serde_json",
  "tracing",
  "tracing-subscriber",
- "twox-hash",
  "utils",
  "wide",
 ]

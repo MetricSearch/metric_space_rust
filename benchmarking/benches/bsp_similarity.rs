@@ -19,8 +19,8 @@ fn bench(bencher: Bencher) {
     let dao: Rc<Dao<Array1<f32>>> =
         Rc::new(dao_from_csv_dir("/Volumes/Data/RUST_META/mf_dino2_csv/", num_data, num_queries).unwrap());
 
-    let query = f32_embedding_to_bsp::<2>(dao.get_query(0),200);
-    let data = f32_embedding_to_bsp::<2>(dao.get_datum(0),200);
+    let query = f32_embedding_to_bsp::<2>(&dao.get_query(0).view(),200);
+    let data = f32_embedding_to_bsp::<2>(&dao.get_datum(0).view(),200);
 
     bencher.bench(|| {
         for _ in 0..1_000_000 {

@@ -32,7 +32,7 @@ fn main() -> Result<()> {
         println!( "Data [0][{}]: {}", i, data[0][i] );
     }
 
-    let bsp_0 = f32_embedding_to_bsp::<2>(&data[0],200);
+    let bsp_0 = f32_embedding_to_bsp::<2>(&data[0].view(), 200);
 
     println!("Data_0 has {} bits | XORed = {} bits", bsp_0.ones.count_ones() + bsp_0.negative_ones.count_ones(), bsp_0.ones.xor_cloned(&bsp_0.negative_ones).count_ones());
 

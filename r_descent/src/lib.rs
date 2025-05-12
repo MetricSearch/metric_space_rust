@@ -74,7 +74,6 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
 
             let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((chunk_size, num_neighbours));
 
-
             for row in 0..sorted_ords.nrows() {
                 for col in 0..num_neighbours {
                     closest_dao_indices[[row,col]] = rand_ids[sorted_ords[[row,col]]] as usize;

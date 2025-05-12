@@ -13,22 +13,35 @@ pub mod glove100_hdf5_dao_loader;
 pub mod laion_10M_hdf5_dao_loader;
 pub mod convert_f32_to_evp;
 pub mod laion_10M_pca500_hdf5_dao_loader;
+pub mod pubmed_hdf5_dao_loader;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{Result};
 use bitvec_simd::BitVecSimd;
+use std::string::ToString;
 
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use wide::u64x4;
+use bits::f32_embedding_to_evp;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Normed {
     L1,
     L2,
     None,
+}
+
+impl ToString for Normed {
+    fn to_string(&self) -> String {
+        match self {
+            Normed::L1 => "L1".to_string(),
+            Normed::L2 => "L2".to_string(),
+            Normed::None => "None".to_string(),
+        }
+    }
 }
 
 pub trait DataType {
@@ -215,3 +228,10 @@ pub fn dao_metadata_from_dir(dir_name: &str) -> Result<DaoMetaData> {
 //
 //     Ok(Self::new(meta_data, data_and_queries, num_data, num_queries))
 // }
+
+pub fn f32_embeddings_to_evp<const D: usize>(embeddings: &Array1<Array1<f32>>, non_zeros: usize) -> Array1<BitVecSimd<[u64x4; D], 4>> {
+    embeddings
+        .iter()
+        .map( |row| { f32_embedding_to_evp::<D>(row,non_zeros) } )
+        .collect()
+}

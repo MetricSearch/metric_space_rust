@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     let num_data = 10_000_000;
 
     let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(hdf5_laion_pca_500_f32_load( // 500 bit PCA version of data set
-        "/Volumes/Data/laion/laion2B-en-clip768v2-n=10M-pca-dim=500.h5",
+        "/Volumes/Data/laion/laion2B-en-clip768v2-n=10M-pca-dim=500-l2.h5", // non l2 normed: "/Volumes/Data/laion/laion2B-en-clip768v2-n=10M-pca-dim=500.h5",
         num_data,
         num_queries,
     )?);
@@ -93,7 +93,7 @@ fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, bsp_nns: &Vec<Ve
     }
     );
 
-    let mean = ( sum as f64 / num_queries as f64 );
+    let mean = sum as f64 / num_queries as f64;
     println!("{},{},{},{},{},{} ",  bsp_set_size, gt_size, mean, max, min, std_dev(mean,intersection_sizes) );
 }
 

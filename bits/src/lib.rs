@@ -180,7 +180,7 @@ pub struct bsp<const X: usize> {
     pub negative_ones : BitVecSimd<[u64x4; X],4>,
 }
 
-pub fn f32_embedding_to_bsp<const D: usize>(embedding: &Array1<f32>, non_zeros: usize) -> bsp<D> {
+pub fn f32_embedding_to_bsp<const D: usize>(embedding: &ArrayView1<f32>, non_zeros: usize) -> bsp<D> {
     let mut ones = vec![];
     let mut negative_ones = vec![];
     let embedding_len = embedding.len();
@@ -212,7 +212,7 @@ pub fn f32_embedding_to_bsp<const D: usize>(embedding: &Array1<f32>, non_zeros: 
 pub fn f32_data_to_bsp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_zeros: usize) -> Vec<bsp<D>> {
     embeddings
         .iter()
-        .map(|embedding| f32_embedding_to_bsp::<D>(embedding,non_zeros))
+        .map(|embedding| f32_embedding_to_bsp::<D>(&embedding.view(),non_zeros))
         .collect::<Vec<bsp<D>>>()
 }
 

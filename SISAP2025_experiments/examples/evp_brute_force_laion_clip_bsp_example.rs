@@ -35,8 +35,8 @@ fn main() -> Result<()> {
 
     // This is a 5 bit encoding => need hamming distance
 
-    let data_bsp_reps = f32_data_to_bsp::<3>(data,500);                      // 384 bits selected
-    let queries_bsp_reps = f32_data_to_bsp::<3>(queries,500);
+    let data_bsp_reps = f32_data_to_bsp::<3>(data,430);                      // 384 bits selected
+    let queries_bsp_reps = f32_data_to_bsp::<3>(queries,430);
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
 
     let (bsp_nns, _hamming_dists ) = arg_sort_2d(hamming_distances);
 
-    println!("clip 500/384:");
+    println!("clip [430,768]:");
     println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
     for bsp_set_size in (30..101).step_by(5) {
         report_queries(queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);

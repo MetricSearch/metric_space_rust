@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use dao::{Dao};
 use dao::csv_dao_loader::dao_from_csv_dir;
-use utils::{ndcg};
+use utils::{distance_f32, ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};
 use utils::pair::Pair;
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
 
     let (queries, _rest) = queries.split_at(this_many_queries);
 
-    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data, distance);
+    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data, distance_f32);
     let nn_table = to_usize(&descent.current_graph.nns);
 
     println!("NNtable columns active {:?}", swarm_size);
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
 
     println!("Running Queries");
 
-    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table, swarm_size, distance );
+    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table, swarm_size, distance_f32 );
 
     Ok(())
 }
@@ -230,12 +230,6 @@ fn brute_force_all_dists<T: Clone>(
             pairs
         } )
         .collect::<Vec<Vec<Pair>>>()
-}
-
-//TODO sort out multiple copies
-
-fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
 }
 
 

@@ -161,6 +161,14 @@ pub fn hamming_distance<const D: usize>(
     a.xor_cloned(&b).count_ones()
 }
 
+pub fn hamming_distance_as_f32<const D: usize>(
+    a: &BitVecSimd<[wide::u64x4; D], 4>,
+    b: &BitVecSimd<[wide::u64x4; D], 4>,
+) -> f32 {
+    a.xor_cloned(&b).count_ones() as f32
+}
+
+
 // This is weird hamming (whamming) distance recoded for the 00/11/01 (2 bit) encoding
 pub fn whamming_distance<const D: usize>(
     a: &BitVecSimd<[wide::u64x4; D], 4>,
@@ -240,5 +248,3 @@ pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
 
     ( C + D + X*256*2) - ( A + B )
 }
-
-

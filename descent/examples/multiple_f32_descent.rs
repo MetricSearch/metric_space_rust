@@ -12,8 +12,8 @@ use wide::u64x4;
 use dao::{Dao};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
-use utils::{arg_sort_2d, ndcg};
-use utils::non_nan::NonNan;
+use utils::{arg_sort_2d, ndcg, distance_f32};
+use utils::non_nan::{NonNan};
 use descent::{Descent};
 use utils::pair::Pair;
 //use divan::Bencher;
@@ -51,16 +51,10 @@ fn main() -> Result<()> {
     let mut swarm_size = 100;
 
     while swarm_size > 0 {
-        run_with_swarm(&descent, dao_f32.clone(), swarm_size, distance);
+        run_with_swarm(&descent, dao_f32.clone(), swarm_size, distance_f32);
         swarm_size = swarm_size - 10;
     }
     Ok(())
-}
-
-//TODO sort out multiple copies
-
-fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
 }
 
 

@@ -245,5 +245,11 @@ mod tests {
     }
 }
 
+// distances
+
+pub fn distance_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
+    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
+}
+
 
 

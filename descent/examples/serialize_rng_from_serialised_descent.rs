@@ -6,6 +6,7 @@ use anyhow::Result;
 use ndarray::Array1;
 use dao::csv_dao_loader::{dao_from_csv_dir};
 use descent::Descent;
+use utils::distance_f32;
 
 fn main() -> Result<()> {
     println!("Hello from serialise RNG");
@@ -30,7 +31,7 @@ fn main() -> Result<()> {
 
     println!("Getting rng table ...");
 
-    let rng_table = descent.rng_star(dao.clone(), distance);
+    let rng_table = descent.rng_star(dao.clone(), distance_f32);
 
     println!("Saving NN table to {} ...", rng_star_file_name);
 
@@ -39,11 +40,4 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-
-//TODO sort out multiple copies
-
-fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-}
-
 

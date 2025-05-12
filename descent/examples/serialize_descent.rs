@@ -9,6 +9,7 @@ use descent::Descent;
 use wide::u64x4;
 use std::fs::File;
 use std::io::BufWriter;
+use utils::distance_f32;
 
 fn main() -> Result<()> {
     println!("Hello from Serialize Descent example");
@@ -23,7 +24,7 @@ fn main() -> Result<()> {
     )?);
 
     let num_neighbours = 100;
-    let descent = Descent::new(dao.clone(), num_neighbours, true, distance);
+    let descent = Descent::new(dao.clone(), num_neighbours, true, distance_f32);
 
     println!("Saving NN table to _scratch/descent_100.bin ...");
 
@@ -31,9 +32,4 @@ fn main() -> Result<()> {
     bincode::serialize_into(f, &descent);
 
     Ok(())
-}
-
-//TODO sort out multiple copies
-fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
 }

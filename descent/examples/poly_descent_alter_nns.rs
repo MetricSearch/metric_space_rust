@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, whamming_distance};
+use bits::{f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, hamming_distance_as_f32, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::{s, Array1, ArrayView1};
@@ -13,7 +13,7 @@ use dao::{Dao};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::convert_f32_to_cube_oct::to_cube_oct_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
-use utils::{arg_sort_2d, ndcg};
+use utils::{arg_sort_2d, distance_f32, ndcg};
 use utils::non_nan::NonNan;
 use descent::{Descent};
 use utils::pair::Pair;
@@ -50,25 +50,15 @@ fn main() -> Result<()> {
     let nn_table_size = 100;
 
     println!("f32:");
-    run_with_dao(&descent, dao_f32.clone(), swarm_size, nn_table_size, distance);
+    run_with_dao(&descent, dao_f32.clone(), swarm_size, nn_table_size, distance_f32);
     println!("cube:");
-    run_with_dao(&descent, dao_cube.clone(), swarm_size, nn_table_size, hamming_distance);
+    run_with_dao(&descent, dao_cube.clone(), swarm_size, nn_table_size, hamming_distance_as_f32::<4>);
     println!("cube oct:");
-    run_with_dao(&descent, dao_cube_oct.clone(), swarm_size, nn_table_size, hamming_distance);
+    run_with_dao(&descent, dao_cube_oct.clone(), swarm_size, nn_table_size, hamming_distance_as_f32::<4>);
 
     Ok(())
 }
 
-//TODO sort out multiple copies
-
-fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-}
-
-
-fn hamming_distance(a: &BitVecSimd<[u64x4;4], 4>, b: &BitVecSimd<[u64x4;4], 4> ) -> f32 {
-    a.xor_cloned(b).count_ones() as f32
-}
 
 
 fn run_with_dao<T: Clone>(descent: &Descent, dao: Rc<Dao<T>>, swarm_size: usize, mut nn_table_size: usize, distance : fn(&T, &T) -> f32 ) {

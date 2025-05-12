@@ -7,7 +7,6 @@ use dao::Dao;
 use crate::heap::Heap;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
-use dao::DataType;
 use itertools::Itertools;
 use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
@@ -21,7 +20,9 @@ use std::fmt::Debug;
 use std::hash::BuildHasherDefault;
 use std::iter;
 use std::rc::Rc;
+use ndarray::Array1;
 use twox_hash::{XxHash64};
+use bits::Bsp;
 use utils::arg_sort;
 
 #[derive(Serialize, Deserialize)]
@@ -30,16 +31,17 @@ pub struct Descent {
 }
 
 impl Descent {
-    pub fn new<T: Clone + DataType>(
+    pub fn new<T: Clone>(
         dao: Rc<Dao<T>>,
         num_neighbours: usize,
         use_rp_tree: bool,
+        distance: fn(&T, &T) -> f32,
     ) -> Descent {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); // random number
         let mut current_graph = if use_rp_tree {
-            init_rp_forest(dao.clone(), num_neighbours)
+            init_rp_forest(dao.clone(), num_neighbours, distance)
         } else {
-            init_random(dao.clone(), num_neighbours, &mut rng)
+            init_random(dao.clone(), num_neighbours, &mut rng, distance)
         };
         let max_candidates = 50;
         let num_iters = 10;
@@ -50,6 +52,7 @@ impl Descent {
             num_neighbours,
             max_candidates,
             num_iters,
+            distance,
         );
         Self { current_graph }
     }
@@ -58,7 +61,7 @@ impl Descent {
       Take the heap and transform it using RNG* algorithm
       Heap is already in NN order
     */
-    pub fn rng_star<T: Clone + DataType>(&self, dao: Rc<Dao<T>>) -> Vec<Vec<usize>> {
+    pub fn rng_star<T: Clone>(&self, dao: Rc<Dao<T>>, distance: fn(&T,&T) -> f32) -> Vec<Vec<usize>> {
         let num_entries = self.current_graph.num_entries;
         println!("num entries: {}", num_entries);
 
@@ -83,7 +86,7 @@ impl Descent {
                 for id_already_in_rng in &rng_star {
                     let datum_already_in_rng = dao.get_datum(*id_already_in_rng);
                     let rng_datum_to_next_neighbour_dist =
-                        T::dist(datum_already_in_rng, next_neighbour);
+                        distance(datum_already_in_rng, next_neighbour);
                     if rng_datum_to_next_neighbour_dist < q_to_next_neighbour_dist {
                         // this is the don't add condition
                         found_closer = true;
@@ -100,31 +103,33 @@ impl Descent {
         result
     }
 
-    pub fn knn_search<T: Clone + DataType>(
+    pub fn knn_search<T: Clone>(
         &self,
         query: T,
         nn_table: &Vec<Vec<usize>>,
         dao: Rc<Dao<T>>,
         swarm_size: usize,
+        distance: fn(&T,&T) -> f32,
         // dist_fn: fn(&T, &T) -> NonNan,
     ) -> (usize, Vec<Pair>) {
         let entry_point_simple = get_entry_point(&nn_table);
         //println!("getting entry point");
         // let entry_point_good = find_good_entry_point(&query, dao.clone(), 100);
         // println!("doing search with: {entry_point_simple} {entry_point_good}");
-        return knn_search_internal(query, nn_table, dao, entry_point_simple, swarm_size); // dist_fn);
+        return knn_search_internal(query, nn_table, dao, entry_point_simple, swarm_size, distance);
     }
 }
 
-fn find_good_entry_point<T: Clone + DataType>(
+fn find_good_entry_point<T: Clone>(
     query: &T,
     dao: Rc<Dao<T>>,
     how_many: usize,
+    distance: fn(&T, &T) -> f32,
 ) -> usize {
     dao.get_data().iter().enumerate().take(how_many).fold(
         (0, f32::MAX),
         |(min_index, min_dist), (index, data_point)| {
-            let d = T::dist(data_point, &query);
+            let d = distance(data_point, query);
             if d < min_dist {
                 (index, d)
             } else {
@@ -146,17 +151,17 @@ fn get_entry_point(nn_table: &Vec<Vec<usize>>) -> usize {
  * @param ef - the amount of backtracking required - size of results list
  * @return nn nodes closest to query, this list is ordered with the closest first.
  */
-fn knn_search_internal<T: Clone + DataType>(
+fn knn_search_internal<T: Clone>(
     query: T,
     nn_table: &Vec<Vec<usize>>,
     dao: Rc<Dao<T>>,
     entry_point: usize,
     ef: usize,
-    // dist_fn: fn(&T, &T) -> NonNan,
+    distance: fn(&T, &T) -> f32,
 ) -> (usize, Vec<Pair>) {
     let mut visited_set: HashSet<usize,BuildHasherDefault<XxHash64>> = HashSet::default();
 
-    let ep_q_dist = NonNan(T::dist(&query, dao.get_datum(entry_point)));
+    let ep_q_dist = NonNan(distance(&query, dao.get_datum(entry_point)));
 
     let mut results_list: BinaryHeap<Pair> = BinaryHeap::new(); // biggest first - a max-heap
     let mut candidates_list: BinaryHeap<Reverse<Pair>> = BinaryHeap::new(); // in reverse order - smallest first
@@ -200,7 +205,7 @@ fn knn_search_internal<T: Clone + DataType>(
                         }
                     })
                     .map(|unseen_neighbour| {
-                        let distance_q_next_neighbour = NonNan(T::dist(&query, &unseen_neighbour.1));
+                        let distance_q_next_neighbour = NonNan(distance(&query, &unseen_neighbour.1));
 
                         // let distance_q_next_neighbour = dist_fn(&query, &unseen_neighbour.1);
                         Reverse(Pair::new(distance_q_next_neighbour, unseen_neighbour.0))
@@ -218,13 +223,14 @@ fn knn_search_internal<T: Clone + DataType>(
 }
 
 /// This code actually performs the descent refining the Heap data structures to create better and better NN tables
-fn nn_descent<T: Clone + DataType>(
+fn nn_descent<T: Clone>(
     current_graph: &mut Heap,
     dao: Rc<Dao<T>>,
     rng: &mut ChaCha8Rng,
     num_neighbours: usize,
     max_candidates: usize,
     num_iters: usize,
+    distance: fn(&T, &T) -> f32,
 ) {
     let num_vertices = dao.num_data;
     let block_size = 16384;
@@ -260,6 +266,7 @@ fn nn_descent<T: Clone + DataType>(
                 old_candidate_block,
                 current_graph,
                 dao.clone(),
+                distance,
             );
 
             count_updates =
@@ -296,9 +303,9 @@ fn reorder(current_graph: &mut Heap) {
     });
 }
 
-fn init_rp_forest<T: Clone + DataType>(dao: Rc<Dao<T>>, num_neighbours: usize) -> Heap {
+fn init_rp_forest<T: Clone>(dao: Rc<Dao<T>>, num_neighbours: usize, distance: fn(&T,&T) -> f32 ) -> Heap {
     println!("init_rp_forest");
-    let forest = RPForest::new(30, 40, dao.clone());
+    let forest = RPForest::new(30, 40, dao.clone(), distance);
     let mut current_graph = Heap::new(dao.num_data, num_neighbours);
 
     for row in 0..dao.num_data {
@@ -309,7 +316,7 @@ fn init_rp_forest<T: Clone + DataType>(dao: Rc<Dao<T>>, num_neighbours: usize) -
 
         let neighbour_dists = neighbour_indices
             .iter()
-            .map(|x| T::dist(dao.get_datum(row), dao.get_datum(*x)))
+            .map(|x| distance(dao.get_datum(row), dao.get_datum(*x)))
             .collect::<Vec<f32>>();
 
         let (nns_indirect, nn_dists) = arg_sort(neighbour_dists.clone());
@@ -335,10 +342,11 @@ fn init_rp_forest<T: Clone + DataType>(dao: Rc<Dao<T>>, num_neighbours: usize) -
     current_graph
 }
 
-fn init_random<T: Clone + DataType>(
+fn init_random<T: Clone>(
     dao: Rc<Dao<T>>,
     num_neighbours: usize,
     rng: &mut ChaCha8Rng,
+    distance: fn(&T,&T) -> f32 ,
 ) -> Heap {
     let mut current_graph = Heap::new(dao.num_data, num_neighbours);
     let num_data = dao.num_data;
@@ -352,7 +360,7 @@ fn init_random<T: Clone + DataType>(
                 index = rng.gen_range(0..num_data);
             }
 
-            let dist = T::dist(dao.get_datum(index), dao.get_datum(row));
+            let dist = distance(dao.get_datum(index), dao.get_datum(row));
             let flag = 1;
 
             checked_flagged_heap_push(
@@ -432,11 +440,12 @@ fn apply_graph_updates(
     num_changes
 }
 
-fn generate_graph_updates<T: Clone + DataType>(
+fn generate_graph_updates<T: Clone>(
     new_candidate_block: &[Vec<i32>],
     old_candidate_block: &[Vec<i32>],
     current_graph: &mut Heap,
     dao: Rc<Dao<T>>,
+    distance: fn(&T, &T) -> f32 ,
 ) -> Vec<Vec<Update>> {
     let distances = &current_graph.distances;
     let block_size = new_candidate_block.len();
@@ -470,7 +479,7 @@ fn generate_graph_updates<T: Clone + DataType>(
                     continue;
                 }
 
-                let ac_dist = T::dist(dao.get_datum(a as usize), dao.get_datum(c as usize));
+                let ac_dist = distance(dao.get_datum(a as usize), dao.get_datum(c as usize));
                 if ac_dist <= distances[a as usize][0] || ac_dist <= distances[c as usize][0] {
                     // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, ac_dist));
@@ -482,7 +491,7 @@ fn generate_graph_updates<T: Clone + DataType>(
                 if c < 0 {
                     continue;
                 }
-                let dist = T::dist(dao.get_datum(a as usize), dao.get_datum(c as usize));
+                let dist = distance(dao.get_datum(a as usize), dao.get_datum(c as usize));
                 if dist <= distances[a as usize][0] || dist <= distances[c as usize][0] {
                     // first entry in the distances is the highest?
                     updates[b].push(Update(a as i32, c as i32, dist));

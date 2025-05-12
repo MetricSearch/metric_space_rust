@@ -44,52 +44,6 @@ impl ToString for Normed {
     }
 }
 
-pub trait DataType {
-    fn dot_product(a: &Self, b: &Self) -> f32;
-    fn dist(a: &Self, b: &Self) -> f32;
-}
-
-
-impl DataType for Array1<f32> {
-    fn dot_product(a: &Self, b: &Self) -> f32 {
-        debug_assert!(a.len() == b.len());
-        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-
-        // equivalent to:
-        // let mut result = 0.0;
-        // for i in 0..p0.len() {
-        //     result += p0[i] * p1[i];
-        // }
-        // result
-    }
-
-    /// This is Euc dist
-    fn dist(a: &Self, b: &Self) -> f32 {
-        debug_assert!(a.len() == b.len());
-        f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-    }
-}
-
-// impl DataType for BitVecSimd<[u64x4; 4], 4> {
-//     fn dot_product(p0: &Self, p1: &Self) -> f32 {
-//         p0.and_cloned(p1).count_ones() as f32
-//     }
-//
-//     fn dist(a: &Self, b: &Self) -> f32 {
-//         a.xor_cloned(b).count_ones() as f32
-//     }
-// }
-
-impl<const D: usize> DataType for BitVecSimd<[u64x4; D], 4> {
-    fn dot_product(p0: &Self, p1: &Self) -> f32 {
-        p0.and_cloned(p1).count_ones() as f32
-    }
-
-    fn dist(a: &Self, b: &Self) -> f32 {
-        a.xor_cloned(b).count_ones() as f32
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DaoMetaData {
     pub name: String,
@@ -115,7 +69,7 @@ pub struct DaoMatrix {
     pub embeddings: Array2<f32>,                     // the data and queries
 }
 
-impl<T: Clone + DataType> Dao<T> {
+impl<T: Clone> Dao<T> {
     // pub fn new(dir_name: &str) -> Self {
     //     todo!()
     // }

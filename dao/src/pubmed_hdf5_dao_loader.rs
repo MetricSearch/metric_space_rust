@@ -2,7 +2,7 @@ use crate::{Dao, DaoMetaData, Normed};
 use hdf5::{File};
 use ndarray::{s, Array1, Array2};
 use tracing::error;
-use bits::{bsp, f32_embedding_to_bsp};
+use bits::{Bsp, f32_embedding_to_bsp};
 //use tracing::metadata;
 
 pub fn hdf5_pubmed_f32_to_bsp_load(
@@ -10,18 +10,18 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     num_records_required: usize, // zero if all the data
     num_queries: usize,
     num_vertices: usize,
-) -> anyhow::Result<Dao<bsp<2>>> {
+) -> anyhow::Result<Dao<Bsp<2>>> {
     let file = File::open(data_path)?;                   // open for reading
     let ds_data = file.dataset("train")?;       // the data
     let i_queries_group = file.group("itest")?;     // in distribution queries
     let o_queries_group = file.group("otest")?;     // out of distribution queries
 
     let i_queries = i_queries_group.dataset("queries").unwrap();
-    let o_queries = o_queries_group.dataset("queries").unwrap();
+    //let o_queries = o_queries_group.dataset("queries").unwrap();
 
-    let mut train_size =  ds_data.shape()[0]; // 23_887_701
+    let train_size =  ds_data.shape()[0]; // 23_887_701
     let i_test_size = i_queries.shape()[0]; // 11_000;       // used as queries
-    let o_test_size = i_queries.shape()[0]; // 11_000
+    //let o_test_size = i_queries.shape()[0]; // 11_000
 
     if num_records_required > train_size {
         error!("Too many records requested" )
@@ -38,15 +38,13 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
     let dim = 100;
 
-    let normed = false;
-
     let mut rows_at_a_time = 1000;
 
     if rows_at_a_time > num_records {
         rows_at_a_time = num_records;
     }
 
-    let mut bsp_data: Array1<bsp<2>> = unsafe { Array1::<bsp<2>>::uninit(num_records).assume_init()};
+    let mut bsp_data: Array1<Bsp<2>> = unsafe { Array1::<Bsp<2>>::uninit(num_records).assume_init()};
 
     for start in (0..num_records).step_by(rows_at_a_time) {
         let end = (start + rows_at_a_time).min(num_records);
@@ -56,7 +54,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
             .rows()
             .into_iter()
             .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
-            .collect::<Array1<bsp<2>>>();
+            .collect::<Array1<Bsp<2>>>();
 
         bsp_data
             .slice_mut(s![start..end])
@@ -65,7 +63,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
     let i_queries_slice: Array2<f32> = i_queries.read_slice(s![0..num_queries, ..]).unwrap();
 
-    let bsp_i_test: Array1<bsp<2>> = i_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
+    let bsp_i_test: Array1<Bsp<2>> = i_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
         .rows()
         .into_iter()
         .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
@@ -84,7 +82,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     //     .chain(bsp_o_test.into_iter())
     //     .collect();
 
-    let all_combined: Array1<bsp<2>> = bsp_data
+    let all_combined: Array1<Bsp<2>> = bsp_data
         .into_iter()
         .chain(bsp_i_test.into_iter())
         .collect();

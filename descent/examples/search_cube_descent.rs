@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use serde::__private::de::borrow_cow_bytes;
 use wide::u64x4;
-use dao::{Dao, DataType};
+use dao::{Dao};
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use utils::{arg_sort_2d, ndcg};
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
 
     let (queries, _rest) = queries.split_at(this_many);
 
-    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data);
+    let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data, hamming_distance);
 
     let nn_table = to_usize(&descent.current_graph.nns);
 
@@ -62,9 +62,13 @@ fn main() -> Result<()> {
 
     println!("Running queries");
 
-    do_queries(queries.to_vec(),descent,dao_cube.clone(),&gt_pairs,nn_table);
+    do_queries(queries.to_vec(),descent,dao_cube.clone(),&gt_pairs,nn_table, hamming_distance);
 
     Ok(())
+}
+
+fn hamming_distance(a: &BitVecSimd<[u64x4;4], 4>, b: &BitVecSimd<[u64x4;4], 4> ) -> f32 {
+    a.xor_cloned(b).count_ones() as f32
 }
 
 fn show_results(qid : usize, results: &Vec<Pair>) {
@@ -96,13 +100,15 @@ fn do_queries(
     descent: Descent,
     dao: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>>,
     gt_pairs: &Vec<Vec<Pair>>,
-    nn_table: Vec<Vec<usize>>) {
+    nn_table: Vec<Vec<usize>>,
+    distance: fn(&BitVecSimd<[u64x4; 4], 4>,&BitVecSimd<[u64x4; 4], 4>) -> f32,
+) {
     queries.
         iter().
         enumerate()
         .for_each( | (qid,query) | {
             let now = Instant::now();
-            let (dists,qresults) = descent.knn_search( query.clone(), &nn_table, dao.clone(), 100 );
+            let (dists,qresults) = descent.knn_search( query.clone(), &nn_table, dao.clone(), 100, distance );
             let after = Instant::now();
             println!("Results for Q{}....", qid);
             println!("Time per query: {} ns", (after - now).as_nanos());
@@ -123,9 +129,10 @@ fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
 }
 
-fn brute_force_all_dists<T: Clone + DataType>(
+fn brute_force_all_dists<T: Clone>(
     queries: Vec<T>,
     data: Vec<T>,
+    distance : fn(&T, &T) -> f32
 ) -> Vec<Vec<Pair>> {
     queries
         .iter()
@@ -133,7 +140,7 @@ fn brute_force_all_dists<T: Clone + DataType>(
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map( |it| { Pair::new( NonNan(T::dist(q, it.1)), it.0 ) } )
+                .map( |it| { Pair::new( NonNan(distance(q, it.1)), it.0 ) } )
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs

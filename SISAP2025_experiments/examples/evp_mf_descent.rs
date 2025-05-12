@@ -6,7 +6,7 @@ use std::rc::Rc;
 use wide::u64x4;
 use ndarray::{Array1, Axis};
 use bitvec_simd::BitVecSimd;
-use bits::{f32_data_to_evp};
+use bits::{bsp_distance, f32_data_to_evp, Bsp};
 use descent::Descent;
 use dao::convert_f32_to_evp::f32_dao_to_evp;
 use utils::pair::Pair;
@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 
     let dao_evp = f32_dao_to_evp::<3>(dao_f32.clone(),100);
 
-    let descent = Descent::new(dao_evp.clone(), num_neighbours, false);
+    let descent = Descent::new(dao_evp.clone(), num_neighbours, false, hamming_distance );
 
     println!("Built a NN table");
 
@@ -42,13 +42,28 @@ fn main() -> Result<()> {
     let mut results: Vec<Vec<Pair>> = vec![];
 
     for q in queries_bitreps {
-        let (_canidates_len,sorted_results) = descent.knn_search::<BitVecSimd<[u64x4; 3], 4>>(q.clone(), &to_usize(&descent.current_graph.nns), dao_evp.clone(),100);
+        let (_canidates_len,sorted_results) = descent.knn_search::<BitVecSimd<[u64x4; 3], 4>>(q.clone(),
+                                                                                              &to_usize(&descent.current_graph.nns),
+                                                                                              dao_evp.clone(),
+                                                                                              100,
+                                                                                              hamming_distance );
         results.push(sorted_results);
     }
 
     Ok(())
 }
 
+fn hamming_distance(a: &BitVecSimd<[u64x4;3], 4>, b: &BitVecSimd<[u64x4;3], 4> ) -> f32 {
+    a.xor_cloned(b).count_ones() as f32
+}
+
+
 pub fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
 }
+
+fn distance_adapter(a: &Bsp::<2>, b: &Bsp::<2> ) -> f32 {
+    bsp_distance::<2>(a,b) as f32
+}
+
+

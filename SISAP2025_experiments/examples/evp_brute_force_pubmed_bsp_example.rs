@@ -1,62 +1,47 @@
 use anyhow::Result;
-use bits::{Bsp, bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance};
-use bitvec_simd::BitVecSimd;
+use bits::{Bsp, bsp_similarity};
 use metrics::euc;
-use ndarray::{Array1, ArrayView1, Axis};
+use ndarray::{Array1, ArrayView1};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::time::Instant;
-use wide::u64x4;
-use dao::glove100_hdf5_dao_loader::hdf5_glove_f32_load;
+use dao::Dao;
+use dao::pubmed_hdf5_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use utils::arg_sort_2d;
 
 fn main() -> Result<()> {
 
-    tracing::info!("Loading Glove data...");
+    let num_records = 100;
+    let num_queries = 10;
+    let vertices = 200;
 
-    let dao_f32 = hdf5_glove_f32_load( "/Volumes/Data/glove-100-angular.hdf5" ).unwrap();
+    let f_name = "/Volumes/Data/sisap_challenge_25/pubmed/benchmark-dev-pubmed23.h5";
 
-    let queries: ArrayView1<Array1<f32>> = dao_f32.get_queries();
-    let data: ArrayView1<Array1<f32>> = dao_f32.get_data();
+    tracing::info!("Loading Pubmed {} data...", num_records);
 
-    println!( "Glove data size: {} queries size: {}", data.len(), queries.len() );
+    let dao_bsp: Dao<Bsp<2>> = hdf5_pubmed_f32_to_bsp_load( f_name, num_records, num_queries, vertices ).unwrap();
 
-    let (queries, _rest_queries) = queries.split_at(Axis(0),100);
+    let queries: ArrayView1<Bsp<2>> = dao_bsp.get_queries();
+    let data: ArrayView1<Bsp<2>> = dao_bsp.get_data();
 
-    println!("Doing {:?} queries", queries.len());
-
-    let num_queries =  queries.len() as f64;
-
-    // This is a 5 bit encoding => need hamming distance
-
-    let data_bsp_reps = f32_data_to_bsp::<1>(data, 67);                      // 67 bits selected
-    let queries__bsp_reps = f32_data_to_bsp::<1>(queries, 67);
-
-    println!("Brute force NNs for {} queries", queries.len());
-    let now = Instant::now();
-    let euc_dists: Vec<Vec<f32>> = brute_force_all_dists(queries, data);
-    let after = Instant::now();
-
-    println!("Time per EUC query 1_000_000 dists: {} ns", ((after - now).as_nanos() as f64) / num_queries );
-
-    let (gt_nns, _gt_dists) = arg_sort_2d(euc_dists);  // these are all the sorted gt ids.
+    println!( "Pubmed data size: {} queries size: {}", data.len(), queries.len() );
 
     let now = Instant::now();
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let hamming_distances = generate_bsp_dists::<1>(queries__bsp_reps, data_bsp_reps);
+    let hamming_distances = generate_bsp_dists(queries, data);
     let after = Instant::now();
 
-    println!("Time per BSP query 1_000_000 dists: {} ns", ((after - now).as_nanos() as f64) / num_queries );
+    println!("Time per BSP query 1_000_000 dists: {} ns", ((after - now).as_nanos() as f64) / num_queries as f64 );
 
     let (bsp_nns, _bsp_dists ) = arg_sort_2d(hamming_distances);
 
-    println!("Glove:");
-    println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
-    for bsp_set_size in (30..101).step_by(5) {
-            report_queries(queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
-    }
+    // println!("Glove:");
+    // println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
+    // for bsp_set_size in (30..101).step_by(5) {
+    //         report_queries(queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
+    // }
 
     Ok(())
 }
@@ -87,7 +72,7 @@ fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, bsp_nns: &Vec<Ve
     }
     );
     
-    let mean = ( sum as f64 / num_queries as f64 );
+    let mean = sum as f64 / num_queries as f64;
     println!("{},{},{},{},{},{} ",  bsp_set_size, gt_size, mean, max, min, std_dev(mean,intersection_sizes) );
 }
 
@@ -114,16 +99,16 @@ fn brute_force_all_dists(
 }
 
 
-fn generate_bsp_dists<const D: usize>(
-    queries_bitreps: Vec<Bsp<D>>,
-    data_bitreps: Vec<Bsp<D>>,
+fn generate_bsp_dists(
+    queries_bitreps: ArrayView1<Bsp<2>>,
+    data_bitreps: ArrayView1<Bsp<2>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
-        .par_iter()
+        .iter()
         .map(|query| {
             data_bitreps
                 .iter()
-                .map(|data| ( 1 - bsp_similarity::<D>(&query, &data)) )
+                .map(|data| ( 1 - bsp_similarity::<2>(query, data)) )
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()

@@ -25,10 +25,15 @@ fn main() -> Result<()> {
     let num_neighbours = 10;
     //let max_candidates = 50;
 
-    let descent = Descent::new(dao.clone(), num_neighbours, true);
+    let descent = Descent::new(dao.clone(), num_neighbours, true, distance);
 
     println!("First row: {:?}", descent.current_graph.nns[0]);
     println!("First row: {:?}", descent.current_graph.distances[0]);
 
     Ok(())
+}
+
+// TODO sort out multiple copies
+fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
+    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
 }

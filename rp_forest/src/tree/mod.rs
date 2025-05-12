@@ -1,13 +1,13 @@
 // RPTree impl
 // al
 
-use dao::{Dao, DataType};
+use dao::{Dao};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use std::cmp::max;
 use std::rc::Rc;
-
+use tracing_subscriber::prelude::__tracing_subscriber_field_MakeExt;
 // const SEED: [u8; 32] = [
 //     1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
 //     8, 39, 55, 23, 37, 112, 72, 5,
@@ -25,8 +25,8 @@ pub struct RpNode<T> {
     pub right: Option<Box<Self>>,
 }
 
-impl<T: Clone + DataType> RpNode<T> {
-    pub fn new(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> Self {
+impl<T: Clone> RpNode<T> {
+    pub fn new(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng ) -> Self {
         let payload: Vec<usize> = vec![];
         //let distribution = Normal::new(0.0, 1.0).unwrap();
         Self {
@@ -49,9 +49,10 @@ impl<T: Clone + DataType> RpNode<T> {
         dim: usize,
         dao: Rc<Dao<T>>,
         rng: &mut ChaCha8Rng,
+        dot_product: fn(&T,&T) -> f32
     ) {
         // call the private insert method with the tree root
-        self.do_insert(index, max_load, dim, dao, rng);
+        self.do_insert(index, max_load, dim, dao, rng, dot_product);
     }
 
     fn do_insert(
@@ -61,6 +62,7 @@ impl<T: Clone + DataType> RpNode<T> {
         dim: usize,
         dao: Rc<Dao<T>>,
         rng: &mut ChaCha8Rng,
+        dot_product: fn(&T, &T) -> f32,
     ) {
         // should not be pub?
         if self.is_leaf() {
@@ -68,7 +70,7 @@ impl<T: Clone + DataType> RpNode<T> {
                 // perform the split
                 self.left = Some(Box::new(RpNode::new(dao.clone(), rng)));
                 self.right = Some(Box::new(RpNode::new(dao.clone(), rng)));
-                self.redistribute(dao.clone());
+                self.redistribute(dao.clone(),dot_product);
                 // no return - still need to walk the tree more since current is no longer a leaf
             } else {
                 self.payload.push(index);
@@ -76,14 +78,14 @@ impl<T: Clone + DataType> RpNode<T> {
         }
         // Walk the tree to get to the leaves
         let data_to_add = dao.get_datum(index);
-        let dist = T::dot_product(&self.pivot, data_to_add);
+        let dist = dot_product(&self.pivot, data_to_add);
         if dist <= self.split_value {
             if let Some(left) = self.left.as_mut() {
-                left.do_insert(index, max_load, dim, dao.clone(), rng);
+                left.do_insert(index, max_load, dim, dao.clone(), rng,dot_product );
             }
         } else {
             if let Some(right) = self.right.as_mut() {
-                right.do_insert(index, max_load, dim, dao.clone(), rng);
+                right.do_insert(index, max_load, dim, dao.clone(), rng,dot_product );
             }
         }
     }
@@ -100,20 +102,20 @@ impl<T: Clone + DataType> RpNode<T> {
         1 + max(right_depth, left_depth)
     }
 
-    pub fn do_lookup(&self, query: T, dao: Rc<Dao<T>>) -> Option<Vec<usize>> {
+    pub fn do_lookup(&self, query: T, dao: Rc<Dao<T>>, dot_product: fn(&T,&T)-> f32 ) -> Option<Vec<usize>> {
         if self.is_leaf() {
             Some(self.payload.clone())
         } else {
-            let dp = T::dot_product(&self.pivot, &query);
+            let dp = dot_product(&self.pivot, &query);
             if dp <= self.split_value {
                 if let Some(left) = &self.left {
-                    left.do_lookup(query, dao)
+                    left.do_lookup(query, dao, dot_product)
                 } else {
                     None
                 }
             } else {
                 if let Some(right) = &self.right {
-                    right.do_lookup(query, dao)
+                    right.do_lookup(query, dao, dot_product)
                 } else {
                     None
                 }
@@ -133,11 +135,11 @@ impl<T: Clone + DataType> RpNode<T> {
         Ok(())
     }
 
-    fn redistribute(&mut self, dao: Rc<Dao<T>>) {
+    fn redistribute(&mut self, dao: Rc<Dao<T>>, dot_product: fn(&T,&T)-> f32) {
         let prods = self
             .payload
             .iter()
-            .map(|id| T::dot_product(&self.pivot, dao.get_datum(*id)))
+            .map(|id| dot_product(&self.pivot, dao.get_datum(*id)))
             .collect::<Vec<f32>>(); // calculate the dot products to each data from the pivot
                                     // next calculate the split position
 
@@ -197,7 +199,7 @@ impl<T> std::fmt::Debug for RpNode<T> {
     }
 }
 
-pub fn make_pivot2<T: Clone + DataType>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> T {
+pub fn make_pivot2<T: Clone>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> T {
     let index = rng.gen_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
     dao.get_datum(index).clone()
@@ -234,10 +236,11 @@ pub struct RPTree<T: Clone> {
     max_load: usize,
     dim: usize,
     rng: ChaCha8Rng,
+    dot_product: fn(&T, &T) -> f32,
 }
 
-impl<T: Clone + DataType> RPTree<T> {
-    pub fn new(max_load: usize, dao: Rc<Dao<T>>, use_as_seed: u64) -> Self {
+impl<T: Clone> RPTree<T> {
+    pub fn new(max_load: usize, dao: Rc<Dao<T>>, use_as_seed: u64, dot_product: fn(&T,&T) -> f32) -> Self {
         let dim = dao.get_dim();
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(use_as_seed * 142);
         Self {
@@ -246,6 +249,7 @@ impl<T: Clone + DataType> RPTree<T> {
             max_load,
             dim,
             rng,
+            dot_product,
         }
     }
 
@@ -259,21 +263,10 @@ impl<T: Clone + DataType> RPTree<T> {
     pub fn lookup(&self, query: T) -> Option<Vec<usize>> {
         self.root
             .as_ref()
-            .and_then(|node| node.do_lookup(query, self.dao.clone()))
+            .and_then(|node| node.do_lookup(query, self.dao.clone(), self.dot_product))
     }
 
-    // pub fn lookup(&self, query: &[f32]) -> Result<Option<Vec<usize>>> {
-    //     self.root.as_ref()
-    //         .ok_or_else(|| anyhow!("Tree is empty"))
-    //         .map(|node| node.do_lookup(query, self.dao.clone()))
-    //     // this is the same as this:
-    //     // match &self.root {
-    //     //     None => Result::Err(anyhow!("Tree is empty")),
-    //     //     Some(node) => { Ok( node.do_lookup(query,self.dao.clone()) ) }
-    //     // }
-    // }
-
-    pub fn add(&mut self, table_index: usize) {
+    pub fn add(&mut self, table_index: usize, dot_product: fn(&T,&T)-> f32) {
         match &mut self.root {
             None => {
                 let mut node = RpNode::new(self.dao.clone(), &mut self.rng);
@@ -287,6 +280,7 @@ impl<T: Clone + DataType> RPTree<T> {
                     self.dim,
                     self.dao.clone(),
                     &mut self.rng,
+                    dot_product,
                 );
             }
         }
@@ -294,13 +288,13 @@ impl<T: Clone + DataType> RPTree<T> {
 
     /**************  private functions **************/
 
-    fn populate(&mut self) {
+    fn populate(&mut self, dot_product: fn(&T,&T)-> f32) {
         tracing::info!("Data len {}", self.dao.data_len());
         for i in 0..self.dao.data_len() {
             if i % 100_000 == 0 {
                 tracing::info!("Adding data {i}");
             }
-            self.add(i);
+            self.add(i,dot_product);
         }
     }
 }
@@ -332,17 +326,18 @@ impl<T: Clone> std::fmt::Debug for RPTree<T> {
 #[derive(Debug)]
 pub struct RPForest<T: Clone> {
     trees: Vec<RPTree<T>>,
+    dot_product: fn(&T,&T)-> f32
 }
 
-impl<T: Clone + DataType> RPForest<T> {
-    pub fn new(num_trees: usize, max_load: usize, dao: Rc<Dao<T>>) -> Self {
+impl<T: Clone> RPForest<T> {
+    pub fn new(num_trees: usize, max_load: usize, dao: Rc<Dao<T>>, dot_product: fn(&T,&T) -> f32 ) -> Self {
         let mut trees = vec![];
         for use_as_seed in 0..num_trees {
-            let tree = RPTree::new(max_load, dao.clone(), use_as_seed as u64);
+            let tree = RPTree::new(max_load, dao.clone(), use_as_seed as u64, dot_product);
             trees.push(tree);
         }
 
-        let mut this = Self { trees };
+        let mut this = Self { trees,dot_product };
         this.populate(dao.clone());
         this
     }
@@ -351,7 +346,7 @@ impl<T: Clone + DataType> RPForest<T> {
         for i in 0..dao.data_len() {
             if i % 100_000 == 0 {
                 for j in 0..self.trees.len() {
-                    self.trees[j].add(i);
+                    self.trees[j].add(i,self.dot_product);
                 }
                 tracing::info!("Adding data {i}");
             }
@@ -360,7 +355,7 @@ impl<T: Clone + DataType> RPForest<T> {
     }
 
     pub fn add(&mut self, index: usize) {
-        self.trees.iter_mut().for_each(|tree| tree.add(index));
+        self.trees.iter_mut().for_each(|tree| tree.add(index,self.dot_product));
     }
 
     pub fn lookup(&self, query: T) -> Vec<usize> {

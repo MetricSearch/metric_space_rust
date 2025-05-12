@@ -20,13 +20,13 @@ fn main() -> Result<()> {
     let num_neighbours = 10;
     //let max_candidates = 50;
 
-    let descent = Descent::new(dao.clone(), num_neighbours, true);
+    let descent = Descent::new(dao.clone(), num_neighbours, true, distance);
 
     //let serialised = serde_bincode::to_string(&descent)?;
 
     println!("Getting rng table ...");
 
-    let rng = descent.rng_star(dao.clone());
+    let rng = descent.rng_star(dao.clone(), distance);
 
     for i in 0..40 {
         println!("Descent {i}: {:?}", descent.current_graph.nns[i]);
@@ -35,4 +35,9 @@ fn main() -> Result<()> {
 
 
     Ok(())
+}
+
+// TODO sort out multiple copies
+fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
+    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
 }

@@ -17,13 +17,13 @@ fn main() -> anyhow::Result<()> {
     )?);
     tracing::info!("mf dino data loaded, adding data...");
 
-    let mut tree = RPTree::new(10, dao.clone(), 7);
+    let mut tree = RPTree::new(10, dao.clone(), 7, dot_product);
     for i in 0..100 {
         //dao.data_len() {
         // if i % 100_000 == 0 {
         //     tracing::info!("Adding data {i}");
         // }
-        tree.add(i);
+        tree.add(i,dot_product);
     }
 
     tracing::info!("{:?}", tree);
@@ -44,6 +44,10 @@ fn main() -> anyhow::Result<()> {
     lookup(97, dao.clone(), &mut tree)?;
 
     Ok(())
+}
+
+fn dot_product(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
+    a.iter().into_iter().zip(b.iter()).map(|(x, y)| (x * y)).sum()
 }
 
 fn lookup(index: usize, dao: Rc<Dao::<Array1<f32>>>, tree: &mut RPTree::<Array1<f32>>) -> anyhow::Result<()> {

@@ -30,7 +30,7 @@ fn main() -> Result<()> {
 
     println!("Getting rng table ...");
 
-    let rng_table = descent.rng_star(dao.clone());
+    let rng_table = descent.rng_star(dao.clone(), distance);
 
     println!("Saving NN table to {} ...", rng_star_file_name);
 
@@ -39,3 +39,11 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+//TODO sort out multiple copies
+
+fn distance(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
+    f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
+}
+
+

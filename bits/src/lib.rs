@@ -175,12 +175,12 @@ pub fn whamming_distance<const D: usize>(
 // Bit Scalar Product
 
 #[derive(Debug, Clone)]
-pub struct bsp<const X: usize> {
+pub struct Bsp<const X: usize> {
     pub ones          : BitVecSimd<[u64x4; X],4>,
     pub negative_ones : BitVecSimd<[u64x4; X],4>,
 }
 
-pub fn f32_embedding_to_bsp<const D: usize>(embedding: &ArrayView1<f32>, non_zeros: usize) -> bsp<D> {
+pub fn f32_embedding_to_bsp<const D: usize>(embedding: &ArrayView1<f32>, non_zeros: usize) -> Bsp<D> {
     let mut ones = vec![];
     let mut negative_ones = vec![];
     let embedding_len = embedding.len();
@@ -206,22 +206,22 @@ pub fn f32_embedding_to_bsp<const D: usize>(embedding: &ArrayView1<f32>, non_zer
             negative_ones.push(false);
     } } );
 
-    bsp::<D>{ ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
+    Bsp::<D>{ ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
               negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()) }
 }
-pub fn f32_data_to_bsp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_zeros: usize) -> Vec<bsp<D>> {
+pub fn f32_data_to_bsp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_zeros: usize) -> Vec<Bsp<D>> {
     embeddings
         .iter()
         .map(|embedding| f32_embedding_to_bsp::<D>(&embedding.view(),non_zeros))
-        .collect::<Vec<bsp<D>>>()
+        .collect::<Vec<Bsp<D>>>()
 }
 
-pub fn bsp_similarity<const X: usize>( a: &bsp<X>, b: &bsp<X>) -> usize {
+pub fn bsp_similarity<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
 
-    let A = a.ones.and_cloned(&b.ones).count_ones() as usize;
-    let B = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let C = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let D = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
 
     // println!( "a {:?} b {:?}", a, b) ;
 
@@ -229,10 +229,10 @@ pub fn bsp_similarity<const X: usize>( a: &bsp<X>, b: &bsp<X>) -> usize {
     // min is zero (not in practice) max is 2048 (not in practice).
     // println!("A={} B={} C={} D={} result ={}", A, B, C, D, (A + B+X*256*2) - (C + D ));
 
-    (A + B + X*256*2) - ( C + D )
+    (aa + bb + X*256*2) - ( cc + dd)
 }
 
-pub fn bsp_distance<const X: usize>( a: &bsp<X>, b: &bsp<X>) -> usize {
+pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
     let A = a.ones.and_cloned(&b.ones).count_ones() as usize;
     let B = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
     let C = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;

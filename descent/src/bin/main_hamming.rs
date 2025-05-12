@@ -31,10 +31,17 @@ fn main() -> Result<()> {
 
     let dao : Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_cubic_dao(dao.clone());
 
-    let descent = Descent::new(dao.clone(), num_neighbours, true);
+    let descent = Descent::new(dao.clone(), num_neighbours, true, hamming_distance);
 
     println!("First row: {:?}", descent.current_graph.nns[0]);
     println!("First row: {:?}", descent.current_graph.distances[0]);
 
     Ok(())
 }
+
+//TODO sort out multiple copies
+
+fn hamming_distance(a: &BitVecSimd<[u64x4; 4], 4>, b: &BitVecSimd<[u64x4; 4], 4>) -> f32 {
+    a.xor_cloned(b).count_ones() as f32
+}
+

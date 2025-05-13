@@ -14,6 +14,7 @@ pub mod laion_10M_hdf5_dao_loader;
 pub mod convert_f32_to_evp;
 pub mod laion_10M_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_dao_loader;
+pub mod pubmed_hdf5_gt_loader;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{Result};

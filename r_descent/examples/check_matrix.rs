@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 10;
-    let chunk_size = 2000;
+    let chunk_size = 10000; // 10000;    // TODO need code to check for divisor size
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 8;
@@ -60,7 +60,15 @@ fn main() -> Result<()> {
     println!("Initializing NN table with chunk size {}", chunk_size);
     let (mut ords,mut dists) = initialise_table_m( dao_f32.clone(),chunk_size,num_neighbours );
 
-    println!("Getting NN table");
+    for i in 0..3 {
+        println!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
+        let row_data = dao_f32.get_datum(i);
+        for ord in ords.row(i) {
+            println!( "real dist is: {} ", row_data.dot(&dao_f32.get_datum(*ord)) );
+        }
+}
+
+println!("Getting NN table");
 
     get_nn_table2(dao_f32.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 

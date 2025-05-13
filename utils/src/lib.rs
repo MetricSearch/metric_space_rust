@@ -4,7 +4,7 @@ pub mod pair;
 
 
 use std::sync::{LazyLock, Mutex};
-use ndarray::{Array1, Array2, ArrayView, ArrayView1, Axis, Ix1};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView, ArrayView1, Axis, Ix1, ViewRepr};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
@@ -249,6 +249,10 @@ mod tests {
 
 pub fn distance_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
     f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
+}
+
+pub fn dot_product_f32(a: ArrayBase<ViewRepr<&f32>, Ix1>, b: ArrayBase<ViewRepr<&f32>, Ix1>) -> f32 {
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
 

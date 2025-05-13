@@ -1,18 +1,19 @@
 use anyhow::Result;
 use bits::{Bsp, bsp_similarity};
 use metrics::euc;
-use ndarray::{Array1, ArrayView1};
+use ndarray::{s, Array1, Array2, ArrayView1};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::time::Instant;
 use dao::Dao;
 use dao::pubmed_hdf5_dao_loader::hdf5_pubmed_f32_to_bsp_load;
+use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use utils::arg_sort_2d;
 
 fn main() -> Result<()> {
 
-    let num_records = 100;
-    let num_queries = 10;
+    let num_records = 0;
+    let num_queries = 100;
     let vertices = 200;
 
     let f_name = "/Volumes/Data/sisap_challenge_25/pubmed/benchmark-dev-pubmed23.h5";
@@ -37,40 +38,47 @@ fn main() -> Result<()> {
 
     let (bsp_nns, _bsp_dists ) = arg_sort_2d(hamming_distances);
 
-    // println!("Glove:");
-    // println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
-    // for bsp_set_size in (30..101).step_by(5) {
-    //         report_queries(queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
-    // }
+    let knns = 100;
+
+    let gt_nns = hdf5_pubmed_gt_load( f_name,num_records,knns ).unwrap();
+
+    println!("Pubmed:");
+    println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
+    for bsp_set_size in (30..101).step_by(5) {
+            report_queries(queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
+    }
 
     Ok(())
 }
 
-fn report_queries(num_queries: usize, gt_nns: &Vec<Vec<usize>>, bsp_nns: &Vec<Vec<usize>>, bsp_set_size: usize, gt_size: usize) {
+fn report_queries(num_queries: usize, gt_nns: &Array2<usize>, bsp_nns: &Vec<Vec<usize>>, bsp_set_size: usize, gt_size: usize) {
     let mut sum = 0;
     let mut min = 100;
     let mut max = 0;
 
-    let mut intersection_sizes = vec![];
-    (0..num_queries).into_iter().for_each(|qi| {
+    let mut sum = 0;
+    let mut min = usize::MAX;
+    let mut max = 0;
+    let mut intersection_sizes = Vec::with_capacity(num_queries);
 
-        let (hamming_nns, _rest_nns) = bsp_nns.get(qi).unwrap().split_at(bsp_set_size);
-        let (gt_nns, _rest_gt_nns) = gt_nns.get(qi).unwrap().split_at(gt_size);
+    for qi in 0..num_queries {
+        let bsp_row = &bsp_nns[qi];
+        let gt_row = gt_nns.row(qi);
 
-        let hamming_set: HashSet<usize> = hamming_nns.into_iter().map(|x| *x ).collect();
-        let gt_set: HashSet<usize> = gt_nns.into_iter().map(|x| *x ).collect();
+        if bsp_row.len() < bsp_set_size || gt_row.len() < gt_size {
+            panic!("Not enough neighbors for query {}", qi);
+        }
 
-        let intersection = hamming_set.intersection(&gt_set);
+        let hamming_set: HashSet<usize> = bsp_row[..bsp_set_size].iter().copied().collect();
+        let gt_set: HashSet<usize> = gt_row.slice(s![..gt_size]).iter().copied().collect();
 
-        let intersection_size = intersection.count();
-        sum = sum + intersection_size;
+        let intersection_size = hamming_set.intersection(&gt_set).count();
+
+        sum += intersection_size;
         max = max.max(intersection_size);
         min = min.min(intersection_size);
         intersection_sizes.push(intersection_size);
-
-        // println!("Intersection of q{} {} hamming sists in {} gt_nns, intersection size: {}", qi, hamming_set_size, nns_size, intersection_size);
     }
-    );
     
     let mean = sum as f64 / num_queries as f64;
     println!("{},{},{},{},{},{} ",  bsp_set_size, gt_size, mean, max, min, std_dev(mean,intersection_sizes) );

@@ -5,13 +5,14 @@ use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
 use metrics::euc;
 use ndarray::Array1;
-use r_descent_matrix::{get_nn_table2, initialise_table_m};
+use r_descent_matrix::{get_nn_table2, initialise_table};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
 use clap::Parser;
+use utils::dot_product_f32;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -52,19 +53,18 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 10;
-    let chunk_size = 10000; // 10000;    // TODO need code to check for divisor size
+    let chunk_size = 20000;
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 8;
 
     println!("Initializing NN table with chunk size {}", chunk_size);
-    let (mut ords,mut dists) = initialise_table_m( dao_f32.clone(),chunk_size,num_neighbours );
+    let (mut ords,mut dists) = initialise_table(dao_f32.clone(), chunk_size, num_neighbours );
 
     for i in 0..3 {
         println!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
-        let row_data = dao_f32.get_datum(i);
         for ord in ords.row(i) {
-            println!( "real dist is: {} ", row_data.dot(&dao_f32.get_datum(*ord)) );
+            println!( "ord: {} real dist is: {} ", ord, dot_product_f32(dao_f32.get_datum(i), dao_f32.get_datum(*ord)) );
         }
 }
 

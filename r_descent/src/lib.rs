@@ -11,12 +11,12 @@ use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
 use dao::{Dao, DaoMatrix};
 use rand_chacha::rand_core::SeedableRng;
 use serde::{Deserialize, Serialize};
-use utils::{arg_sort_big_to_small, arg_sort_small_to_big, index_of_min, min_index_and_value, minimum_in, rand_perm, dot_product_f32};
+use utils::{arg_sort_big_to_small, index_of_min, min_index_and_value, minimum_in, rand_perm, dot_product_f32};
 use utils::non_nan::{NonNan};
 use crate::updates::Updates;
 use rayon::prelude::*;
 use ndarray::parallel::prelude::*;
-use bits::hamming_distance_as_f32;
+use std::ptr;
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
@@ -27,88 +27,52 @@ pub struct RDescentMatrix {
 impl RDescentMatrix {
     pub fn new( dao: Rc<DaoMatrix>, num_neighbours: usize, reverse_list_size : usize, chunk_size : usize, rho: f64, delta : f64 ) -> RDescentMatrix {
 
-        // let reverse_list_size = 64;
-        // let rho: f64 = 1.0;
-        // let delta = 0.01;
-        // let chunk_size = 20000;
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); // random number
-        let (mut ords, mut dists) = initialise_table_m(dao.clone(), chunk_size, num_neighbours);
+        let (mut ords, mut dists) = initialise_table(dao.clone(), chunk_size, num_neighbours);
         get_nn_table2(dao.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
         Self { indices: ords, dists: dists   }
     }
 }
 
-pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>,Array2<f32>) {
+pub fn initialise_table(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>, Array2<f32>) {
 
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
     let dims = dao.get_dim();
     let data = dao.get_data();
-    let num_loops = num_data / chunk_size;  // TODO round down here
-
-    // TODO check richard matlab version rounding
 
     let mut result_indices = unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init()};
     let mut result_sims = unsafe {Array2::<f32>::uninit((num_data, num_neighbours)).assume_init()};
 
     result_indices
         .axis_chunks_iter_mut(Axis(0),chunk_size)
-        .into_iter()  // .into_par_iter()
+        .into_par_iter()  // .into_iter()
         .zip(result_sims.axis_chunks_iter_mut(Axis(0),chunk_size)
             .into_iter())
         .enumerate()
         .for_each(|(i, (mut result_indices_chunk, mut result_sims_chunk))| {
+            let real_chunk_size = result_sims_chunk.shape()[0];
             let start_pos = i * chunk_size;
-            let end_pos = start_pos + chunk_size;
-
-            // println!("start pos: {}, end pos: {}", start_pos, end_pos);
+            let end_pos = start_pos + real_chunk_size;
 
             let chunk = data.slice(s![start_pos..end_pos, 0..]);
 
-            let original_row_ids = rand_perm(num_data, chunk_size);  // random data ids from whole data set
-
-           // println!("rand_ids {:?}", original_row_ids); // 1 D array of rows
-
+            let original_row_ids = rand_perm(num_data, real_chunk_size);  // random data ids from whole data set
             let rand_data = get_slice_using_selected(&data, &original_row_ids.view(), chunk.shape().try_into().unwrap()); // a view of the original data points as a matrix
-
-            // println!("check0: {:?}", &data.slice(s![rand_ids[0]..rand_ids[0]+1, 0..]));
-
-            // Checked that rand_data[0] and data.slice(s![rand_ids[0]... are the same
-
-            let chunk_dists: Array2<f32> = rand_data.dot(&chunk.t()); // matrix mult all the distances - all relative to the original_rows
-
-            // for row_index in 0..chunk_size {
-            //     for col_index in 0..num_neighbours {
-            //         print!( "{},{}: {:?} ", row_index,col_index, chunk_dists[[row_index,col_index]] );
-            //     }
-            //     println!("");
-            // }
+            let chunk_dists: Array2<f32> = chunk.dot(&rand_data.t()); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists)= arg_sort_big_to_small(&chunk_dists); // sorted ords are row relative indices.
-            // these ords are row relative all range from 0..chunk_size
-
-            // println!("sorted_ords[0]: {:?}", &sorted_ords.slice(s![0..1, ..]));
-            // println!("sorted_dists[0]: {:?}", &sorted_dists.slice(s![0..1, ..]));
+            // these ords are row relative all range from 0..real_chunk_size
 
             // get the num_neighbours closest original data indices
+            let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((real_chunk_size, num_neighbours));
 
-            let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((chunk_size, num_neighbours));
-
-            // for rand_id in &original_row_ids {
-            //     let datum = dao.get_datum(*rand_id);
-            //     let chumk_0 = data.row(start_pos);
-            //     let calc_dist = dot_product_f32(chumk_0, datum);
-            //     println!("index: {} calc_dist: {}", rand_id, &calc_dist);
-            // }
-
-            for row in 0..chunk_size {
+            for row in 0..real_chunk_size {
                 for col in 0..num_neighbours {
                     closest_dao_indices[[row, col]] = original_row_ids[sorted_ords[[row,col]]];
-                    // println!("closest_dao_indices[{}, {}] index: {} dist: {}", row, col, original_row_ids[sorted_ords[[row,col]]], sorted_dists[[row, col]] );
                 }
-                // panic!("HERE");
             }
 
             result_indices_chunk
@@ -117,72 +81,66 @@ pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours:
                 .assign(&sorted_dists.slice(s![.., 0..num_neighbours]));
         });
 
-    // TODO check Richards version and add self.
 
     let end_time = Instant::now();
     println!("Initialistion in {:?}ms", ((end_time - start_time).as_millis() as f64) );
 
-   (result_indices, result_sims)
+   (insert_index_at_position_1_inplace(result_indices), insert_column_inplace(result_sims,1.0))
 }
 
-// Before changes:
-// pub fn initialise_table_m(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>,Array2<f32>) {
-//
-//     let start_time = Instant::now();
-//
-//     let num_data = dao.num_data;
-//     let dims = dao.get_dim();
-//     let data = dao.get_data();
-//     let num_loops = num_data / chunk_size;
-//
-//     let mut result_indices = unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init()};
-//     let mut result_sims = unsafe {Array2::<f32>::uninit((num_data, num_neighbours)).assume_init()};
-//
-//     result_indices
-//         .axis_chunks_iter_mut(Axis(0),chunk_size)
-//         .into_par_iter()
-//         .zip(result_sims.axis_chunks_iter_mut(Axis(0),chunk_size)
-//             .into_par_iter())
-//         .enumerate()
-//         .for_each(|(i, (mut result_indices_chunk, mut result_sims_chunk))| {
-//             let start_pos = i * chunk_size;
-//             let end_pos = start_pos + chunk_size;
-//
-//             let chunk = data.slice(s![start_pos..end_pos, 0..]);
-//
-//             let rand_ids = rand_perm(num_data, chunk_size);  // random data ids from whole data set
-//             let rand_data = get_slice_using_selected(&data, &rand_ids.view(), chunk.shape().try_into().unwrap());
-//
-//             let chunk_dists: Array2<f32> = rand_data.dot(&chunk.t()); // matrix mult all the distances
-//
-//             let (sorted_ords, sorted_dists)= arg_sort_big_to_small(&chunk_dists);
-//
-//             // get the num_neighbours closest original data indices
-//
-//             let mut closest_dao_indices: Array2<usize> = Array2::<usize>::zeros((chunk_size, num_neighbours));
-//
-//             for row in 0..sorted_ords.nrows() {
-//                 for col in 0..num_neighbours {
-//                     closest_dao_indices[[row,col]] = rand_ids[sorted_ords[[row,col]]] as usize;
-//                 }
-//             }
-//
-//
-//
-//             result_indices_chunk
-//                 .assign(&closest_dao_indices.slice(s![.., 0..num_neighbours]));
-//             result_sims_chunk
-//                 .assign(&sorted_dists.slice(s![.., 0..num_neighbours]));
-//
-//
-//         });
-//
-//     let end_time = Instant::now();
-//     println!("Initialistion in {:?}ms", ((end_time - start_time).as_millis() as f64) );
-//
-//     (result_indices, result_sims)
-// }
+// inserts a new value (1 in this code) into the first column and moves rest of the values over
+// use this for dists
+fn insert_column_inplace(mut array: Array2<f32>, new_col_val: f32) -> Array2<f32> {
+    let (nrows, ncols_plus_1) = array.dim();
+    let ncols = ncols_plus_1 - 1;
 
+    // SAFETY: Get a raw pointer to the data
+    let data_ptr = array.as_mut_ptr();
+
+    for row in (0..nrows).rev() {
+        unsafe {
+            // Move existing elements one slot right, starting from the end
+            for col in (0..ncols).rev() {
+                let src = data_ptr.add(row * ncols_plus_1 + col);
+                let dst = data_ptr.add(row * ncols_plus_1 + col + 1);
+                ptr::copy_nonoverlapping(src, dst, 1);
+            }
+
+            // Write the new value at the first column
+            let first_col = data_ptr.add(row * ncols_plus_1);
+            ptr::write(first_col, new_col_val);
+        }
+    }
+
+    array
+}
+
+// inserts the index of the row into the first slot
+// use this for ords
+fn insert_index_at_position_1_inplace(mut array: Array2<usize>) -> Array2<usize> {
+    let (nrows, ncols_plus_1) = array.dim();
+    let ncols = ncols_plus_1 - 1;
+
+    // SAFETY: Get a raw pointer to the data
+    let data_ptr = array.as_mut_ptr();
+
+    for row in (0..nrows).rev() {
+        unsafe {
+            // Move existing elements one slot right, starting from the end
+            for col in (0..ncols).rev() {
+                let src = data_ptr.add(row * ncols_plus_1 + col);
+                let dst = data_ptr.add(row * ncols_plus_1 + col + 1);
+                ptr::copy_nonoverlapping(src, dst, 1);
+            }
+
+            // Write the row index into the first column
+            let first_col = data_ptr.add(row * ncols_plus_1);
+            ptr::write(first_col, row);
+        }
+    }
+
+    array
+}
 
 pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                      mut neighbours: &mut Array2<usize>,
@@ -197,17 +155,6 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
     let data = dao.get_data();
 
     // Matlab lines refer to richard_build.txt file in the matlab dir
-
-    // let mut global_mins = similarities // Matlab line 53
-    //     .rows()
-    //     .into_iter()
-    //     .map(|row| {
-    //         row
-    //             .iter()
-    //             .map(|f| NonNan(*f))
-    //             .min().unwrap().0
-    //     })
-    //     .collect::<Array1<f32>>();
 
     let mut iterations = 0;
     let mut neighbour_is_new = Array2::from_elem((num_data, num_neighbours), true);
@@ -328,7 +275,6 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
 
         let mut updates = Updates::new(num_data);
 
-
         old
             .axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()
@@ -349,8 +295,6 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
                     new_row.iter().copied().chain(reverse_link_row.iter().copied()).collect::<Array1<usize>>()   // <<<<< 2 row copies here
                 };
 
-                // let new_row_union: ArrayViewMut1<usize> = new_row_union.view_mut();
-
                 let new_row_union_len = new_row_union.len();
 
                 // index the data using the rows indicated in old_row
@@ -365,15 +309,6 @@ pub fn get_nn_table2(dao: Rc<DaoMatrix>,
             .for_each( |(row,new_row,old_row,new_row_union,new_new_sims,new_data,old_data)| {
 
 
-            // if row == 1 {
-            //     println!("neighbours[1]: {:?}", neighbours.row(1));
-            //     println!("similarities[1]: {:?}", similarities.row(1));
-            //     println!("new_row[1]: {:?}", new_row);
-            //     println!("reverse_link_row[1]: {:?}", reverse_link_row);
-            //     println!("new_row_union[1]: {:?}", new_row_union);
-            //     println!("min_sims[1]): {:?}", global_mins[1]);
-            //     println!("reverse[1]: {:?}", reverse.row(1));
-            // }
 
             // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
 

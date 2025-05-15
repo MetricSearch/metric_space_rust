@@ -56,7 +56,7 @@ fn main() -> Result<()> {
     let chunk_size = 20000;
     let rho = 1.0;
     let delta = 0.01;
-    let reverse_list_size = 8;
+    let reverse_list_size = 32; // was 8
 
     println!("Initializing NN table with chunk size {}", chunk_size);
     let (mut ords,mut dists) = initialise_table(dao_f32.clone(), chunk_size, num_neighbours );

@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use wide::u64x4;
 use dao::{Dao};
-use dao::laion_10M_pca500_hdf5_dao_loader::hdf5_laion_pca_500_f32_load;
+use dao::laion_10_m_pca500_hdf5_dao_loader::hdf5_laion_pca_500_f32_load;
 use utils::arg_sort_2d;
 
 fn main() -> Result<()> {

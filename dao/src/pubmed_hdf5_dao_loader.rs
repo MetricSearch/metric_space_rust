@@ -14,7 +14,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     let file = File::open(data_path)?;                   // open for reading
     let ds_data = file.dataset("train")?;       // the data
     let i_queries_group = file.group("itest")?;     // in distribution queries
-    let o_queries_group = file.group("otest")?;     // out of distribution queries
+    // let o_queries_group = file.group("otest")?;     // out of distribution queries
 
     let i_queries = i_queries_group.dataset("queries").unwrap();
     //let o_queries = o_queries_group.dataset("queries").unwrap();

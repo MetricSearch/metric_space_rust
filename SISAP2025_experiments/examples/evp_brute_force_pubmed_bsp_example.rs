@@ -1,8 +1,7 @@
 use anyhow::Result;
 use bits::{Bsp, bsp_similarity};
 use metrics::euc;
-use ndarray::{s, Array1, Array2, ArrayView1};
-use rayon::prelude::*;
+use ndarray::{s, Array2, ArrayView1};
 use std::collections::HashSet;
 use std::time::Instant;
 use dao::Dao;
@@ -31,16 +30,24 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let hamming_distances = generate_bsp_dists(queries, data);
+    let bsp_distances = generate_bsp_dists(queries, data);
     let after = Instant::now();
 
-    println!("Time per BSP query 1_000_000 dists: {} ns", ((after - now).as_nanos() as f64) / num_queries as f64 );
+    println!("Time per BSP query all dists: {} ns", ((after - now).as_nanos() as f64) / num_queries as f64 );
 
-    let (bsp_nns, _bsp_dists ) = arg_sort_2d(hamming_distances);
+    let (bsp_nns, _bsp_dists ) = arg_sort_2d(bsp_distances);
+
+    let bsp_nns = add_one(&bsp_nns);
+
+    // println!( "First row of bsp dists: {:?}", &_bsp_dists[0][..20] );
+    // println!( "First row of bsp ords: {:?}", &bsp_nns[0][..20] );
 
     let knns = 100;
 
-    let gt_nns = hdf5_pubmed_gt_load( f_name,num_records,knns ).unwrap();
+    let (gt_nns, gt_dists) = hdf5_pubmed_gt_load( f_name,knns ).unwrap();
+
+    // println!( "First row of gt dists: {:?}", &gt_dists.row(0).slice(s![0..20]) );
+    // println!( "First row of gt ords: {:?}", &gt_nns.row(0).slice(s![0..20]) );
 
     println!("Pubmed:");
     println!("results_size,gt_size,Mean,Max,Min,Std_dev" );
@@ -51,10 +58,13 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn add_one(ords: &Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+    ords.iter()
+        .map(|row| row.iter().map(|entry| entry + 1).collect())
+        .collect()
+}
+
 fn report_queries(num_queries: usize, gt_nns: &Array2<usize>, bsp_nns: &Vec<Vec<usize>>, bsp_set_size: usize, gt_size: usize) {
-    let mut sum = 0;
-    let mut min = 100;
-    let mut max = 0;
 
     let mut sum = 0;
     let mut min = usize::MAX;
@@ -94,18 +104,6 @@ fn std_dev(mean: f64, data: Vec<usize>) -> f64 {
 
     variance.sqrt()
 }
-
-//Returns the nn(k) using Euc as metric for queries
-fn brute_force_all_dists(
-    queries: ArrayView1<Array1<f32>>,
-    data: ArrayView1<Array1<f32>>,
-) -> Vec<Vec<f32>> {
-    queries
-        .iter()
-        .map(|q| data.iter().map(|d| euc(q, d)).collect())
-        .collect()
-}
-
 
 fn generate_bsp_dists(
     queries_bitreps: ArrayView1<Bsp<2>>,

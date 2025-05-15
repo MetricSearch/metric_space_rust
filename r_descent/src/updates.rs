@@ -1,5 +1,4 @@
-use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Mutex};
 
 pub  struct Updates {
     inner: Vec<Mutex<Vec<Update>>>,

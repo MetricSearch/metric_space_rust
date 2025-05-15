@@ -12,7 +12,7 @@ mod hdf5_dao_matrix_loader;
 pub mod glove100_hdf5_dao_loader;
 pub mod laion_10M_hdf5_dao_loader;
 pub mod convert_f32_to_evp;
-pub mod laion_10M_pca500_hdf5_dao_loader;
+pub mod laion_10_m_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
 

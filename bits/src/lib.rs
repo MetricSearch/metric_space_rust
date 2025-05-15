@@ -241,10 +241,10 @@ pub fn bsp_similarity<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
 }
 
 pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
-    let A = a.ones.and_cloned(&b.ones).count_ones() as usize;
-    let B = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let C = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let D = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
 
-    ( C + D + X*256*2) - ( A + B )
+    ( cc + dd + X*256*2) - ( aa + bb )
 }

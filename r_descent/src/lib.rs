@@ -2,17 +2,14 @@
 
 mod updates;
 
-use std::cmp::Ordering;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use ndarray::{s, Array, Array1, Array2, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, CowArray, Dim, Ix, Ix1, Ix2, Order};
+use ndarray::{s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Ix1};
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
 use dao::{Dao, DaoMatrix};
 use rand_chacha::rand_core::SeedableRng;
 use serde::{Deserialize, Serialize};
-use utils::{arg_sort_big_to_small, index_of_min, min_index_and_value, minimum_in, rand_perm, dot_product_f32};
-use utils::non_nan::{NonNan};
+use utils::{arg_sort_big_to_small, index_of_min, min_index_and_value, minimum_in, rand_perm};
 use crate::updates::Updates;
 use rayon::prelude::*;
 use ndarray::parallel::prelude::*;

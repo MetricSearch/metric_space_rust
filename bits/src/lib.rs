@@ -2,7 +2,7 @@ use std::ops::BitXor;
 // use std::simd::prelude::SimdInt; // These have problems - nightly
 // use std::simd::Simd;
 use bitvec_simd::BitVecSimd;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
+use ndarray::{s, Array1, Array2, ArrayView1, Axis};
 // use ndarray::parallel::prelude::IntoParallelIterator;
 use ndarray::parallel::prelude::*;
 use wide::u64x4;
@@ -192,6 +192,15 @@ pub struct Bsp<const X: usize> {
     pub negative_ones : BitVecSimd<[u64x4; X],4>,
 }
 
+pub fn f32_embeddings_to_bsp<const D: usize>(embeddings: &Array2<f32>, non_zeros: usize) -> Array1<Bsp<D>> {
+    embeddings
+        .rows()
+        .into_iter()
+        .map( |row| { f32_embedding_to_bsp::<D>(&row,non_zeros) } )
+        .collect()
+}
+
+
 pub fn f32_embedding_to_bsp<const D: usize>(embedding: &ArrayView1<f32>, non_zeros: usize) -> Bsp<D> {
     let mut ones = vec![];
     let mut negative_ones = vec![];
@@ -221,6 +230,7 @@ pub fn f32_embedding_to_bsp<const D: usize>(embedding: &ArrayView1<f32>, non_zer
     Bsp::<D>{ ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
               negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()) }
 }
+
 pub fn f32_data_to_bsp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_zeros: usize) -> Vec<Bsp<D>> {
     embeddings
         .iter()
@@ -244,6 +254,22 @@ pub fn bsp_similarity<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
     (aa + bb + X*256*2) - ( cc + dd)
 }
 
+pub fn bsp_similarity_as_f32<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> f32 {
+
+    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+
+    // println!( "a {:?} b {:?}", a, b) ;
+
+    // adding X * 256 * 2 means the result must be positive since second term is maximally X * 256 * 2  ( BitVecSimd<[u64x4; X],4> )
+    // min is zero (not in practice) max is 2048 (not in practice).
+    // println!("A={} B={} C={} D={} result ={}", A, B, C, D, (A + B+X*256*2) - (C + D ));
+
+    ((aa + bb + X*256*2) - ( cc + dd)) as f32
+}
+
 pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
     let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
@@ -252,6 +278,16 @@ pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
 
     ( cc + dd + X*256*2) - ( aa + bb )
 }
+
+pub fn bsp_distance_as_f32<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> f32 {
+    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+
+    ( ( cc + dd + X*256*2) - ( aa + bb ) ) as f32
+}
+
 
 pub fn f32_embedding_to_i8_embedding(embedding: &ArrayView1<f32>, non_zeros: usize) -> Array1<i8> {
     let mut i_8_s = vec![];
@@ -306,22 +342,27 @@ const LANES: usize = 16;
 //     sum.reduce_sum() as i32 + tail_sum
 // }
 
+// should return the distance from each entry in A (as rows) to each in b.
 // Matrix multiply: C = A × B using mult.
-fn matrix_dot_bsp<const X: usize>(a: &Array1<Bsp<X>>, b: &Array1<Bsp<X>>, mult: fn(a: &Bsp<X>, b: &Bsp<X>) -> i32) -> Array2<i32> {
-    let m = a.len();
-    let n = b.len();
+pub fn matrix_dot_bsp<const X: usize>(a: &ArrayView1<Bsp<X>>, b: &ArrayView1<Bsp<X>>, dot: fn(a: &Bsp<X>, b: &Bsp<X>) -> f32) -> Array2<f32> {
+    let a_len = a.len();
+    let b_len = b.len();
 
-    let mut result = Array2::<i32>::zeros((m, n));
+    let mut result = unsafe {  Array2::<f32>::uninit((a_len, b_len)).assume_init() };
 
-    result
-        .axis_iter_mut(Axis(0))
-        .into_par_iter()
+    // TODO try and make this parallel.
+    a
+        .iter()
         .enumerate()
-        .for_each(|(i, mut row)| {
-            for (j, b_elem) in b.iter().enumerate() {
-                row[j] = mult(&a[i], b_elem);
-            }
-        });
+        .for_each( |(a_index, a_item ): (usize,&Bsp<X>) | {
+            b
+                .iter()
+                .enumerate()
+                .for_each(|(b_index, b_item): (usize, &Bsp<X>)| {
+                    let loc = result.get_mut([a_index, b_index]).unwrap();
+                    *loc = dot(a_item, b_item);
+                });
+        } );
 
     result
 }

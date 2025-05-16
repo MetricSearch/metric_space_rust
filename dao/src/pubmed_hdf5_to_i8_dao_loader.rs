@@ -1,8 +1,8 @@
-use crate::{Dao, DaoMatrix, DaoMetaData, Normed};
+use crate::{DaoMatrix, DaoMetaData, Normed};
 use hdf5::{File};
 use ndarray::{concatenate, s, stack, Array1, Array2, Axis};
 use tracing::error;
-use bits::{Bsp, f32_embedding_to_bsp, f32_embedding_to_i8_embedding};
+use bits::f32_embedding_to_i8_embedding;
 //use tracing::metadata;
 
 pub fn hdf5_pubmed_f32_to_i8_load(

@@ -1,6 +1,10 @@
 use std::ops::BitXor;
+// use std::simd::prelude::SimdInt; // These have problems - nightly
+// use std::simd::Simd;
 use bitvec_simd::BitVecSimd;
-use ndarray::{Array1, ArrayView1};
+use ndarray::{Array1, Array2, ArrayView1, Axis};
+// use ndarray::parallel::prelude::IntoParallelIterator;
+use ndarray::parallel::prelude::*;
 use wide::u64x4;
 use utils::arg_sort;
 
@@ -248,3 +252,80 @@ pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
 
     ( cc + dd + X*256*2) - ( aa + bb )
 }
+
+pub fn f32_embedding_to_i8_embedding(embedding: &ArrayView1<f32>, non_zeros: usize) -> Array1<i8> {
+    let mut i_8_s = vec![];
+    let embedding_len = embedding.len();
+
+    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| { x.abs() } ).collect() );
+
+    let ( _smallest_indices, biggest_indices ) = indices.split_at(embedding_len - non_zeros);
+
+    (0..embedding.len()).for_each( |index| {
+        if biggest_indices.contains(&index) {
+            if embedding[index] > 0.0 {         // +1
+                i_8_s.push(1);
+            } else {                            // -1
+                i_8_s.push(-1);
+            }
+        } else {                               // 0
+            i_8_s.push(0);
+        }
+    });
+
+    ndarray::Array1::from(i_8_s)
+}
+
+pub fn i8_similarity(a: ArrayView1<i8>, b : ArrayView1<i8>) -> usize {
+    a.iter().zip(b.iter()).map(|(x, y)| (x * y) as usize ).sum()
+}
+
+const LANES: usize = 16;
+
+// TODO try this version out - see if it is faster?
+
+// TODO put this back in later.....
+// needs nightly.
+
+// SIMD-accelerated dot product for i8 slices
+// fn i8_simd_dot(a: &[i8], b: &[i8]) -> i32 {
+//     let mut sum = Simd::<i16, LANES>::splat(0);
+//     for (chunk_a, chunk_b) in a.chunks_exact(LANES).zip(b.chunks_exact(LANES)) {
+//         let va = Simd::<i8, LANES>::from_slice(chunk_a);
+//         let vb = Simd::<i8, LANES>::from_slice(chunk_b);
+//         sum += va.cast::<i16>() * vb.cast::<i16>();
+//     }
+//     let leftover = a.len() % LANES;
+//     let tail_sum: i32 = if leftover > 0 {
+//         let tail_a = &a[a.len() - leftover..];
+//         let tail_b = &b[b.len() - leftover..];
+//         tail_a.iter().zip(tail_b).map(|(&x, &y)| x as i32 * y as i32).sum()
+//     } else {
+//         0
+//     };
+//     sum.reduce_sum() as i32 + tail_sum
+// }
+
+// Matrix multiply: C = A × B using mult.
+fn matrix_dot_bsp<const X: usize>(a: &Array1<Bsp<X>>, b: &Array1<Bsp<X>>, mult: fn(a: &Bsp<X>, b: &Bsp<X>) -> i32) -> Array2<i32> {
+    let m = a.len();
+    let n = b.len();
+
+    let mut result = Array2::<i32>::zeros((m, n));
+
+    result
+        .axis_iter_mut(Axis(0))
+        .into_par_iter()
+        .enumerate()
+        .for_each(|(i, mut row)| {
+            for (j, b_elem) in b.iter().enumerate() {
+                row[j] = mult(&a[i], b_elem);
+            }
+        });
+
+    result
+}
+
+// Problems above with use of unstable library feature `portable_simd`
+// and `IndexedParallelIterator` which provides `enumerate` is implemented but not in scope; perhaps you want to import it
+// leave for now - not on path!

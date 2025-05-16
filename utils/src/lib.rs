@@ -2,15 +2,18 @@
 pub mod non_nan;
 pub mod pair;
 
-
 use std::sync::{LazyLock, Mutex};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView, ArrayView1, Axis, Ix1, ViewRepr};
+use ndarray::parallel::prelude::IntoParallelIterator;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
 use crate::pair::Pair;
 use crate::non_nan::NonNan;
 use randperm_crt::{Permutation, RandomPermutation};
+use ndarray::parallel::prelude::IndexedParallelIterator;
+use ndarray::parallel::prelude::ParallelIterator;
+
 
 const SEED: u64 = 323 * 162;
 static RNG : LazyLock<Mutex<ChaCha8Rng>> = LazyLock::new( || Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
@@ -254,6 +257,30 @@ pub fn distance_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
 pub fn dot_product_f32(a: ArrayBase<ViewRepr<&f32>, Ix1>, b: ArrayBase<ViewRepr<&f32>, Ix1>) -> f32 {
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
+
+// Matrix multiply: C = A × B using mult.
+fn matrix_dot_i8(a: &Array2<i8>, b: &Array2<i8>, mult: fn(a: &[i8], b: &[i8]) -> i32) -> Array2<i32> {
+    let (m, k) = a.dim();
+    let (bk, n) = b.dim();
+    assert_eq!(k, bk);
+
+    // Transpose B for column access
+    let b_t = b.t();
+
+    let mut result = Array2::<i32>::zeros((m, n));
+
+    result.axis_iter_mut(Axis(0))
+        .into_par_iter()
+        .zip(a.axis_iter(Axis(0)))
+        .for_each(|(mut row_c, row_a)| {
+            for (j, col_b) in b_t.axis_iter(Axis(0)).enumerate() {
+                row_c[j] = mult(row_a.as_slice().unwrap(), col_b.as_slice().unwrap());
+            }
+        });
+
+    result
+}
+
 
 
 

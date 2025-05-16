@@ -1,11 +1,12 @@
 use anyhow::Result;
-use bits::{Bsp, bsp_similarity};
+use bits::{Bsp, bsp_similarity, i8_similarity};
 use metrics::euc;
-use ndarray::{s, Array2, ArrayView1};
+use ndarray::{s, Array2, ArrayView1, ArrayView2};
 use std::collections::HashSet;
 use std::time::Instant;
-use dao::Dao;
-use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
+use rayon::iter::IntoParallelIterator;
+use dao::{Dao, DaoMatrix};
+use dao::pubmed_hdf5_to_i8_dao_loader::hdf5_pubmed_f32_to_i8_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use utils::arg_sort_2d;
 
@@ -19,10 +20,10 @@ fn main() -> Result<()> {
 
     tracing::info!("Loading Pubmed {} data...", num_records);
 
-    let dao_bsp: Dao<Bsp<2>> = hdf5_pubmed_f32_to_bsp_load( f_name, num_records, num_queries, vertices ).unwrap();
+    let dao_bsp: DaoMatrix<i8> = hdf5_pubmed_f32_to_i8_load( f_name, num_records, num_queries, vertices ).unwrap();
 
-    let queries: ArrayView1<Bsp<2>> = dao_bsp.get_queries();
-    let data: ArrayView1<Bsp<2>> = dao_bsp.get_data();
+    let queries: ArrayView2<i8> = dao_bsp.get_queries();
+    let data: ArrayView2<i8> = dao_bsp.get_data();
 
     println!( "Pubmed data size: {} queries size: {}", data.len(), queries.len() );
 
@@ -30,12 +31,12 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let bsp_distances = generate_bsp_dists(queries, data);
+    let i_8_distances = generate_i8_dists(queries, data);
     let after = Instant::now();
 
     println!("Time per BSP query all dists: {} ns", ((after - now).as_nanos() as f64) / num_queries as f64 );
 
-    let (bsp_nns, _bsp_dists ) = arg_sort_2d(bsp_distances);
+    let (bsp_nns, _bsp_dists ) = arg_sort_2d(i_8_distances);
 
     let bsp_nns = add_one(&bsp_nns);
 
@@ -105,19 +106,33 @@ fn std_dev(mean: f64, data: Vec<usize>) -> f64 {
     variance.sqrt()
 }
 
-fn generate_bsp_dists(
-    queries_bitreps: ArrayView1<Bsp<2>>,
-    data_bitreps: ArrayView1<Bsp<2>>,
+fn generate_i8_dists_explicit(
+    queries: ArrayView2<i8>,
+    datas: ArrayView2<i8>,
 ) -> Vec<Vec<usize>> {
-    queries_bitreps
-        .iter()
+    queries
+        .rows()
+        .into_iter()
         .map(|query| {
-            data_bitreps
-                .iter()
-                .map(|data| ( 1 - bsp_similarity::<2>(query, data)) )
+            datas
+                .rows()
+                .into_iter()
+                .map(|data| (1 - i8_similarity(query, data)))
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()
 }
+
+fn generate_i8_dists(
+    queries: ArrayView2<i8>,
+    datas: ArrayView2<i8> ) -> Vec<Vec<usize>> {
+    queries.dot(&datas.t())
+        .rows()
+        .into_iter()
+        .map(|row| row.iter().map(|&x| x as usize).collect())
+        .collect()
+}
+
+
 
 

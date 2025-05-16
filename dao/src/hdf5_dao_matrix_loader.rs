@@ -7,7 +7,7 @@ pub fn hdf5_matrix_load(
     data_path: &str,
     num_data: usize,
     num_queries: usize,
-) -> anyhow::Result<DaoMatrix> {
+) -> anyhow::Result<DaoMatrix<f32>> {
     let file = File::open(data_path)?; // open for reading
     let ds = file.dataset("/embeddings/all_embeddings")?; // open the dataset
 

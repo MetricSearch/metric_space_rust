@@ -11,3 +11,4 @@ ndarray = "0.16.1"
 
 [dev-dependencies]
 divan = "0.1.17"
+#portable-simd = { version = "0.10", features = ["into_std"] }  # Check https://crates.io/crates/portable-simd

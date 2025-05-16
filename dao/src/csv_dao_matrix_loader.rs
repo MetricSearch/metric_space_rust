@@ -39,7 +39,7 @@ pub fn dao_matrix_from_csv_dir(
     dir_name: &str,
     num_data: usize,
     num_queries: usize,
-) -> anyhow::Result<DaoMatrix> {
+) -> anyhow::Result<DaoMatrix<f32>> {
     let meta = dao_metadata_from_dir(dir_name).unwrap();
     let mut data_file_path = dir_name.to_string();
     data_file_path.push_str("/");

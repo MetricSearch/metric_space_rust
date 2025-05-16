@@ -13,8 +13,9 @@ pub mod glove100_hdf5_dao_loader;
 pub mod laion_10M_hdf5_dao_loader;
 pub mod convert_f32_to_evp;
 pub mod laion_10_m_pca500_hdf5_dao_loader;
-pub mod pubmed_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
+pub mod pubmed_hdf5_to_i8_dao_loader;
+pub mod pubmed_hdf5_to_dao_loader;
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::{Result};
@@ -63,11 +64,11 @@ pub struct Dao<DataRep: Clone> {
     pub embeddings: Array1<DataRep>, // the data and queries
 }
 
-pub struct DaoMatrix {
+pub struct DaoMatrix<T> {
     pub meta: DaoMetaData,                           // The meta data for this dao
     pub num_data: usize,                             // the size of the data (a subset of the total data)
     pub num_queries: usize,                          // the size of the queries (a subset of the total data)
-    pub embeddings: Array2<f32>,                     // the data and queries
+    pub embeddings: Array2<T>,                     // the data and queries
 }
 
 impl<T: Clone> Dao<T> {
@@ -112,9 +113,9 @@ impl<T: Clone> Dao<T> {
     }
 }
 
-impl DaoMatrix {
+impl<T> DaoMatrix::<T> {
 
-    pub fn new(meta_data: DaoMetaData, all_embeddings: Array2<f32>, num_data: usize, num_queries: usize) -> Self {
+    pub fn new(meta_data: DaoMetaData, all_embeddings: Array2<T>, num_data: usize, num_queries: usize) -> Self {
         Self{
             meta: meta_data,
             num_data,
@@ -133,25 +134,25 @@ impl DaoMatrix {
         self.num_queries
     }
 
-    pub fn get_datum(&self, id: usize) -> ArrayBase<ViewRepr<&f32>,Ix1> {
+    pub fn get_datum(&self, id: usize) -> ArrayBase<ViewRepr<&T>,Ix1> {
         if id >= self.num_data  { // TODO consider putting option back in here
             panic!("id out of bounds");
         }
         self.embeddings.row(id)
     }
 
-    pub fn get_query(&self, id: usize) -> ArrayBase<ViewRepr<&f32>,Ix1>  {
+    pub fn get_query(&self, id: usize) -> ArrayBase<ViewRepr<&T>,Ix1>  {
         if id < self.num_data && id >= self.meta.num_records {   // TODO consider putting option back in here
             panic!("id out of bounds");
         }
         self.embeddings.row(self.num_data+id)
     }
 
-    pub fn get_data(&self) -> ArrayView2<f32> {
+    pub fn get_data(&self) -> ArrayView2<T> {
         self.embeddings.slice( s![..self.num_data, ..] )
     }
 
-    pub fn get_queries(&self) -> ArrayView2<f32> {
+    pub fn get_queries(&self) -> ArrayView2<T> {
         self.embeddings.slice( s![self.num_data.., ..] )
     }
 }

@@ -22,17 +22,17 @@ pub struct RDescentMatrix {
 }
 
 impl RDescentMatrix {
-    pub fn new( dao: Rc<DaoMatrix>, num_neighbours: usize, reverse_list_size : usize, chunk_size : usize, rho: f64, delta : f64 ) -> RDescentMatrix {
+    pub fn new( dao: Rc<DaoMatrix<f32>>, num_neighbours: usize, reverse_list_size : usize, chunk_size : usize, rho: f64, delta : f64 ) -> RDescentMatrix {
 
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); // random number
-        let (mut ords, mut dists) = initialise_table(dao.clone(), chunk_size, num_neighbours);
+        let (mut ords, mut dists) = initialise_table_m(dao.clone(), chunk_size, num_neighbours);
         get_nn_table2(dao.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
         Self { indices: ords, dists: dists   }
     }
 }
 
-pub fn initialise_table(dao: Rc<DaoMatrix>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>, Array2<f32>) {
+pub fn initialise_table_m(dao: Rc<DaoMatrix<f32>>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>, Array2<f32>) {
 
     let start_time = Instant::now();
 
@@ -139,7 +139,7 @@ fn insert_index_at_position_1_inplace(mut array: Array2<usize>) -> Array2<usize>
     array
 }
 
-pub fn get_nn_table2(dao: Rc<DaoMatrix>,
+pub fn get_nn_table2(dao: Rc<DaoMatrix<f32>>,
                      mut neighbours: &mut Array2<usize>,
                      mut similarities: &mut Array2<f32>, // bigger is better
                      num_neighbours: usize,

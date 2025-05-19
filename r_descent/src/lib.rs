@@ -340,8 +340,6 @@ pub fn get_nn_table2_m(dao: Rc<DaoMatrix<f32>>,
             } )
             .for_each( |(row,new_row,old_row,new_row_union,new_new_sims,new_data,old_data)| {
 
-
-
             // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
 
             // First iterate over new_new_sims.. upper triangular (since distance table)
@@ -536,7 +534,7 @@ pub fn initialise_table_bsp(dao: Rc<Dao<Bsp<2>>>, chunk_size: usize, num_neighbo
 
     result_indices
         .axis_chunks_iter_mut(Axis(0),chunk_size)
-        .into_par_iter()  // .into_iter()
+        .into_iter()  // .into_par_iter()
         .zip(result_sims.axis_chunks_iter_mut(Axis(0),chunk_size)
             .into_iter())
         .enumerate()
@@ -556,7 +554,7 @@ pub fn initialise_table_bsp(dao: Rc<Dao<Bsp<2>>>, chunk_size: usize, num_neighbo
             let (sorted_ords, sorted_dists)= arg_sort_big_to_small(&chunk_dists); // sorted ords are row relative indices.
             // these ords are row relative all range from 0..real_chunk_size
 
-            // println!( "No par iter" );
+            // println!( "No par iter {}", i );
             // println!("ORDS: {:?}", sorted_ords);
             // println!("Dists: {:?}", sorted_dists);
             //

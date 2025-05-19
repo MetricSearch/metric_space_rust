@@ -13,7 +13,7 @@ use crate::non_nan::NonNan;
 use randperm_crt::{Permutation, RandomPermutation};
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::ParallelIterator;
-
+use rand::seq::index::sample;
 
 const SEED: u64 = 323 * 162;
 static RNG : LazyLock<Mutex<ChaCha8Rng>> = LazyLock::new( || Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
@@ -217,8 +217,13 @@ pub fn rand_perm(drawn_from: usize, how_many: usize ) -> Array1<usize> {
     if drawn_from == 0 {
         return Array1::default([0]);
     }
-    let perm = RandomPermutation::with_rng(drawn_from as u64,&mut RNG.lock().unwrap() ).unwrap();
-    perm.iter().take(how_many).map(|x| x as usize).collect::<Array1<usize>>()
+    // Als old example:
+    // let perm = RandomPermutation::with_rng(drawn_from as u64,&mut RNG.lock().unwrap() ).unwrap();
+    // perm.iter().take(how_many).map(|x| x as usize).collect::<Array1<usize>>()
+
+    let rng = &mut RNG.lock().unwrap();
+    let sample = sample(rng, drawn_from, how_many).into_vec();
+    Array1::from(sample)
 }
 
 #[cfg(test)]

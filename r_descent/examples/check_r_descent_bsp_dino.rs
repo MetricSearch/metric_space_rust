@@ -16,16 +16,13 @@ use dao::convert_f32_to_bsp::f32_dao_to_bsp;
 
 fn main() -> Result<()> {
 
-    tracing::info!("Loading mf dino data...");
+    println!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
 
     let data_file_name = "/Volumes/Data/RUST_META/mf_dino2_csv/";
 
-
     let start = Instant::now();
-
-    println!("Loading mf dino data...");
 
     let dao_f32: Rc<DaoMatrix<f32>> = Rc::new(dao_matrix_from_csv_dir(
         data_file_name,
@@ -41,7 +38,7 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 10;
-    let chunk_size = 20000;
+    let chunk_size = 100; // 20000;
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 32;

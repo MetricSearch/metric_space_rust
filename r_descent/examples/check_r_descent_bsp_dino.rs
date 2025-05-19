@@ -41,7 +41,7 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 10;
-    let chunk_size = 12; // 20000;
+    let chunk_size = 20000;
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 32;
@@ -49,16 +49,15 @@ fn main() -> Result<()> {
     println!("Initializing NN table with chunk size {}", chunk_size);
     let (mut ords,mut dists) = initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours );
 
-
-    println!("ORDS: {:?}", ords);
-    println!("Dists: {:?}", dists);
-
-    for i in 0..3 {
-        println!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
-        for ord in ords.row(i) {
-            println!( "dist({},{}) real dist is: {} ", i, ord, bsp_similarity_as_f32::<2>(dao_bsp.get_datum(i), dao_bsp.get_datum(*ord)) );
-        }
-    }
+    // println!("ORDS: {:?}", ords);
+    // println!("Dists: {:?}", dists);
+    //
+    // for i in 0..3 {
+    //     println!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
+    //     for ord in ords.row(i) {
+    //         println!( "dist({},{}) real dist is: {} ", i, ord, bsp_similarity_as_f32::<2>(dao_bsp.get_datum(i), dao_bsp.get_datum(*ord)) );
+    //     }
+    // }
 
     println!("Getting NN table");
 

@@ -148,6 +148,7 @@ dependencies = [
  "bitvec_simd",
  "divan",
  "ndarray",
+ "rayon",
  "utils",
  "wide",
 ]

@@ -1,12 +1,13 @@
+#![feature(portable_simd)]
+
 use std::ops::BitXor;
-// use std::simd::prelude::SimdInt; // These have problems - nightly
-// use std::simd::Simd;
+use std::sync::Arc;
 use bitvec_simd::BitVecSimd;
-use ndarray::{s, Array1, Array2, ArrayView1, Axis};
-// use ndarray::parallel::prelude::IntoParallelIterator;
+use ndarray::{Array1, Array2, ArrayView1};
 use ndarray::parallel::prelude::*;
 use wide::u64x4;
 use utils::arg_sort;
+use rayon::iter::ParallelBridge;
 
 // First the cubic mappings
 
@@ -238,6 +239,7 @@ pub fn f32_data_to_bsp<const D: usize>(embeddings: ArrayView1<Array1<f32>>, non_
         .collect::<Vec<Bsp<D>>>()
 }
 
+#[inline(always)]
 pub fn bsp_similarity<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
 
     let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
@@ -254,6 +256,7 @@ pub fn bsp_similarity<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
     (aa + bb + X*256*2) - ( cc + dd)
 }
 
+#[inline(always)]
 pub fn bsp_similarity_as_f32<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> f32 {
 
     let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
@@ -270,6 +273,7 @@ pub fn bsp_similarity_as_f32<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> f32 {
     ((aa + bb + X*256*2) - ( cc + dd)) as f32
 }
 
+#[inline(always)]
 pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
     let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
@@ -279,6 +283,7 @@ pub fn bsp_distance<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> usize {
     ( cc + dd + X*256*2) - ( aa + bb )
 }
 
+#[inline(always)]
 pub fn bsp_distance_as_f32<const X: usize>(a: &Bsp<X>, b: &Bsp<X>) -> f32 {
     let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
@@ -344,13 +349,12 @@ const LANES: usize = 16;
 
 // should return the distance from each entry in A (as rows) to each in b.
 // Matrix multiply: C = A × B using mult.
-pub fn matrix_dot_bsp<const X: usize>(a: &ArrayView1<Bsp<X>>, b: &ArrayView1<Bsp<X>>, dot: fn(a: &Bsp<X>, b: &Bsp<X>) -> f32) -> Array2<f32> {
+pub fn matrix_dot_bsp_sequential<const X: usize>(a: &ArrayView1<Bsp<X>>, b: &ArrayView1<Bsp<X>>, dot: fn(a: &Bsp<X>, b: &Bsp<X>) -> f32) -> Array2<f32> {
     let a_len = a.len();
     let b_len = b.len();
 
     let mut result = unsafe {  Array2::<f32>::uninit((a_len, b_len)).assume_init() };
 
-    // TODO try and make this parallel.
     a
         .iter()
         .enumerate()
@@ -367,6 +371,28 @@ pub fn matrix_dot_bsp<const X: usize>(a: &ArrayView1<Bsp<X>>, b: &ArrayView1<Bsp
     result
 }
 
-// Problems above with use of unstable library feature `portable_simd`
-// and `IndexedParallelIterator` which provides `enumerate` is implemented but not in scope; perhaps you want to import it
-// leave for now - not on path!
+pub fn matrix_dot_bsp<const X: usize>(
+    a: &ArrayView1<Bsp<X>>,
+    b: &ArrayView1<Bsp<X>>,
+    dot: fn(a: &Bsp<X>, b: &Bsp<X> ) -> f32 ) -> Array2<f32> {
+    let a_len = a.len();
+    let b_len = b.len();
+    let b = Arc::new(b.to_owned()); // Arc for shared parallel use
+
+    let result: Array2<f32> = Array2::from_shape_fn((a_len, b_len), |(i, j)| { 0.0 });
+
+    // Parallel over rows of `a`
+    let mut result = result;
+    result
+        .outer_iter_mut()
+        .enumerate()
+        .par_bridge()
+        .for_each(|(i, mut row)| {
+            let a_item = &a[i];
+            for (j, b_item) in b.iter().enumerate() {
+                row[j] = dot(a_item, b_item);
+            }
+        });
+
+    result
+}

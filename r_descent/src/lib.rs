@@ -14,7 +14,7 @@ use crate::updates::Updates;
 use rayon::prelude::*;
 use ndarray::parallel::prelude::*;
 use std::ptr;
-use bits::{Bsp, matrix_dot_bsp, bsp_distance_as_f32, bsp_similarity, bsp_similarity_as_f32};
+use bits::{Bsp, matrix_dot_bsp, bsp_similarity_as_f32};
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
@@ -550,7 +550,8 @@ pub fn initialise_table_bsp(dao: Rc<Dao<Bsp<2>>>, chunk_size: usize, num_neighbo
             let original_row_ids = rand_perm(num_data, real_chunk_size);  // random data ids from whole data set
             let rand_data = get_bsp_slice_using_selected(&data, &original_row_ids.view(), chunk.shape().try_into().unwrap()); // a view of the original data points as a matrix
 
-            let chunk_dists: Array2<f32> = matrix_dot_bsp::<2>(&chunk, &rand_data.view(), bsp_similarity_as_f32::<2>); // matrix mult all the distances - all relative to the original_rows
+            // Lambda should inline function call
+            let chunk_dists: Array2<f32> = matrix_dot_bsp::<2>(&chunk, &rand_data.view(), |a, b| bsp_similarity_as_f32::<2>(a, b) ); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists)= arg_sort_big_to_small(&chunk_dists); // sorted ords are row relative indices.
             // these ords are row relative all range from 0..real_chunk_size

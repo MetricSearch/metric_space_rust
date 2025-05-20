@@ -3,12 +3,9 @@ use std::sync::{Arc, Mutex};
 use crate::{Dao, DaoMetaData, Normed};
 use hdf5::{File};
 use ndarray::{s, Array1, Array2};
-use rayon::iter::IntoParallelRefIterator;
 use tracing::error;
 use bits::{Bsp, f32_embedding_to_bsp};
-use rayon::iter::IndexedParallelIterator;
-use rayon::iter::ParallelIterator;
-use rayon::Scope;
+use rayon::prelude::*;
 //use tracing::metadata;
 
 pub fn hdf5_pubmed_f32_to_bsp_load(
@@ -38,51 +35,29 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     // The hdf5 crate (https://docs.rs/hdf5) is not fully thread-safe when using a single handle.
     // The recommended approach in Rust is to reopen the dataset or file handle in each thread for reading.
 
-    // Approach below is to map out the ranges of chunks
-    // Then assign to the intermediate results in parallel
-    // Finally assign the intermediate results into bsp_data sequentially to avoid any races.
-
-    let mut bsp_data: Array1<Bsp<2>> = unsafe { Array1::<Bsp<2>>::uninit(num_records).assume_init()};
-
     // 1. Set up ranges of chunks
-    let chunk_ranges: Vec<(usize, usize)> = (0..num_records)
+  let chunks =    (0..num_records)
         .step_by(rows_at_a_time)
         .map(|start| {
             let end = (start + rows_at_a_time).min(num_records);
             (start, end)
-        })
-        .collect();
+        }).collect::<Vec<(usize, usize)>>();
 
-    let intermediate_results: Vec<Arc<Mutex<Option<Array1<Bsp<2>>>>>> =
-        (0..chunk_ranges.len())
-            .map(|_| Arc::new(Mutex::new(None)))
-            .collect();
-
-    // 2. Parallel compute into Vec<Option<_>>
-    chunk_ranges
+    let mut bsp_data: Vec<Bsp<2>> = chunks
         .par_iter()
         .enumerate()
-        .for_each(|(i, &(start, end))| {
+        .flat_map(|(i, &(start, end))| {
             let file = File::open(data_path).expect("Cannot open file");                   // open for reading - local file handle only used in parallel part.
             let h5_data = file.dataset("train").expect("Failed to open dataset");
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
             let data: Array2<f32> = h5_data.read_slice(s![start..end, ..]).expect("Failed to read slice");
 
-            let bsp_rows = data
+            data
                 .rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
-                .collect::<Array1<Bsp<2>>>();
+                .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices)).collect::<Vec<Bsp<2>>>()
+        }).collect();
 
-            *intermediate_results[i].lock().unwrap() = Some(bsp_rows);
-        });
-
-    // 3. Sequentially assign to bsp_data
-    for (i, &(start, end)) in chunk_ranges.iter().enumerate() {
-        bsp_data
-            .slice_mut(s![start..end])
-            .assign(intermediate_results[i].lock().unwrap().as_ref().expect("Missing result"));  // TODO does this make a copy - perhaps not? as_ref?
-    }
 
     // Don't bother doing this in parallel
     // Queries not big enough
@@ -104,11 +79,10 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
     let i_queries_slice: Array2<f32> = i_queries.read_slice(s![0..num_queries, ..]).unwrap();
 
-    let bsp_i_test: Array1<Bsp<2>> = i_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
+    let bsp_i_test = i_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
         .rows()
         .into_iter()
-        .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
-        .collect();
+        .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices));
 
     // let o_queries_slice: Array2<f32> = o_queries.read_slice(s![.., ..]).unwrap();
     //
@@ -126,10 +100,9 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     let name = "Pubmed";
     let description ="PubmedHDF5Dataset";
 
-    let all_combined: Array1<Bsp<2>> = bsp_data
-        .into_iter()
-        .chain(bsp_i_test.into_iter())
-        .collect();
+    bsp_data.extend(bsp_i_test);
+
+    let all_combined: Array1<Bsp<2>> = Array1::from_vec(bsp_data);
 
     let dao_meta = DaoMetaData {
         name: name.to_string(),

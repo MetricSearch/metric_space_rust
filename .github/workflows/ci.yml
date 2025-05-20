@@ -25,60 +25,13 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Cache artifacts
-        uses: Swatinem/rust-cache@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Run cargo build
-        uses: actions-rs/cargo@v1
-        # env:
-        #   RUSTFLAGS: -D warnings
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          command: build
-          args: --release --all-targets
-
-  # docs:
-  #   name: Docs
-
-  #   runs-on: ubuntu-latest
-
-  #   permissions:
-  #     pages: write
-  #     id-token: write
-  #     packages: read
-
-  #   needs:
-  #     - build
-
-  #   if: github.ref == 'refs/heads/main'
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-
-  #     - name: Install stable toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         profile: minimal
-  #         toolchain: stable
-  #         override: true
-  #         target: thumbv7m-none-eabi
-
-  #     - name: Cache artifacts
-  #       uses: Swatinem/rust-cache@v2
-
-  #     - name: Run cargo doc
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: doc
-
-  #     # https://github.com/actions/upload-pages-artifact#file-permissions
-  #     - run: chmod -c -R +rX ./target/thumbv7m-none-eabi/doc
-
-  #     - name: Upload artifact
-  #       uses: actions/upload-pages-artifact@v1
-  #       with:
-  #         path: ./target/thumbv7m-none-eabi/doc
-
-  #     - name: Deploy to GitHub Pages
-  #       id: deployment
-  #       uses: actions/deploy-pages@v2
+          push: false
+          tags: metricsearch/sisap:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

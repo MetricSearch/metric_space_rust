@@ -3,15 +3,13 @@ pub mod pair;
 
 use crate::non_nan::NonNan;
 use crate::pair::Pair;
-use ndarray::parallel::prelude::IndexedParallelIterator;
-use ndarray::parallel::prelude::IntoParallelIterator;
-use ndarray::parallel::prelude::ParallelIterator;
-use ndarray::{Array1, Array2, ArrayBase, ArrayView, ArrayView1, Axis, Ix1, ViewRepr};
+use ndarray::{
+    parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, Axis, Ix1, ViewRepr,
+};
 use rand::seq::index::sample;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
-use randperm_crt::{Permutation, RandomPermutation};
 use std::sync::{LazyLock, Mutex};
 
 const SEED: u64 = 323 * 162;
@@ -38,7 +36,7 @@ pub fn min_index_and_value(arrai: &ArrayView1<f32>) -> (usize, f32) {
         .enumerate()
         .min_by(|best_so_far, to_compare| best_so_far.1.partial_cmp(to_compare.1).unwrap())
         .unwrap();
-    (pair.0, pair.1.clone())
+    (pair.0, *pair.1)
 }
 
 pub fn index_of_min(arrai: &ArrayView1<f32>) -> usize {
@@ -136,7 +134,7 @@ pub fn arg_sort_small_to_big(dists: Array2<f32>) -> (Array2<usize>, Array2<f32>)
         .axis_iter(Axis(0))
         .map(|row: ArrayView<f32, Ix1>| {
             let mut enumerated = row.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
-            enumerated.sort_by(|a, b| NonNan(*a.1).partial_cmp(&NonNan(*b.1)).unwrap());
+            enumerated.sort_by(|a, b| NonNan::new(*a.1).partial_cmp(&NonNan::new(*b.1)).unwrap());
             enumerated.into_iter().unzip()
         })
         .unzip();
@@ -158,7 +156,7 @@ pub fn arg_sort_big_to_small(dists: &Array2<f32>) -> (Array2<usize>, Array2<f32>
         .axis_iter(Axis(0))
         .map(|row: ArrayView<f32, Ix1>| {
             let mut enumerated = row.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
-            enumerated.sort_by(|a, b| NonNan(*b.1).partial_cmp(&NonNan(*a.1)).unwrap());
+            enumerated.sort_by(|a, b| NonNan::new(*b.1).partial_cmp(&NonNan::new(*a.1)).unwrap());
             enumerated.into_iter().unzip()
         })
         .unzip();
@@ -182,7 +180,7 @@ pub fn arg_sort<T: PartialOrd + Copy>(dists: Vec<T>) -> (Vec<usize>, Vec<T>) {
 }
 
 // Return the normalised DCG of two Vectors of results
-pub fn ndcg(results: &Vec<Pair>, true_nns: &Vec<Pair>) -> f32 {
+pub fn ndcg(results: &[Pair], true_nns: &[Pair]) -> f32 {
     let num_true_nns = true_nns.len();
     let num_results = results.len();
     debug_assert!(num_true_nns == num_results);
@@ -193,12 +191,12 @@ pub fn ndcg(results: &Vec<Pair>, true_nns: &Vec<Pair>) -> f32 {
 fn calc_norm_factor(size: usize) -> f32 {
     let mut a_list = Vec::new();
     for i in 0..size {
-        a_list.push(Pair::new(NonNan(i as f32), i * 100));
+        a_list.push(Pair::new(NonNan::new(i as f32), i * 100));
     }
     idcg(&a_list, &a_list)
 }
 /* Ideal DCG */
-fn idcg(results: &Vec<Pair>, true_nns: &Vec<Pair>) -> f32 {
+fn idcg(results: &[Pair], true_nns: &[Pair]) -> f32 {
     let num_true_nns = true_nns.len();
     let num_results = results.len();
     debug_assert!(num_true_nns == num_results);
@@ -206,14 +204,12 @@ fn idcg(results: &Vec<Pair>, true_nns: &Vec<Pair>) -> f32 {
     let mut result = 0.0;
     for i in 0..num_results {
         let next_search_result = results.get(i).unwrap().index;
-        match true_nns.iter().position(|x| x.index == next_search_result) {
-            // position of next result in true NNs
-            Some(pos) => {
-                let relevance = calc_relevance(pos as f32, num_true_nns as f32);
-                result = result + f32::abs(relevance.pow(2.0) - 1.0) / (f32::ln(i as f32) + 1.0);
-            }
-            None => {}
-        };
+
+        // position of next result in true NNs
+        if let Some(pos) = true_nns.iter().position(|x| x.index == next_search_result) {
+            let relevance = calc_relevance(pos as f32, num_true_nns as f32);
+            result += f32::abs(relevance.pow(2.0) - 1.0) / (f32::ln(i as f32) + 1.0);
+        }
     }
     result
 }

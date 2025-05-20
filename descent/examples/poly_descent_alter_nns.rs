@@ -172,7 +172,7 @@ fn check_order(graph: &Descent) {
 fn show_results(qid: usize, results: &Vec<Pair>) {
     print!("first few results for q{}:\t", qid);
     results.iter().by_ref().take(5).for_each(|pair| {
-        print!("{} d: {} ", pair.index, pair.distance.0);
+        print!("{} d: {} ", pair.index, pair.distance.as_f32());
     });
     println!();
 }
@@ -207,24 +207,18 @@ fn do_queries<T: Clone>(
         print!("{:?}\t", dists);
         print!(
             "{:?}\t",
-            intersection(
-                &qresults,
-                &gt_pairs.get(qid).unwrap()[0..swarm_size - 1].into()
-            )
+            intersection(&qresults, &gt_pairs.get(qid).unwrap()[0..swarm_size - 1])
         );
         // show_results(qid,&qresults);
         // show_gt(qid,gt_pairs);
         println!(
             "{}",
-            ndcg(
-                &qresults,
-                &gt_pairs.get(qid).unwrap()[0..swarm_size - 1].into()
-            )
+            ndcg(&qresults, &gt_pairs.get(qid).unwrap()[0..swarm_size - 1])
         );
     });
 }
 
-fn intersection(results: &Vec<Pair>, true_nns: &Vec<Pair>) -> usize {
+fn intersection(results: &[Pair], true_nns: &[Pair]) -> usize {
     todo!()
 }
 
@@ -247,7 +241,7 @@ fn brute_force_all_dists<T: Clone>(
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map(|it| Pair::new(NonNan(distance(q, it.1)), it.0))
+                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), it.0))
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs

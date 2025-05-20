@@ -4,28 +4,28 @@ use utils::pair::Pair;
 
 pub fn main() {
     let mut perfect_results: Vec<Pair> = Vec::new();
-    perfect_results.push(Pair::new(NonNan(1.0), 5));
-    perfect_results.push(Pair::new(NonNan(1.2), 9));
-    perfect_results.push(Pair::new(NonNan(1.5), 7));
-    perfect_results.push(Pair::new(NonNan(2.0), 6));
+    perfect_results.push(Pair::new(NonNan::new(1.0), 5));
+    perfect_results.push(Pair::new(NonNan::new(1.2), 9));
+    perfect_results.push(Pair::new(NonNan::new(1.5), 7));
+    perfect_results.push(Pair::new(NonNan::new(2.0), 6));
 
     let mut bad_results: Vec<Pair> = Vec::new();
-    bad_results.push(Pair::new(NonNan(1.0), 10));
-    bad_results.push(Pair::new(NonNan(1.2), 20));
-    bad_results.push(Pair::new(NonNan(1.5), 30));
-    bad_results.push(Pair::new(NonNan(2.0), 40));
+    bad_results.push(Pair::new(NonNan::new(1.0), 10));
+    bad_results.push(Pair::new(NonNan::new(1.2), 20));
+    bad_results.push(Pair::new(NonNan::new(1.5), 30));
+    bad_results.push(Pair::new(NonNan::new(2.0), 40));
 
     let mut mixed_results: Vec<Pair> = Vec::new();
-    mixed_results.push(Pair::new(NonNan(1.0), 5));
-    mixed_results.push(Pair::new(NonNan(1.2), 9));
-    mixed_results.push(Pair::new(NonNan(1.5), 3));
-    mixed_results.push(Pair::new(NonNan(2.0), 4));
+    mixed_results.push(Pair::new(NonNan::new(1.0), 5));
+    mixed_results.push(Pair::new(NonNan::new(1.2), 9));
+    mixed_results.push(Pair::new(NonNan::new(1.5), 3));
+    mixed_results.push(Pair::new(NonNan::new(2.0), 4));
 
     let mut gt: Vec<Pair> = Vec::new();
-    gt.push(Pair::new(NonNan(1.2), 5));
-    gt.push(Pair::new(NonNan(1.5), 9));
-    gt.push(Pair::new(NonNan(1.7), 7));
-    gt.push(Pair::new(NonNan(2.0), 6));
+    gt.push(Pair::new(NonNan::new(1.2), 5));
+    gt.push(Pair::new(NonNan::new(1.5), 9));
+    gt.push(Pair::new(NonNan::new(1.7), 7));
+    gt.push(Pair::new(NonNan::new(2.0), 6));
 
     println!("Gt and gt = {} should be 1", ndcg(&gt, &gt)); // Should be 1.
     println!(

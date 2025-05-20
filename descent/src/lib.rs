@@ -177,7 +177,7 @@ fn knn_search_internal<T: Clone>(
 ) -> (usize, Vec<Pair>) {
     let mut visited_set: HashSet<usize, BuildHasherDefault<XxHash64>> = HashSet::default();
 
-    let ep_q_dist = NonNan(distance(&query, dao.get_datum(entry_point)));
+    let ep_q_dist = NonNan::new(distance(&query, dao.get_datum(entry_point)));
 
     let mut results_list: BinaryHeap<Pair> = BinaryHeap::new(); // biggest first - a max-heap
     let mut candidates_list: BinaryHeap<Reverse<Pair>> = BinaryHeap::new(); // in reverse order - smallest first
@@ -222,7 +222,7 @@ fn knn_search_internal<T: Clone>(
                     })
                     .map(|unseen_neighbour| {
                         let distance_q_next_neighbour =
-                            NonNan(distance(&query, &unseen_neighbour.1));
+                            NonNan::new(distance(&query, &unseen_neighbour.1));
 
                         // let distance_q_next_neighbour = dist_fn(&query, &unseen_neighbour.1);
                         Reverse(Pair::new(distance_q_next_neighbour, unseen_neighbour.0))

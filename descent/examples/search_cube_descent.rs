@@ -78,7 +78,7 @@ fn hamming_distance(a: &BitVecSimd<[u64x4; 4], 4>, b: &BitVecSimd<[u64x4; 4], 4>
 fn show_results(qid: usize, results: &Vec<Pair>) {
     print!("first few results for q{}:\t", qid);
     results.iter().by_ref().take(5).for_each(|pair| {
-        print!("{} d: {} ", pair.index, pair.distance.0);
+        print!("{} d: {} ", pair.index, pair.distance.as_f32());
     });
     println!();
 }
@@ -113,7 +113,7 @@ fn do_queries(
         show_gt(qid, gt_pairs);
         println!(
             "DCG: {}",
-            ndcg(&qresults, &gt_pairs.get(qid).unwrap()[0..99].into())
+            ndcg(&qresults, &gt_pairs.get(qid).unwrap()[0..99])
         );
     });
 }
@@ -136,7 +136,7 @@ fn brute_force_all_dists<T: Clone>(
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map(|it| Pair::new(NonNan(distance(q, it.1)), it.0))
+                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), it.0))
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs

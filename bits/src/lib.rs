@@ -1,5 +1,3 @@
-#![feature(portable_simd)]
-
 use bitvec_simd::BitVecSimd;
 use ndarray::parallel::prelude::*;
 use ndarray::{Array1, Array2, ArrayView1};

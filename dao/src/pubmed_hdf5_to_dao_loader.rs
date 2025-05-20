@@ -3,8 +3,6 @@ use bits::{f32_embedding_to_bsp, EVP_bits};
 use hdf5::File;
 use ndarray::{s, Array1, Array2};
 use rayon::prelude::*;
-use std::mem::MaybeUninit;
-use std::sync::{Arc, Mutex};
 use tracing::error;
 //use tracing::metadata;
 
@@ -50,8 +48,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
     let mut bsp_data: Vec<EVP_bits<2>> = chunks
         .par_iter()
-        .enumerate()
-        .flat_map(|(i, &(start, end))| {
+        .flat_map(|&(start, end)| {
             let file = File::open(data_path).expect("Cannot open file"); // open for reading - local file handle only used in parallel part.
             let h5_data = file.dataset("train").expect("Failed to open dataset");
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
@@ -70,7 +67,6 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     // Queries not big enough
 
     let file = File::open(data_path)?; // open for reading - this is a new open for queries only
-    let h5_data = file.dataset("train")?; // the data
     let o_queries_group = file.group("otest")?; // in distribution queries
     let o_queries = o_queries_group.dataset("queries").unwrap();
     let o_test_size = o_queries.shape()[0]; // 11_000

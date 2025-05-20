@@ -38,15 +38,15 @@ pub fn hdf5_glove_f32_load(data_path: &str) -> anyhow::Result<Dao<Array1<f32>>> 
         description: description.to_string(),
         data_disk_format: "".to_string(),
         path_to_data: "".to_string(),
-        normed: normed,
-        num_records: num_records,
+        normed,
+        num_records,
         dim: dim,
     };
 
     let dao = Dao {
         meta: dao_meta,
         num_data: num_records,
-        num_queries: num_queries,
+        num_queries,
         embeddings: combined,
     };
 

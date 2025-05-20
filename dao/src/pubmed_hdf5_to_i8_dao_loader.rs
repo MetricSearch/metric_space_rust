@@ -97,14 +97,14 @@ pub fn hdf5_pubmed_f32_to_i8_load(
         data_disk_format: "".to_string(),
         path_to_data: "".to_string(),
         normed: Normed::L2, // TODO <<<< wrong?
-        num_records: num_records,
-        dim: dim,
+        num_records,
+        dim,
     };
 
     let dao = DaoMatrix::<i8> {
         meta: dao_meta,
         num_data: num_records,
-        num_queries: num_queries,
+        num_queries,
         embeddings: all_combined,
     };
 

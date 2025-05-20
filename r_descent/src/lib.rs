@@ -346,11 +346,7 @@ pub fn initialise_table_m(
     result_indices
         .axis_chunks_iter_mut(Axis(0), chunk_size)
         .into_par_iter() // .into_iter()
-        .zip(
-            result_sims
-                .axis_chunks_iter_mut(Axis(0), chunk_size)
-                .into_iter(),
-        )
+        .zip(result_sims.axis_chunks_iter_mut(Axis(0), chunk_size))
         .enumerate()
         .for_each(|(i, (mut result_indices_chunk, mut result_sims_chunk))| {
             let real_chunk_size = result_sims_chunk.shape()[0];
@@ -503,8 +499,8 @@ pub fn get_nn_table2_m(
                     .row(row)
                     .iter()
                     .filter(|&&v| v != 0)
-                    .map(|&x| x)
-                    .collect::<Array1<usize>>();
+                    .copied()
+                    .collect();
 
                 if rho < 1.0 {
                     // Matlab line 127
@@ -888,9 +884,8 @@ fn get_selected_data(dao: Rc<Dao<Array1<f32>>>, dims: usize, old_row: &Vec<usize
     old_row
         .iter()
         .map(|&index| dao.get_datum(index)) // &Array1<f32>
-        .map(|value| value.iter()) // f32
-        .flatten()
-        .map(|&value| value as f32)
+        .flat_map(|value| value.iter()) // f32
+        .copied()
         .collect::<Array<f32, Ix1>>()
         .to_shape((old_row.len(), dims))
         .unwrap()
@@ -957,11 +952,7 @@ pub fn initialise_table_bsp(
     result_indices
         .axis_chunks_iter_mut(Axis(0), chunk_size)
         .into_iter() // .into_par_iter()
-        .zip(
-            result_sims
-                .axis_chunks_iter_mut(Axis(0), chunk_size)
-                .into_iter(),
-        )
+        .zip(result_sims.axis_chunks_iter_mut(Axis(0), chunk_size))
         .enumerate()
         .for_each(|(i, (mut result_indices_chunk, mut result_sims_chunk))| {
             let real_chunk_size = result_sims_chunk.shape()[0];
@@ -1175,7 +1166,7 @@ pub fn get_nn_table2_bsp(
 
         work_done = 0;
 
-        let mut updates = Updates::new(num_data);
+        let updates = Updates::new(num_data);
 
         old.axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()

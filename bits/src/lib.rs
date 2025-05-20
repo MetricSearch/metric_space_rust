@@ -18,7 +18,7 @@ pub fn f32_data_to_cubic_bitrep(
 ) -> Vec<BitVecSimd<[wide::u64x4; 4], 4>> {
     embeddings
         .iter()
-        .map(|embedding| f32_embedding_to_cubic_bitrep(embedding))
+        .map(f32_embedding_to_cubic_bitrep)
         .collect::<Vec<BitVecSimd<[wide::u64x4; 4], 4>>>()
 }
 
@@ -34,7 +34,7 @@ pub fn f32_data_to_cubeoct_bitrep(
 ) -> Vec<BitVecSimd<[wide::u64x4; 4], 4>> {
     embeddings
         .iter()
-        .map(|embedding| f32_embedding_to_cubeoct_bitrep(embedding))
+        .map(f32_embedding_to_cubeoct_bitrep)
         .collect::<Vec<BitVecSimd<[wide::u64x4; 4], 4>>>()
 }
 
@@ -176,14 +176,14 @@ pub fn hamming_distance<const D: usize>(
     a: &BitVecSimd<[wide::u64x4; D], 4>,
     b: &BitVecSimd<[wide::u64x4; D], 4>,
 ) -> usize {
-    a.xor_cloned(&b).count_ones()
+    a.xor_cloned(b).count_ones()
 }
 
 pub fn hamming_distance_as_f32<const D: usize>(
     a: &BitVecSimd<[wide::u64x4; D], 4>,
     b: &BitVecSimd<[wide::u64x4; D], 4>,
 ) -> f32 {
-    a.xor_cloned(&b).count_ones() as f32
+    a.xor_cloned(b).count_ones() as f32
 }
 
 // This is weird hamming (whamming) distance recoded for the 00/11/01 (2 bit) encoding
@@ -196,7 +196,7 @@ pub fn whamming_distance<const D: usize>(
         .map(|(x, y)| {
             let hamm = x.bitxor(y);
             if hamm == 3 {
-                4 as usize
+                4
             } else {
                 hamm as usize
             }
@@ -300,10 +300,10 @@ pub fn f32_data_to_bsp<const D: usize>(
 
 #[inline(always)]
 pub fn bsp_similarity<const X: usize>(a: &EVP_bits<X>, b: &EVP_bits<X>) -> usize {
-    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
-    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+    let aa = a.ones.and_cloned(&b.ones).count_ones();
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones();
 
     // println!( "a {:?} b {:?}", a, b) ;
 
@@ -332,20 +332,20 @@ pub fn bsp_similarity_as_f32<const X: usize>(a: &EVP_bits<X>, b: &EVP_bits<X>) -
 
 #[inline(always)]
 pub fn bsp_distance<const X: usize>(a: &EVP_bits<X>, b: &EVP_bits<X>) -> usize {
-    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
-    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+    let aa = a.ones.and_cloned(&b.ones).count_ones();
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones();
 
     (cc + dd + X * 256 * 2) - (aa + bb)
 }
 
 #[inline(always)]
 pub fn bsp_distance_as_f32<const X: usize>(a: &EVP_bits<X>, b: &EVP_bits<X>) -> f32 {
-    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
-    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
+    let aa = a.ones.and_cloned(&b.ones).count_ones();
+    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
+    let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
+    let dd = b.ones.and_cloned(&a.negative_ones).count_ones();
 
     ((cc + dd + X * 256 * 2) - (aa + bb)) as f32
 }

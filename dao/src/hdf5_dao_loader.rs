@@ -36,15 +36,15 @@ pub fn hdf5_f32_load(
         description: description,
         data_disk_format: "".to_string(),
         path_to_data: "".to_string(),
-        normed: normed,
-        num_records: num_records,
-        dim: dim,
+        normed,
+        num_records,
+        dim,
     };
 
     let dao = Dao {
         meta: dao_meta,
-        num_data: num_data,
-        num_queries: num_queries,
+        num_data,
+        num_queries,
         embeddings: data,
     };
 

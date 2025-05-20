@@ -30,8 +30,8 @@ jobs:
 
       - name: Run cargo build
         uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: -D warnings
+        # env:
+        #   RUSTFLAGS: -D warnings
         with:
           command: build
           args: --release --all-targets

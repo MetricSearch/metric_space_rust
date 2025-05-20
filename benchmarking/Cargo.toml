@@ -20,9 +20,9 @@ name = "euc_distance"
 harness = false
 
 [dependencies]
-dao = {path="../dao"}
-bits = {path="../bits"}
-metrics = {path="../metrics"}
+dao = { path = "../dao" }
+bits = { path = "../bits" }
+metrics = { path = "../metrics" }
 ndarray = "0.16.1"
 
 [dev-dependencies]

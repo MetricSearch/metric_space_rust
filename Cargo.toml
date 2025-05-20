@@ -1,6 +1,17 @@
 [workspace]
 resolver = "2"
-members = [ "benchmarking", "bits","dao", "metrics", "descent", "rp_forest", "utils", "r_descent", "r_descent","SISAP2025_experiments"]
+members = [
+    "benchmarking",
+    "bits",
+    "dao",
+    "metrics",
+    "descent",
+    "rp_forest",
+    "utils",
+    "r_descent",
+    "r_descent",
+    "sisap",
+]
 
 [profile.release]
 debug = false

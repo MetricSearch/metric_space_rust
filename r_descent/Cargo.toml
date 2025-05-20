@@ -4,12 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
-dao = {path="../dao"}
-utils = {path="../utils"}
-bits = {path="../bits"}
-metrics = {path="../metrics"}
-ndarray = { version="0.16.1", features=["serde","matrixmultiply-threading", "rayon"] }
+dao = { path = "../dao" }
+utils = { path = "../utils" }
+bits = { path = "../bits" }
+metrics = { path = "../metrics" }
+ndarray = { version = "0.16.1", features = [
+    "serde",
+    "matrixmultiply-threading",
+    "rayon",
+] }
 serde = "1.0.217"
 anyhow = "1.0.94"
 tracing = "0.1.41"
@@ -20,4 +23,3 @@ clap = { version = "4.5.37", features = ["derive"] }
 rayon = "1.10.0"
 chrono = "0.4.41"
 bincode = "1.3.3"
-

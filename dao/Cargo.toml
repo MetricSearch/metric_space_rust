@@ -4,19 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bits = {path="../bits"}
-utils = {path="../utils"}
-metrics = {path="../metrics"}
+bits = { path = "../bits" }
+utils = { path = "../utils" }
+metrics = { path = "../metrics" }
 
 anndists = "0.1.2"
 anyhow = "1.0.95"
 rayon = "1.10.0"
 tracing = "0.1.41"
 csv = "1.3.1"
-ndarray = { version = "0.16.1", features=["serde","rayon"] }
+ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 serde = { version = "1.0.217", features = ["derive"] }
 toml = "0.8.19"
 bincode = "1.3.3"
-hdf5 = { package = "hdf5-metno", version = "0.9.0", features = ["blosc", "static"] }
+hdf5 = { package = "hdf5-metno", version = "0.9.0", features = [
+    "blosc",
+    "static",
+] }
 bitvec_simd = "0.20.5"
 wide = "0.7.32"

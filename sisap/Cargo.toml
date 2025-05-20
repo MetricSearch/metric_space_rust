@@ -10,7 +10,7 @@ bits = { path = "../bits" }
 metrics = { path = "../metrics" }
 descent = { path = "../descent" }
 ndarray = { version = "0.16.1", features = ["serde"] }
-anyhow = "1.0.94"
+anyhow = "1.0.98"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 bitvec_simd = "0.20.5"

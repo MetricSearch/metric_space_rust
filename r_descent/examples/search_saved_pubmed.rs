@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_distance_as_f32, f32_data_to_cubic_bitrep, whamming_distance, Bsp};
+use bits::{bsp_distance_as_f32, f32_data_to_cubic_bitrep, whamming_distance, EVP_bits};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::{Array1, Array2, ArrayView1};
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
     const NUM_VERTICES: usize = 200;
     const knns: usize = 30;
 
-    let dao_bsp: Rc<Dao<Bsp<2>>> = Rc::new(hdf5_pubmed_f32_to_bsp_load( f_name, NUM_DATA , num_queries, NUM_VERTICES ).unwrap());
+    let dao_bsp: Rc<Dao<EVP_bits<2>>> = Rc::new(hdf5_pubmed_f32_to_bsp_load(f_name, NUM_DATA, num_queries, NUM_VERTICES ).unwrap());
 
     println!( "Dao: size: {} data shape: {:?} queries shape: {:?} ", dao_bsp.num_data, dao_bsp.get_data().shape(),dao_bsp.get_queries().shape() );
 
@@ -101,12 +101,12 @@ fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) {
 }
 
 fn do_queries(
-    queries: Vec<Bsp<2>>,
+    queries: Vec<EVP_bits<2>>,
     descent: &RDescentMatrix,
-    dao: Rc<Dao<Bsp<2>>>,
+    dao: Rc<Dao<EVP_bits<2>>>,
     gt_pairs: &Vec<Vec<Pair>>,
     nn_table: &Array2<usize>,
-    distance: fn(&Bsp<2>, &Bsp<2>) -> f32,
+    distance: fn(&EVP_bits<2>, &EVP_bits<2>) -> f32,
 ) {
     queries.
         iter().

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{Bsp, bsp_similarity, i8_similarity};
+use bits::{EVP_bits, bsp_similarity, i8_similarity};
 use metrics::euc;
 use ndarray::{s, Array2, ArrayView1, ArrayView2};
 use std::collections::HashSet;

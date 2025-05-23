@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use anyhow::Result;
-use bits::Bsp;
+use bits::EVP_bits;
 use dao::Dao;
 use ndarray::{s, Array1, Array2, ArrayView1};
 use r_descent_matrix::{get_nn_table2_bsp, initialise_table_bsp};
@@ -23,10 +23,10 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 200;
 
-    let dao_bsp: Rc<Dao<Bsp<2>>> = Rc::new(hdf5_pubmed_f32_to_bsp_load( f_name, ALL_RECORDS , num_queries, NUM_VERTICES ).unwrap());
+    let dao_bsp: Rc<Dao<EVP_bits<2>>> = Rc::new(hdf5_pubmed_f32_to_bsp_load(f_name, ALL_RECORDS, num_queries, NUM_VERTICES ).unwrap());
 
-    let queries: ArrayView1<Bsp<2>> = dao_bsp.get_queries();
-    let data: ArrayView1<Bsp<2>> = dao_bsp.get_data();
+    let queries: ArrayView1<EVP_bits<2>> = dao_bsp.get_queries();
+    let data: ArrayView1<EVP_bits<2>> = dao_bsp.get_data();
 
     println!( "Pubmed data size: {} queries size: {}", data.len(), queries.len() );
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{Bsp, bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance};
+use bits::{EVP_bits, bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};
@@ -121,8 +121,8 @@ fn brute_force_all_dists(
 
 
 fn generate_bsp_dists<const D: usize>(
-    queries_bitreps: Vec<Bsp<D>>,
-    data_bitreps: Vec<Bsp<D>>,
+    queries_bitreps: Vec<EVP_bits<D>>,
+    data_bitreps: Vec<EVP_bits<D>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .par_iter()

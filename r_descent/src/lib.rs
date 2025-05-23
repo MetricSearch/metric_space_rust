@@ -7,7 +7,7 @@ use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use std::rc::Rc;
 use std::time::Instant;
-use ndarray::{s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Ix1};
+use ndarray::{concatenate, s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Ix1};
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
 use dao::{Dao, DaoMatrix};
 use rand_chacha::rand_core::SeedableRng;
@@ -17,7 +17,7 @@ use crate::updates::Updates;
 use rayon::prelude::*;
 use ndarray::parallel::prelude::*;
 use std::ptr;
-use bits::{Bsp, matrix_dot_bsp, bsp_similarity_as_f32};
+use bits::{EVP_bits, matrix_dot_bsp, bsp_similarity_as_f32};
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 
@@ -109,26 +109,45 @@ pub trait IntoRDescent {
     ) -> RDescentMatrix;
 }
 
-//********** Impls **********
-
-impl IntoRDescent for DaoMatrix<f32> {
-    fn into_rdescent(
+pub trait IntoRDescentWithRevNNs {
+    fn into_rdescent_with_rev_nn(
         self: Rc<Self>,
         num_neighbours: usize,
         reverse_list_size: usize,
         chunk_size: usize,
         rho: f64,
-        delta: f64
+        delta: f64,
+        nns_in_search_structure : usize
+    ) -> RDescentMatrix;
+}
+
+//********** Impls **********
+
+impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
+    fn into_rdescent_with_rev_nn(
+        self: Rc<Self>,
+        num_neighbours: usize,
+        reverse_list_size: usize,
+        chunk_size: usize,
+        rho: f64,
+        delta: f64,
+        nns_in_search_structure : usize
     ) -> RDescentMatrix {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
-        let (mut ords, mut dists) = initialise_table_m(self.clone(), chunk_size, num_neighbours);
-        get_nn_table2_m(self.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+        let (mut neighbours, mut similarities) = initialise_table_m(self.clone(), chunk_size, num_neighbours);
+        get_nn_table2_m(self.clone(), &mut neighbours, &mut similarities, num_neighbours, rho, delta, reverse_list_size);
+        let (reverse_nns, reverse_similarities) = get_reverse_links_not_in_forward(&neighbours,&similarities, nns_in_search_structure);
 
-        RDescentMatrix { indices: ords, dists }
+        let neighbours: Array2<usize> = concatenate(Axis(1), &[neighbours.view(), reverse_nns.view()]).unwrap();
+        let similarities: Array2<f32> = concatenate(Axis(1), &[similarities.view(), reverse_similarities.view()]).unwrap();
+
+        // TODO perhaps need to deal with MAXINT values
+
+        RDescentMatrix { indices: neighbours, dists: similarities }
     }
 }
 
-impl IntoRDescent for Dao<Bsp<2>> {
+impl IntoRDescent for Dao<EVP_bits<2>> {
     fn into_rdescent(
         self: Rc<Self>,
         num_neighbours: usize,
@@ -142,6 +161,30 @@ impl IntoRDescent for Dao<Bsp<2>> {
         get_nn_table2_bsp(self.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
         RDescentMatrix { indices: ords, dists }
+    }
+}
+
+impl IntoRDescentWithRevNNs for Dao<EVP_bits<2>> {
+    fn into_rdescent_with_rev_nn(
+        self: Rc<Self>,
+        num_neighbours: usize,
+        reverse_list_size: usize,
+        chunk_size: usize,
+        rho: f64,
+        delta: f64,
+        nns_in_search_structure : usize
+    ) -> RDescentMatrix {
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
+        let (mut neighbours, mut similarities) = initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
+        get_nn_table2_bsp(self.clone(), &mut neighbours, &mut similarities, num_neighbours, rho, delta, reverse_list_size);
+        let (reverse_nns, reverse_similarities) = get_reverse_links_not_in_forward(&neighbours,&similarities, nns_in_search_structure);
+
+        let neighbours: Array2<usize> = concatenate(Axis(1), &[neighbours.view(), reverse_nns.view()]).unwrap();
+        let similarities: Array2<f32> = concatenate(Axis(1), &[similarities.view(), reverse_similarities.view()]).unwrap();
+
+        // TODO perhaps need to deal with MAXINT values
+
+        RDescentMatrix { indices: neighbours, dists: similarities }
     }
 }
 
@@ -271,7 +314,7 @@ pub fn get_nn_table2_m(dao: Rc<DaoMatrix<f32>>,
 
         // phase 2  Matlab line 88
 
-        let (reverse, _reverse_sims) = get_new_reverse_links(&neighbours, &similarities, reverse_list_size, &new);
+        let (reverse, _reverse_sims) = get_new_reverse_links_not_in_forward(&neighbours, &similarities, reverse_list_size, &new);
 
         // phase 3
 
@@ -405,7 +448,7 @@ pub fn get_nn_table2_m(dao: Rc<DaoMatrix<f32>>,
 
 //***** Utility functions *****
 
-pub fn get_new_reverse_links(neighbours: &&mut Array2<usize>, similarities: &&mut Array2<f32>, reverse_list_size: usize, new: &Array2<usize>) -> (Array2<usize>, Array2<f32>) {
+pub fn get_new_reverse_links_not_in_forward(neighbours: &&mut Array2<usize>, similarities: &&mut Array2<f32>, reverse_list_size: usize, new: &Array2<usize>) -> (Array2<usize>, Array2<f32>) {
     let now = Instant::now();
     // initialise old' and new'  Matlab line 90
     let num_neighbours = neighbours.ncols();
@@ -413,7 +456,7 @@ pub fn get_new_reverse_links(neighbours: &&mut Array2<usize>, similarities: &&mu
     // the reverse NN table  Matlab line 91
     let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), usize::MAX);
     // all the distances from reverse NN table.
-    let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), -1.0f32);
+    let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), f32::MIN);  // was -1.0f32
     // reverse_ptr - how many reverse pointers for each entry in the dataset
     let mut reverse_count = Array1::from_elem(num_data, 0);
 
@@ -467,14 +510,14 @@ pub fn get_new_reverse_links(neighbours: &&mut Array2<usize>, similarities: &&mu
 }
 
 // Same as function above without new parameter.
-pub fn get_reverse_links_not_in_forward(neighbours: &&mut Array2<usize>, similarities: &&mut Array2<f32>, reverse_list_size: usize) -> (Array2<usize>, Array2<f32>) {
+pub fn get_reverse_links_not_in_forward(neighbours: &Array2<usize>, similarities: &Array2<f32>, reverse_list_size: usize) -> (Array2<usize>, Array2<f32>) {
     // initialise old' and new'  Matlab line 90
     // the reverse NN table  Matlab line 91
     let num_neighbours = neighbours.ncols();
     let num_data= neighbours.nrows();
     let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), usize::MAX);
     // all the distances from reverse NN table.
-    let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), -1.0f32);  //<<<<<<<< Why -1 - surely -maxval?
+    let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), f32::MIN);  // was -1.0f32
     // reverse_ptr - how many reverse pointers for each entry in the dataset
     let mut reverse_count = Array1::from_elem(num_data, 0);
 
@@ -612,7 +655,7 @@ fn get_slice_using_selected(source: &ArrayView2<f32>, selectors: &ArrayView1<usi
 
 //************** BSP impl below here **************
 
-pub fn initialise_table_bsp(dao: Rc<Dao<Bsp<2>>>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>, Array2<f32>) {
+pub fn initialise_table_bsp(dao: Rc<Dao<EVP_bits<2>>>, chunk_size: usize, num_neighbours: usize) -> (Array2<usize>, Array2<f32>) {
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
@@ -670,11 +713,11 @@ pub fn initialise_table_bsp(dao: Rc<Dao<Bsp<2>>>, chunk_size: usize, num_neighbo
 
 }
 
-pub fn get_nn_table2_bsp(dao: Rc<Dao<Bsp<2>>>,
-                     mut neighbours: &mut Array2<usize>,
-                     mut similarities: &mut Array2<f32>, // bigger is better
-                     num_neighbours: usize,
-                     rho: f64, delta: f64, reverse_list_size: usize ) {
+pub fn get_nn_table2_bsp(dao: Rc<Dao<EVP_bits<2>>>,
+                         mut neighbours: &mut Array2<usize>,
+                         mut similarities: &mut Array2<f32>, // bigger is better
+                         num_neighbours: usize,
+                         rho: f64, delta: f64, reverse_list_size: usize ) {
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
@@ -944,7 +987,7 @@ pub fn get_nn_table2_bsp(dao: Rc<Dao<Bsp<2>>>,
 
     //********* Helper functions *********
 
-    fn get_bsp_slice_using_selected(source: &ArrayView1<Bsp<2>>, selectors: &ArrayView1<usize>, result_shape: [usize; 1]) -> Array1<Bsp<2>> {
+    fn get_bsp_slice_using_selected(source: &ArrayView1<EVP_bits<2>>, selectors: &ArrayView1<usize>, result_shape: [usize; 1]) -> Array1<EVP_bits<2>> {
         let mut sliced = Array1::uninit(result_shape); //
 
         for count in 0..selectors.len() { // was result_shape

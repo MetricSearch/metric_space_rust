@@ -22,7 +22,7 @@ use std::iter;
 use std::rc::Rc;
 use ndarray::Array1;
 use twox_hash::{XxHash64};
-use bits::Bsp;
+use bits::EVP_bits;
 use utils::arg_sort;
 
 #[derive(Serialize, Deserialize)]

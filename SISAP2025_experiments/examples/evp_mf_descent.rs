@@ -6,7 +6,7 @@ use std::rc::Rc;
 use wide::u64x4;
 use ndarray::{Array1, Axis};
 use bitvec_simd::BitVecSimd;
-use bits::{bsp_distance, f32_data_to_evp, Bsp};
+use bits::{bsp_distance, f32_data_to_evp, EVP_bits};
 use descent::Descent;
 use dao::convert_f32_to_evp::f32_dao_to_evp;
 use utils::pair::Pair;
@@ -62,7 +62,7 @@ pub fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
 }
 
-fn distance_adapter(a: &Bsp::<2>, b: &Bsp::<2> ) -> f32 {
+fn distance_adapter(a: &EVP_bits::<2>, b: &EVP_bits::<2> ) -> f32 {
     bsp_distance::<2>(a,b) as f32
 }
 

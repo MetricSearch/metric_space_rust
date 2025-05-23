@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{Bsp, bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance};
+use bits::{EVP_bits, bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};

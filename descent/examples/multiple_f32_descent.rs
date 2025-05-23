@@ -32,13 +32,6 @@ fn main() -> Result<()> {
     let f = BufReader::new(File::open(descent_file_name).unwrap());
     let descent: Descent = bincode::deserialize_from(f).unwrap();
 
-  //  check_order(&descent);
-   // first_row(&descent);
-
-    // println!("Serde load code commented out for now");
-    // let num_neighbours = 100;
-    // let descent = Descent::new(dao.clone(), num_neighbours, true);
-
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;

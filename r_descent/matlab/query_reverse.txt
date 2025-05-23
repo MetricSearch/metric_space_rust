@@ -1,0 +1,127 @@
+Brief summary of this function.
+The function uses NN and revNN tables to query in the manner of descent
+we start with a rough approximation of the query by selecting eg 1000 distances - or we could try random
+then we iterate to see if any of the NNs of these NNs are closer to the query, using the NN table directly but also the reverseNN table
+
+function [qNNs,qSims] = query_reverse(data,k,Btable,revBtable,query)
+%qNNs is the vector result of near-neighbour indices from the data
+% qSims is the similarity of each of those to the query
+
+%initialise randomly with minimum similarities
+% qNNs = randperm(size(data,1),k);
+% qSims = -ones(1,k);
+
+%cheaply find some reasonably good solutions
+entrySims = data(1:1000,:) * query';
+
+[sims,ord] = maxk(entrySims,k);
+
+% we need to initialise qNNs and qSims to start with, these will
+% incrementally get better until the algoritm terminates
+% qNNs can just be seeded randomly, in which case qSims should be set to
+% all -maxint rather than accurate similarities
+qNNs = ord(1:k);
+qSims = sims(1:k);
+
+%same as in nnTableBuild, the new flags
+newFlags = true(1,length(qNNs));
+
+%through the iterations, maintain the worst result currently in the qNNs
+%vector
+currentMinSim = -1;
+
+c = 1;
+%c is the amount of work done in the iteration; after some smallish value
+%nothing gets really much better and it can mean many more iterations
+%but maybe this should be zero as there's only a single query...?
+
+while c > 0
+    c = 0;
+
+    %qNNs are the current best NNs that we know about
+    %but don't re-try ones that have already been added before this loop
+    theseQnns = qNNs(newFlags);
+
+    %set all to false; will be reset to true when overwritten with new
+    %values
+    newFlags(:) = false;
+
+    %get the friends of the new ones and reshape them to a flat vector
+    % forwardNNs starts off as an X x k array if there are X theseQnns
+    forwardNNs = Btable(theseQnns,:);
+    % and we make it into a one-dim vector
+    forwardNNs = reshape(forwardNNs,[1,size(forwardNNs,1) * size(forwardNNs,2)]);
+
+    % maybe we want these, maybe we don't...?
+    % they don't seem to add anything other than cost...
+    % if any of the current NNs are chosen, then the next friend set will
+    % be pulled anyway
+
+    % forwardNN2s = Btable(forwardNNs,:);
+    % forwardNN2s = reshape(forwardNN2s,[1,size(forwardNN2s,1) * size(forwardNN2s,2)]);
+
+
+    %these two lines do the same for the reverse table as above for the
+    %forward table
+    reverseNNs = revBtable(theseQnns,:);
+    %revs is an NxM matrix so reshape it to linear
+    reverseNNs = reshape(reverseNNs,[1,size(reverseNNs,1) * size(reverseNNs,2)]);
+
+    % allNNs = unique(nonzeros([forwardNNs,forwardNN2s,reverseNNs]));
+
+    % unique is a quite expensive operation so it might be cheaper to just
+    % have duplicates - seems to make no discernable difference
+
+    %allIds is just the concatentation of the forward and reverse NN lists
+    %be aware these lists may contain zeros
+    allIds = nonzeros([forwardNNs, reverseNNs]);
+
+    %get the actual data values from the full data set
+    nnData = data(allIds,:); %data for all the selected ids
+
+    % and measure the similarity of each to the query
+    % allSims is a flat vector is distances
+    % ie it is a 1 x N array where N is the number of elements in allIds
+    allSims =  nnData * query';
+
+    for i = 1 : length(allIds)
+% this code is the same as just one of the four bits of phase 3 in the nn
+% table build algorithm
+        thisId = allIds(i);
+        thisSim = allSims(i);
+
+        % is the similarity of the query and thisId greater than the smallest similarity in
+        % the result set?
+        % if it's not, then do nothing and carry on
+        if thisSim > currentMinSim
+            % if it is, first check that the id isn't already in the set
+            if sum(qNNs == thisId) == 0
+                % and it's not, so we're doing a replacement
+                % first find where the current smallest similarity is
+                [~,wh] = min(qSims);
+                % then replace the id in the result list with the
+                % new id, also maintaining the global qSims list
+                % and set the flag so that the id is noted as a new one in
+                % the next iteration
+                qNNs(wh(1)) = thisId;
+                qSims(wh(1)) = thisSim;
+                newFlags(wh(1)) = true;
+
+                %using mink(.,2) is maybe a smidgen faster than two calls
+                %to min...! prob not in reality, can't see a difference
+                currentMinSim = min(qSims);
+
+                %and log that we've done some work so we don't want to stop
+                %yet
+                c = c + 1;
+            end
+        end
+
+
+    end % of for loop over length of allNNs
+
+end % of while loop based on c
+
+end % of function
+
+

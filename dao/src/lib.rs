@@ -91,7 +91,7 @@ impl<T: Clone> Dao<T> {
 
     pub fn get_datum(&self, id: usize) -> &T {
         if id >= self.num_data {
-            panic!("id out of bounds");
+            panic!("id out of bounds | ID {}", id);
         }
         self.embeddings.get(id).unwrap()
     }

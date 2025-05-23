@@ -64,43 +64,29 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
     let file = File::open(data_path)?;                   // open for reading - this is a new open for queries only
     let h5_data = file.dataset("train")?;       // the data
-    let i_queries_group = file.group("itest")?;     // in distribution queries
-    let i_queries = i_queries_group.dataset("queries").unwrap();
-    let i_test_size = i_queries.shape()[0]; // 11_000
+    let o_queries_group = file.group("otest")?;     // in distribution queries
+    let o_queries = o_queries_group.dataset("queries").unwrap();
+    let o_test_size = o_queries.shape()[0]; // 11_000
     // let o_queries_group = file.group("otest")?;     // out of distribution queries
 
-    if num_queries > i_test_size {
+    if num_queries > o_test_size {
         error!("Too many records requested" )
     }
-    let num_queries = if num_queries == 0 { i_test_size } else { num_queries.min(i_test_size) };
+    let num_queries = if num_queries == 0 { o_test_size } else { num_queries.min(o_test_size) };
 
-    let i_queries = i_queries_group.dataset("queries").unwrap();
-    //let o_queries = o_queries_group.dataset("queries").unwrap();
+    let o_queries = o_queries_group.dataset("queries").unwrap();
 
-    let i_queries_slice: Array2<f32> = i_queries.read_slice(s![0..num_queries, ..]).unwrap();
+    let o_queries_slice: Array2<f32> = o_queries.read_slice(s![0..num_queries, ..]).unwrap();
 
-    let bsp_i_test = i_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
+    let bsp_o_test = o_queries_slice
         .rows()
         .into_iter()
         .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices));
 
-    // let o_queries_slice: Array2<f32> = o_queries.read_slice(s![.., ..]).unwrap();
-    //
-    // let bsp_o_test: Array1<bsp<2>> = o_queries_slice // Array1<bsp<2>> o_queries.read_slice(s![.., ..])
-    //     .rows()
-    //     .into_iter()
-    //     .map(|x| f32_embedding_to_bsp::<2>(&x, 200))
-    //     .collect();
-
-    // let queries_combined: Array1<bsp<2>> = bsp_i_test
-    //     .into_iter()
-    //     .chain(bsp_o_test.into_iter())
-    //     .collect();
-
     let name = "Pubmed";
     let description ="PubmedHDF5Dataset";
 
-    bsp_data.extend(bsp_i_test);
+    bsp_data.extend(bsp_o_test);
 
     let all_combined: Array1<Bsp<2>> = Array1::from_vec(bsp_data);
 
@@ -109,7 +95,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
         description: description.to_string(),
         data_disk_format: "".to_string(),
         path_to_data: "".to_string(),
-        normed: Normed::L2,                     // TODO <<<< wrong?
+        normed: Normed::L2,
         num_records: num_records,
         dim: dim,
     };
@@ -132,25 +118,25 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
 ) -> anyhow::Result<Dao<Bsp<2>>> {
     let file = File::open(data_path)?;                   // open for reading
     let ds_data = file.dataset("train")?;       // the data
-    let i_queries_group = file.group("itest")?;     // in distribution queries
-    // let o_queries_group = file.group("otest")?;     // out of distribution queries
+    //let i_queries_group = file.group("itest")?;     // in distribution queries
+    let o_queries_group = file.group("otest")?;     // out of distribution queries
 
-    let i_queries = i_queries_group.dataset("queries").unwrap();
+    let o_queries = o_queries_group.dataset("queries").unwrap();
     //let o_queries = o_queries_group.dataset("queries").unwrap();
 
     let train_size =  ds_data.shape()[0]; // 23_887_701
-    let i_test_size = i_queries.shape()[0]; // 11_000;       // used as queries
-    //let o_test_size = i_queries.shape()[0]; // 11_000
+    let o_test_size = o_queries.shape()[0]; // 11_000;       // used as queries
+    //let i_test_size = i_queries.shape()[0]; // 11_000
 
     if num_records_required > train_size {
         error!("Too many records requested" )
     }
     let num_records = if num_records_required == 0 { train_size } else { num_records_required.min(train_size) };
 
-    if num_queries > i_test_size {
+    if num_queries > o_test_size {
         error!("Too many records requested" )
     }
-    let num_queries = if num_queries == 0 { i_test_size } else { num_queries.min(i_test_size) };
+    let num_queries = if num_queries == 0 { o_test_size } else { num_queries.min(o_test_size) };
 
     let name = "Pubmed";
     let description ="PubmedHDF5Dataset";
@@ -180,21 +166,13 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
             .assign(&bsp_rows);
     }
 
-    let i_queries_slice: Array2<f32> = i_queries.read_slice(s![0..num_queries, ..]).unwrap();
+    let o_queries_slice: Array2<f32> = o_queries.read_slice(s![0..num_queries, ..]).unwrap();
 
-    let bsp_i_test: Array1<Bsp<2>> = i_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
+    let bsp_o_test: Array1<Bsp<2>> = o_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
         .rows()
         .into_iter()
         .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
         .collect();
-
-    // let o_queries_slice: Array2<f32> = o_queries.read_slice(s![.., ..]).unwrap();
-    //
-    // let bsp_o_test: Array1<bsp<2>> = o_queries_slice // Array1<bsp<2>> o_queries.read_slice(s![.., ..])
-    //     .rows()
-    //     .into_iter()
-    //     .map(|x| f32_embedding_to_bsp::<2>(&x, 200))
-    //     .collect();
 
     // let queries_combined: Array1<bsp<2>> = bsp_i_test
     //     .into_iter()
@@ -203,7 +181,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
 
     let all_combined: Array1<Bsp<2>> = bsp_data
         .into_iter()
-        .chain(bsp_i_test.into_iter())
+        .chain(bsp_o_test.into_iter())
         .collect();
 
     let dao_meta = DaoMetaData {

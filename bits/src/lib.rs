@@ -1,5 +1,6 @@
 #![feature(portable_simd)]
 
+use std::hash::Hasher;
 use std::ops::BitXor;
 use std::sync::Arc;
 use bitvec_simd::BitVecSimd;
@@ -193,6 +194,24 @@ pub struct Bsp<const X: usize> {
     pub negative_ones : BitVecSimd<[u64x4; X],4>,
 }
 
+impl<const X: usize> Hasher for Bsp<X> {
+    fn finish(&self) -> u64 {
+        self.ones.clone().into_usizes().iter().map(|&x| x as u64).sum::<u64>() + self.negative_ones.clone().into_usizes().iter().map(|&x| x as u64).sum::<u64>()
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+    }
+}
+
+impl<const X: usize> Default for Bsp<X> {
+    fn default() -> Self {
+        Self {
+            ones: BitVecSimd::from_slice(&[0]),
+            negative_ones: BitVecSimd::from_slice(&[0]),
+        }
+    }
+}
+
 pub fn f32_embeddings_to_bsp<const D: usize>(embeddings: &Array2<f32>, non_zeros: usize) -> Array1<Bsp<D>> {
     embeddings
         .rows()
@@ -320,32 +339,6 @@ pub fn f32_embedding_to_i8_embedding(embedding: &ArrayView1<f32>, non_zeros: usi
 pub fn i8_similarity(a: ArrayView1<i8>, b : ArrayView1<i8>) -> usize {
     a.iter().zip(b.iter()).map(|(x, y)| (x * y) as usize ).sum()
 }
-
-const LANES: usize = 16;
-
-// TODO try this version out - see if it is faster?
-
-// TODO put this back in later.....
-// needs nightly.
-
-// SIMD-accelerated dot product for i8 slices
-// fn i8_simd_dot(a: &[i8], b: &[i8]) -> i32 {
-//     let mut sum = Simd::<i16, LANES>::splat(0);
-//     for (chunk_a, chunk_b) in a.chunks_exact(LANES).zip(b.chunks_exact(LANES)) {
-//         let va = Simd::<i8, LANES>::from_slice(chunk_a);
-//         let vb = Simd::<i8, LANES>::from_slice(chunk_b);
-//         sum += va.cast::<i16>() * vb.cast::<i16>();
-//     }
-//     let leftover = a.len() % LANES;
-//     let tail_sum: i32 = if leftover > 0 {
-//         let tail_a = &a[a.len() - leftover..];
-//         let tail_b = &b[b.len() - leftover..];
-//         tail_a.iter().zip(tail_b).map(|(&x, &y)| x as i32 * y as i32).sum()
-//     } else {
-//         0
-//     };
-//     sum.reduce_sum() as i32 + tail_sum
-// }
 
 // should return the distance from each entry in A (as rows) to each in b.
 // Matrix multiply: C = A × B using mult.

@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-utils = {path="../utils"}
+utils = { path = "../utils" }
 bitvec_simd = "0.20.5"
 wide = "0.7.32"
 ndarray = "0.16.1"
 rayon = "1.10.0"
 
 [dev-dependencies]
-divan = "0.1.17"
+divan = "0.1.21"
 #portable-simd = { version = "0.10", features = ["into_std"] }  # Check https://crates.io/crates/portable-simd

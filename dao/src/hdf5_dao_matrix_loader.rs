@@ -26,19 +26,19 @@ pub fn hdf5_matrix_load(
     let data: Array2<f32> = ds.read_slice(s![.., ..]).unwrap(); // read the dataset
 
     let dao_meta = DaoMetaData {
-        name: name,
-        description: description,
+        name,
+        description,
         data_disk_format: "".to_string(),
         path_to_data: "".to_string(),
-        normed: normed,
-        num_records: num_records,
-        dim: dim,
+        normed,
+        num_records,
+        dim,
     };
 
     let dao = DaoMatrix {
         meta: dao_meta,
-        num_data: num_data,
-        num_queries: num_queries,
+        num_data,
+        num_queries,
         embeddings: data,
     };
 
@@ -52,7 +52,7 @@ pub fn hdf5_matrix_write(
     normed: &str,
     arrai: &Array2<f32>,
     dim: usize,
-    num_records : usize,
+    num_records: usize,
 ) -> anyhow::Result<()> {
     let file = File::create(data_path)?; // open for writing
     let group = file.create_group("/embeddings")?; // create a group

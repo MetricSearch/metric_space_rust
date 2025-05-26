@@ -1,9 +1,9 @@
-use std::rc::Rc;
-use dao::Dao;
 use anyhow::Result;
-use ndarray::Array1;
-use dao::csv_dao_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::Dao;
 use descent::Descent;
+use ndarray::Array1;
+use std::rc::Rc;
 
 fn main() -> Result<()> {
     println!("Hello from Descent RNG* example");
@@ -32,7 +32,6 @@ fn main() -> Result<()> {
         println!("Descent {i}: {:?}", descent.current_graph.nns[i]);
         println!("RNG {i}: {:?}", rng[i]);
     }
-
 
     Ok(())
 }

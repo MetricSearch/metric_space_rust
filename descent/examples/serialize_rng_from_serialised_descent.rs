@@ -1,11 +1,11 @@
+use anyhow::Result;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::Dao;
+use descent::Descent;
+use ndarray::Array1;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::rc::Rc;
-use dao::Dao;
-use anyhow::Result;
-use ndarray::Array1;
-use dao::csv_dao_loader::{dao_from_csv_dir};
-use descent::Descent;
 use utils::distance_f32;
 
 fn main() -> Result<()> {
@@ -19,15 +19,12 @@ fn main() -> Result<()> {
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
-    let dao: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
-        data_file_name,
-        num_data,
-        num_queries,
-    )?);
+    let dao: Rc<Dao<Array1<f32>>> =
+        Rc::new(dao_from_csv_dir(data_file_name, num_data, num_queries)?);
 
     let f = BufReader::new(File::open(descent_file_name).unwrap());
 
-    let descent : Descent<> = bincode::deserialize_from(f).unwrap();
+    let descent: Descent = bincode::deserialize_from(f).unwrap();
 
     println!("Getting rng table ...");
 
@@ -40,4 +37,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-

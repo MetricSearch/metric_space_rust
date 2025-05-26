@@ -9,14 +9,14 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive (Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Heap {
     pub num_entries: usize,
     pub num_neighbours: usize,
     pub nns: Vec<Vec<i32>>, // ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>,
     pub distances: Vec<Vec<f32>>, // ArrayBase<OwnedRepr<NonNan>, Dim<[usize; 2]>>,
-    pub flags: Vec<Vec<u8>>,    //ArrayBase<OwnedRepr<u8>, Dim<[usize; 2]>>,
-                                //maybe bitset?
+    pub flags: Vec<Vec<u8>>, //ArrayBase<OwnedRepr<u8>, Dim<[usize; 2]>>,
+                            //maybe bitset?
 }
 
 impl Heap {

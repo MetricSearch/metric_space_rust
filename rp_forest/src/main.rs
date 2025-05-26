@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     )?);
     tracing::info!("mf dino data loaded, building forest...");
 
-    let forest: RPForest<Array1<f32>> = RPForest::new(30, 40, dao.clone(),dot_product);
+    let forest: RPForest<Array1<f32>> = RPForest::new(30, 40, dao.clone(), dot_product);
 
     tracing::info!("Forest built, querying...");
 
@@ -40,5 +40,9 @@ fn main() -> Result<()> {
 
 // TODO sort out multiple copies of this code!!
 fn dot_product(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    a.iter().into_iter().zip(b.iter()).map(|(x, y)| (x * y)).sum()
+    a.iter()
+        .into_iter()
+        .zip(b.iter())
+        .map(|(x, y)| (x * y))
+        .sum()
 }

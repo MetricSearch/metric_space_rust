@@ -1,5 +1,5 @@
 use crate::{Dao, DaoMetaData, Normed};
-use hdf5::{File};
+use hdf5::File;
 use ndarray::{s, Array1, Array2};
 //use tracing::metadata;
 
@@ -12,7 +12,7 @@ pub fn hdf5_laion_pca_500_f32_load(
     let ds_data = file.dataset("embeddings")?; // open the test dataset
 
     let name = "Laion-clip";
-    let description ="Laion-clip-pca-500-v2-n=10M";
+    let description = "Laion-clip-pca-500-v2-n=10M";
     let dim = 500;
     // let num_records = 10_000_000;
     // let num_queries= 1000;
@@ -26,7 +26,6 @@ pub fn hdf5_laion_pca_500_f32_load(
         .into_iter()
         .map(|x| x.to_owned())
         .collect::<Array1<Array1<f32>>>();
-
 
     let dao_meta = DaoMetaData {
         name: name.to_string(),

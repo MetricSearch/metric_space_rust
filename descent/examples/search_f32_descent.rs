@@ -1,20 +1,20 @@
-use std::collections::HashSet;
 use anyhow::Result;
 use bits::{f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use metrics::euc;
-use ndarray::{Array1};
+use ndarray::Array1;
+use std::collections::HashSet;
 //use rayon::prelude::*;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::Dao;
+use descent::Descent;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use dao::{Dao};
-use dao::csv_dao_loader::dao_from_csv_dir;
-use utils::{distance_f32, ndcg};
 use utils::non_nan::NonNan;
-use descent::{Descent};
 use utils::pair::Pair;
+use utils::{distance_f32, ndcg};
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
     let f = BufReader::new(File::open(descent_file_name).unwrap());
     let descent: Descent = bincode::deserialize_from(f).unwrap();
 
-  //  check_order(&descent);
+    //  check_order(&descent);
     first_row(&descent);
 
     // println!("Serde load code commented out for now");
@@ -41,11 +41,8 @@ fn main() -> Result<()> {
     println!("Loading mf dino data...");
     let num_queries = 10_000; // for runnning: 10_000;  // for testing 990_000
     let num_data = 1_000_000 - num_queries;
-    let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(
-        data_file_name,
-        num_data,
-        num_queries,
-    )?);
+    let dao_f32: Rc<Dao<Array1<f32>>> =
+        Rc::new(dao_from_csv_dir(data_file_name, num_data, num_queries)?);
 
     let swarm_size = 100;
 
@@ -61,23 +58,30 @@ fn main() -> Result<()> {
 
     println!("NNtable columns active {:?}", swarm_size);
 
-    let nn_table = reduce_columns_to( nn_table,swarm_size );
+    let nn_table = reduce_columns_to(nn_table, swarm_size);
 
     println!("Doing {:?} queries", queries.len());
 
     println!("Running Queries");
 
-    do_queries(queries, descent, dao_f32.clone(), &gt_pairs, nn_table, swarm_size, distance_f32 );
+    do_queries(
+        queries,
+        descent,
+        dao_f32.clone(),
+        &gt_pairs,
+        nn_table,
+        swarm_size,
+        distance_f32,
+    );
 
     Ok(())
 }
 
-
 fn reduce_columns_to(nn_table: Vec<Vec<usize>>, num_columns: usize) -> Vec<Vec<usize>> {
     nn_table
-    .iter()
-        .map( |row| row.iter().cloned().take(num_columns).collect())
-    .collect()
+        .iter()
+        .map(|row| row.iter().cloned().take(num_columns).collect())
+        .collect()
 }
 
 fn first_row(graph: &Descent) {
@@ -85,13 +89,15 @@ fn first_row(graph: &Descent) {
     let row_indices = &heap.nns.get(0).unwrap();
     let dists = &heap.distances.get(0).unwrap();
 
-    print!("First row of Descent table: " );
+    print!("First row of Descent table: ");
     row_indices
         .iter()
         .by_ref()
         .take(5)
         .zip(dists.iter())
-        .for_each(|pair| { print!("{} d: {} ", pair.0, pair.1 ); })
+        .for_each(|pair| {
+            print!("{} d: {} ", pair.0, pair.1);
+        })
 }
 
 /* checks that the distances are from low to high in the descent graph */
@@ -99,138 +105,131 @@ fn check_order(graph: &Descent) {
     let heap = &graph.current_graph;
     let dists = &heap.distances;
     let mut items_checked = 0;
-    dists
-        .iter()
-        .for_each( |row| {
-            let mut val = row.get(0).unwrap();
-            for i in row.iter() {
-                if i < val {
-                    println!("Out of order {:?} !< {:?}", i, val);
-                    return;
-                }
-                val = i;
-                items_checked = items_checked + 1;
+    dists.iter().for_each(|row| {
+        let mut val = row.get(0).unwrap();
+        for i in row.iter() {
+            if i < val {
+                println!("Out of order {:?} !< {:?}", i, val);
+                return;
             }
-
-        } );
-    println!( "distance order in graph all Ok: checked {}", items_checked );
+            val = i;
+            items_checked = items_checked + 1;
+        }
+    });
+    println!("distance order in graph all Ok: checked {}", items_checked);
 }
 
-fn show_results(qid : usize, results: &Vec<Pair>) {
-    print!( "first few results for q{}:\t", qid );
-    results
-        .iter()
-        .by_ref()
-        .take(5)
-        .for_each(|pair| { print!("{} d: {} ", pair.index, pair.distance.0 ); });
+fn show_results(qid: usize, results: &Vec<Pair>) {
+    print!("first few results for q{}:\t", qid);
+    results.iter().by_ref().take(5).for_each(|pair| {
+        print!("{} d: {} ", pair.index, pair.distance.as_f32());
+    });
     println!();
 }
 
-fn show_gt(qid : usize, gt_pairs: &Vec<Vec<Pair>>) { //<<<<<<<<<<<<<<<<<
-    print!( "first few GT results for q{}:\t", qid );
-    gt_pairs
-        .get(qid)
-        .unwrap()
-        .iter()
-        .take(5)
-        .for_each(|pair| {
-            print!("{} d: {} ", pair.index, pair.distance );
-        } );
+fn show_gt(qid: usize, gt_pairs: &Vec<Vec<Pair>>) {
+    //<<<<<<<<<<<<<<<<<
+    print!("first few GT results for q{}:\t", qid);
+    gt_pairs.get(qid).unwrap().iter().take(5).for_each(|pair| {
+        print!("{} d: {} ", pair.index, pair.distance);
+    });
     println!();
-
 }
 
 fn show_results_and_gt(qid: usize, results: &Vec<Pair>, gt_pairs: &Vec<Pair>) {
-    println!( "All results and GT for q{}:\t", qid );
+    println!("All results and GT for q{}:\t", qid);
     results
         .iter()
         .zip(gt_pairs.iter())
-        .for_each( |result_gt_pair| {
+        .for_each(|result_gt_pair| {
             let result = result_gt_pair.0;
             let gt = result_gt_pair.1;
-            println!("result:\t{},{}\ngt:\t{},{}", result.index, result.distance, gt.index, gt.distance ); });
+            println!(
+                "result:\t{},{}\ngt:\t{},{}",
+                result.index, result.distance, gt.index, gt.distance
+            );
+        });
 
     let number_same = results
         .iter()
         .zip(gt_pairs.iter())
-        .filter( |result_gt_pair| {
+        .filter(|result_gt_pair| {
             let result = result_gt_pair.0;
             let gt = result_gt_pair.1;
             result.index == gt.index
-            } )
+        })
         .count();
-    println!( "Matches {}", number_same );
+    println!("Matches {}", number_same);
 
-    let gt_indexes = gt_pairs.iter().map(|gt_pair| gt_pair.index).collect::<HashSet<usize>>();
+    let gt_indexes = gt_pairs
+        .iter()
+        .map(|gt_pair| gt_pair.index)
+        .collect::<HashSet<usize>>();
 
     let intersection = results
         .iter()
-        .map( |pair| pair.index )
-        .filter( |index| {gt_indexes.contains(index)})
+        .map(|pair| pair.index)
+        .filter(|index| gt_indexes.contains(index))
         .count();
 
-    println!( "Intersection {}", intersection );
+    println!("Intersection {}", intersection);
 }
 
-fn do_queries(    queries: &[Array1<f32>],
-                  descent: Descent,
-                  dao: Rc<Dao<Array1<f32>>>,
-                  gt_pairs: &Vec<Vec<Pair>>,
-                  nn_table: Vec<Vec<usize>>,
-                  swarm_size: usize,
-                  distance : fn(&Array1<f32>, &Array1<f32>) -> f32
-                 ) {
-    queries.
-        iter().
-        enumerate()
-        .for_each( | (qid,query) | {
-            let now = Instant::now();
-            let (dists,qresults) = descent.knn_search( query.clone(), &nn_table, dao.clone(), swarm_size, distance );
-            let after = Instant::now();
-            print!("Q{} swarm, time, dists, dcg\t", qid);
-            print!("{}\t", qresults.len() );
-            print!("{}\t", (after - now).as_nanos());
-            print!("{:?}\t", dists);
-            // show_results(qid,&qresults);
-            // show_gt(qid,gt_pairs);
-            show_results_and_gt(qid,&qresults,gt_pairs.get(qid).unwrap());
-            println!( "{}", ndcg(&qresults,
-                                      &gt_pairs
-                                          .get(qid)
-                                          .unwrap()
-                                          [0..swarm_size-1].into() ) );
-            // print!("Results:");
-            // qresults
-            //     .iter()
-            //     .for_each( | result | { println!("{} @dist {}", result.index, result.distance); } );
-        } );
+fn do_queries(
+    queries: &[Array1<f32>],
+    descent: Descent,
+    dao: Rc<Dao<Array1<f32>>>,
+    gt_pairs: &Vec<Vec<Pair>>,
+    nn_table: Vec<Vec<usize>>,
+    swarm_size: usize,
+    distance: fn(&Array1<f32>, &Array1<f32>) -> f32,
+) {
+    queries.iter().enumerate().for_each(|(qid, query)| {
+        let now = Instant::now();
+        let (dists, qresults) =
+            descent.knn_search(query.clone(), &nn_table, dao.clone(), swarm_size, distance);
+        let after = Instant::now();
+        print!("Q{} swarm, time, dists, dcg\t", qid);
+        print!("{}\t", qresults.len());
+        print!("{}\t", (after - now).as_nanos());
+        print!("{:?}\t", dists);
+        // show_results(qid,&qresults);
+        // show_gt(qid,gt_pairs);
+        show_results_and_gt(qid, &qresults, gt_pairs.get(qid).unwrap());
+        println!(
+            "{}",
+            ndcg(&qresults, &gt_pairs.get(qid).unwrap()[0..swarm_size - 1])
+        );
+        // print!("Results:");
+        // qresults
+        //     .iter()
+        //     .for_each( | result | { println!("{} @dist {}", result.index, result.distance); } );
+    });
 }
-
 
 // TODO fix this mess somehow!
 fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
-    i32s.into_iter().map(|v| v.iter().map(|&v| v as usize).collect()).collect()
+    i32s.into_iter()
+        .map(|v| v.iter().map(|&v| v as usize).collect())
+        .collect()
 }
 
 //Returns the nn(k)
 fn brute_force_all_dists<T: Clone>(
     queries: Vec<T>,
     data: Vec<T>,
-    distance : fn(&T, &T) -> f32,
+    distance: fn(&T, &T) -> f32,
 ) -> Vec<Vec<Pair>> {
     queries
         .iter()
-        .map( |q| {
+        .map(|q| {
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map( |it| { Pair::new( NonNan(distance(q, it.1)), it.0 ) } )
+                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), it.0))
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs
-        } )
+        })
         .collect::<Vec<Vec<Pair>>>()
 }
-
-
-

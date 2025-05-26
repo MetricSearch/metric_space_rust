@@ -1,17 +1,20 @@
 use anyhow::Result;
-use bits::{EVP_bits, bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance};
+use bits::{
+    bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance,
+    EVP_bits,
+};
 use bitvec_simd::BitVecSimd;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::hdf5_dao_loader::hdf5_f32_write;
+use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
-use wide::u64x4;
-use dao::{Dao};
-use dao::csv_dao_loader::{dao_from_csv_dir};
-use dao::hdf5_dao_loader::hdf5_f32_write;
 use utils::arg_sort_2d;
+use wide::u64x4;
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -32,9 +35,8 @@ fn main() -> Result<()> {
         &dao.meta.name,
         &dao.meta.description,
         &dao.meta.normed.to_string(),
-        & dao.embeddings,
-        )?;
+        &dao.embeddings,
+    )?;
 
     Ok(())
 }
-

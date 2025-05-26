@@ -1,9 +1,8 @@
-
-use rp_forest::tree::RPTree;
-use std::rc::Rc;
-use ndarray::Array1;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
+use ndarray::Array1;
+use rp_forest::tree::RPTree;
+use std::rc::Rc;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -23,7 +22,7 @@ fn main() -> anyhow::Result<()> {
         // if i % 100_000 == 0 {
         //     tracing::info!("Adding data {i}");
         // }
-        tree.add(i,dot_product);
+        tree.add(i, dot_product);
     }
 
     tracing::info!("{:?}", tree);
@@ -47,10 +46,18 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn dot_product(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
-    a.iter().into_iter().zip(b.iter()).map(|(x, y)| (x * y)).sum()
+    a.iter()
+        .into_iter()
+        .zip(b.iter())
+        .map(|(x, y)| (x * y))
+        .sum()
 }
 
-fn lookup(index: usize, dao: Rc<Dao::<Array1<f32>>>, tree: &mut RPTree::<Array1<f32>>) -> anyhow::Result<()> {
+fn lookup(
+    index: usize,
+    dao: Rc<Dao<Array1<f32>>>,
+    tree: &mut RPTree<Array1<f32>>,
+) -> anyhow::Result<()> {
     let res = tree.lookup(dao.get_datum(index).clone());
     match res {
         Some(results) => {

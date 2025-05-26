@@ -1,8 +1,7 @@
-
-use std::rc::Rc;
-use ndarray::Array1;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
+use ndarray::Array1;
+use std::rc::Rc;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();

@@ -1,11 +1,10 @@
-
 //use bitvec_simd::BitVecSimd;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::Dao;
 use divan::{black_box, Bencher};
 use metrics::euc;
-use ndarray::{Array1};
+use ndarray::Array1;
 use std::rc::Rc;
-use dao::Dao;
-use dao::csv_dao_loader::{dao_from_csv_dir};
 
 fn main() {
     divan::main();

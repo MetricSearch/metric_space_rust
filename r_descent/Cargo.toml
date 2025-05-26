@@ -4,20 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
-dao = {path="../dao"}
-utils = {path="../utils"}
-bits = {path="../bits"}
-metrics = {path="../metrics"}
-ndarray = { version="0.16.1", features=["serde","matrixmultiply-threading", "rayon"] }
-serde = "1.0.217"
-anyhow = "1.0.94"
+dao = { path = "../dao" }
+utils = { path = "../utils" }
+bits = { path = "../bits" }
+metrics = { path = "../metrics" }
+ndarray = { version = "0.16.1", features = [
+    "serde",
+    "matrixmultiply-threading",
+    "rayon",
+] }
+serde = "1.0.219"
+anyhow = "1.0.98"
 tracing = "0.1.41"
 bitvec_simd = "0.20.5"
 rand_chacha = "0.9.0"
-rand = "0.9.0"
-clap = { version = "4.5.37", features = ["derive"] }
+rand = "0.9.1"
+clap = { version = "4.5.38", features = ["derive"] }
 rayon = "1.10.0"
 chrono = "0.4.41"
 bincode = "1.3.3"
-
+pretty_env_logger = "0.5.0"
+log = "0.4.27"

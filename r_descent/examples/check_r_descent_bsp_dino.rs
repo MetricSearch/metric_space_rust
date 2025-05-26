@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bits::{bsp_similarity, bsp_similarity_as_f32, f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
+use clap::Parser;
 use dao::convert_f32_to_bsp::f32_dao_to_bsp;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
@@ -14,20 +15,25 @@ use std::rc::Rc;
 use std::time::Instant;
 use utils::dot_product_f32;
 
+/// clap parser
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Path to dino2 CSV + TXT
+    path: String,
+}
+
 fn main() -> Result<()> {
+    let args = Args::parse();
+
     println!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
 
-    let data_file_name = "/Volumes/Data/RUST_META/mf_dino2_csv/";
-
     let start = Instant::now();
 
-    let dao_f32: Rc<DaoMatrix<f32>> = Rc::new(dao_matrix_from_csv_dir(
-        data_file_name,
-        num_data,
-        num_queries,
-    )?);
+    let dao_f32: Rc<DaoMatrix<f32>> =
+        Rc::new(dao_matrix_from_csv_dir(&args.path, num_data, num_queries)?);
 
     println!("Converting mf dino to bsp...");
 

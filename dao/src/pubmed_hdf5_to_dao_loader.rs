@@ -49,8 +49,6 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     let mut bsp_data: Vec<EVP_bits<2>> = chunks
         .par_iter()
         .flat_map(|&(start, end)| {
-            let file = File::open(data_path).expect("Cannot open file"); // open for reading - local file handle only used in parallel part.
-            let h5_data = file.dataset("train").expect("Failed to open dataset");
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
             let data: Array2<f32> = h5_data
                 .read_slice(s![start..end, ..])

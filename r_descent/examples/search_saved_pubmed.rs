@@ -66,7 +66,7 @@ fn main() -> Result<()> {
 
     let (queries, _rest) = queries.split_at(this_many);
 
-    let nn_table = &descent.indices;
+    let nn_table = &descent.neighbours;
 
     println!("Doing {:?} queries", queries.len());
 

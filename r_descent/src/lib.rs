@@ -7,7 +7,7 @@ use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use std::rc::Rc;
 use std::time::Instant;
-use ndarray::{concatenate, s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Ix1};
+use ndarray::{concatenate, s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Ix1, Order};
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
 use dao::{Dao, DaoMatrix};
 use rand_chacha::rand_core::SeedableRng;
@@ -23,23 +23,55 @@ use utils::pair::Pair;
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
-    pub indices: Array2<usize>,
-    pub dists: Array2<f32>,
+    pub neighbours: Array2<usize>,
+    pub similarities: Array2<f32>,
+}
+
+
+pub trait IntoRDescent {
+    fn into_rdescent(
+        self: Rc<Self>,
+        num_neighbours: usize,
+        reverse_list_size: usize,
+        chunk_size: usize,
+        rho: f64,
+        delta: f64
+    ) -> RDescentMatrix;
+}
+
+pub trait IntoRDescentWithRevNNs {
+    fn into_rdescent_with_rev_nn(
+        self: Rc<Self>,
+        num_neighbours: usize,
+        reverse_list_size: usize,
+        chunk_size: usize,
+        rho: f64,
+        delta: f64,
+        nns_in_search_structure : usize
+    ) -> RDescentMatrix;
+}
+
+pub struct RDescentMatrixWithRev {
+    pub rdescent: RDescentMatrix,
+    pub reverse_neighbours: Array2<usize>,
 }
 
 pub trait KnnSearch<T:Clone> {
     fn knn_search(&self, query: T, dao: Rc<Dao<T>>, num_neighbours: usize, distance: fn(&T, &T) -> f32 ) -> (usize, Vec<Pair>);
 }
 
+pub trait RevSearch<T:Clone> {
+    fn rev_search(&self, query: T, dao: Rc<Dao<T>>, num_neighbours: usize, distance: fn(&T, &T) -> f32 ) -> (usize, Vec<Pair>);
+}
+
+//********** Impls **********
+
 impl <T:Clone+Default+Hasher> KnnSearch<T> for RDescentMatrix {
     fn knn_search( &self, query: T, dao: Rc<Dao<T>>, num_neighbours: usize, distance: fn(&T, &T) -> f32 ) -> (usize, Vec<Pair>) {
 
             let mut visited_set: HashSet<usize,BuildHasherDefault<T>> = HashSet::default();
-
-            let entry_point = 0;  // <<<<<<<<<<<<<< TODO ENTRY POINT OF ZERO FOR NOW
-
+            let entry_point = 0;                                                       // <<<<<<<<<<<<<< TODO ENTRY POINT OF ZERO FOR NOW
             let ep_q_dist = NonNan(distance(&query, dao.get_datum(0)));
-
             let mut results_list: BinaryHeap<Pair> = BinaryHeap::new(); // biggest first - a max-heap
             let mut candidates_list: BinaryHeap<Reverse<Pair>> = BinaryHeap::new(); // in reverse order - smallest first
             candidates_list.push(Reverse(Pair::new(ep_q_dist, entry_point)));
@@ -67,7 +99,7 @@ impl <T:Clone+Default+Hasher> KnnSearch<T> for RDescentMatrix {
                             // might not be full so check length after push
                             results_list.pop();
                         }
-                        let neighbours_of_nearest_candidate = &self.indices.row(nearest_candidate_pair.index); // List<Integer> - nns of nearest_candidate
+                        let neighbours_of_nearest_candidate = &self.neighbours.row(nearest_candidate_pair.index); // List<Integer> - nns of nearest_candidate
 
                         let new_cands: Vec<Reverse<Pair>> = neighbours_of_nearest_candidate
                             .into_iter()
@@ -98,30 +130,60 @@ impl <T:Clone+Default+Hasher> KnnSearch<T> for RDescentMatrix {
         }
 }
 
-pub trait IntoRDescent {
-    fn into_rdescent(
-        self: Rc<Self>,
-        num_neighbours: usize,
-        reverse_list_size: usize,
-        chunk_size: usize,
-        rho: f64,
-        delta: f64
-    ) -> RDescentMatrix;
-}
+impl <T:Clone+Default+Hasher> RevSearch<T> for RDescentMatrixWithRev {
 
-pub trait IntoRDescentWithRevNNs {
-    fn into_rdescent_with_rev_nn(
-        self: Rc<Self>,
-        num_neighbours: usize,
-        reverse_list_size: usize,
-        chunk_size: usize,
-        rho: f64,
-        delta: f64,
-        nns_in_search_structure : usize
-    ) -> RDescentMatrix;
-}
+    /* The function uses NN and revNN tables to query in the manner of descent
+     * We start with a rough approximation of the query by selecting eg 1000 distances
+     * Then we iterate to see if any of the NNs of these NNs are closer to the query, using the NN table directly but also the reverseNN table
+     */
 
-//********** Impls **********
+    fn rev_search(&self, query: T, dao: Rc<Dao<T>>, num_neighbours: usize, distance: fn(&T, &T) -> f32 ) -> (usize, Vec<Pair>) {
+
+        let num_data = dao.num_data;
+        let dims = dao.get_dim();
+        let data = dao.get_data();
+
+        // let mut result_indices = unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init()};
+        // let mut result_sims = unsafe {Array2::<f32>::uninit((num_data, num_neighbours)).assume_init()};
+
+        // First, cheaply find some reasonably good solutions
+
+        let data_subset = data.slice(s![0..1000, 0..]);
+        let sims: Array2<f32> = data_subset.dot(&query);                         // matrix mult all the distances - all relative to the original_rows
+        let (ords, sims)= arg_sort_big_to_small(&sims); // ords are row relative indices - these are is 1 X 1000
+
+        // these ords are row relative all range from 0..1000 in data - so therefore real dao indices
+
+        // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algoritm terminates
+
+        let q_nns: Array1<usize> = ords.into_shape_with_order(1000).unwrap().slice(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
+        let q_sims: Array1<f32> = sims.into_shape_with_order(1000).unwrap().slice(s![..num_neighbours]);  // get these into a 1D array and take num_neighbours
+
+        // same as in nnTableBuild, the new flags
+
+        let new_flags: Array1<bool> = Array1::from_elem(q_nns.len(),true);
+
+        // The amount of work done in the iteration
+
+        let mut work_done = 1;
+
+        todo!("AL IS HERE");
+
+        // while work_done > 0 {
+        //     work_done = 0; // a bit strange?
+        //
+        //     // q_nns are the current best NNs that we know about
+        //     // but don't re-try ones that have already been added before this loop
+        //
+        //     let these_q_nns = q_nns(newFlags); // TODO <<<<<<<<<<< What data structure ??? is this a list or set?
+        //
+        //
+        // }
+        //
+        //
+        // return (candidates_list.len(), results_list.into_sorted_vec()); /* distances plus Vec<Pair> */
+    }
+}
 
 impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
     fn into_rdescent_with_rev_nn(
@@ -132,18 +194,20 @@ impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
         rho: f64,
         delta: f64,
         nns_in_search_structure : usize
-    ) -> RDescentMatrix {
+    ) -> RDescentMatrixWithRev {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
         let (mut neighbours, mut similarities) = initialise_table_m(self.clone(), chunk_size, num_neighbours);
         get_nn_table2_m(self.clone(), &mut neighbours, &mut similarities, num_neighbours, rho, delta, reverse_list_size);
         let (reverse_nns, reverse_similarities) = get_reverse_links_not_in_forward(&neighbours,&similarities, nns_in_search_structure);
 
-        let neighbours: Array2<usize> = concatenate(Axis(1), &[neighbours.view(), reverse_nns.view()]).unwrap();
-        let similarities: Array2<f32> = concatenate(Axis(1), &[similarities.view(), reverse_similarities.view()]).unwrap();
+        // let neighbours: Array2<usize> = concatenate(Axis(1), &[neighbours.view(), reverse_nns.view()]).unwrap();
+        // let similarities: Array2<f32> = concatenate(Axis(1), &[similarities.view(), reverse_similarities.view()]).unwrap();
 
         // TODO perhaps need to deal with MAXINT values
 
-        RDescentMatrix { indices: neighbours, dists: similarities }
+        let r_descent = RDescentMatrix { neighbours: neighbours, similarities: similarities, };
+
+        RDescentMatrixWithRev { rdescent: r_descent,  reverse_neighbours: reverse_nns }
     }
 }
 
@@ -160,7 +224,7 @@ impl IntoRDescent for Dao<EVP_bits<2>> {
         let (mut ords, mut dists) = initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
         get_nn_table2_bsp(self.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
 
-        RDescentMatrix { indices: ords, dists }
+        RDescentMatrix { neighbours: ords, similarities: dists }
     }
 }
 
@@ -184,7 +248,7 @@ impl IntoRDescentWithRevNNs for Dao<EVP_bits<2>> {
 
         // TODO perhaps need to deal with MAXINT values
 
-        RDescentMatrix { indices: neighbours, dists: similarities }
+        RDescentMatrix { neighbours: neighbours, similarities: similarities }
     }
 }
 

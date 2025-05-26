@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::EVP_bits;
+use bits::EvpBits;
 use chrono::Utc;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
@@ -28,12 +28,12 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 200;
 
-    let dao_bsp: Rc<Dao<EVP_bits<2>>> = Rc::new(
+    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
         hdf5_pubmed_f32_to_bsp_load(f_name, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
     );
 
-    let queries: ArrayView1<EVP_bits<2>> = dao_bsp.get_queries();
-    let data: ArrayView1<EVP_bits<2>> = dao_bsp.get_data();
+    let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
+    let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
     println!(
         "Pubmed data size: {} queries size: {}",

@@ -1,12 +1,12 @@
 use crate::{Dao, DaoMatrix};
-use bits::{f32_embeddings_to_bsp, EVP_bits};
+use bits::{f32_embeddings_to_bsp, EvpBits};
 use ndarray::Array1;
 use std::rc::Rc;
 
 pub fn f32_dao_to_bsp<const D: usize>(
     f32_dao: Rc<DaoMatrix<f32>>,
     non_zeros: usize,
-) -> Rc<Dao<EVP_bits<D>>> {
+) -> Rc<Dao<EvpBits<D>>> {
     let bit_embeddings = f32_embeddings_to_bsp::<D>(&f32_dao.embeddings, non_zeros);
 
     let mut meta = f32_dao.meta.clone();

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bits::{
     bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep,
-    f32_embedding_to_bsp, whamming_distance, EVP_bits,
+    f32_embedding_to_bsp, whamming_distance, EvpBits,
 };
 use bitvec_simd::BitVecSimd;
 use dao::csv_dao_loader::dao_from_csv_dir;

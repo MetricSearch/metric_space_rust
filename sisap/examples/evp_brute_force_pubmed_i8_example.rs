@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_similarity, i8_similarity, EVP_bits};
+use bits::{bsp_similarity, i8_similarity, EvpBits};
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::pubmed_hdf5_to_i8_dao_loader::hdf5_pubmed_f32_to_i8_load;
 use dao::{Dao, DaoMatrix};

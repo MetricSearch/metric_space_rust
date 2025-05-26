@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_distance_as_f32, f32_data_to_cubic_bitrep, whamming_distance, EVP_bits};
+use bits::{bsp_distance_as_f32, f32_data_to_cubic_bitrep, whamming_distance, EvpBits};
 use bitvec_simd::BitVecSimd;
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
     const NUM_VERTICES: usize = 200;
     const knns: usize = 30;
 
-    let dao_bsp: Rc<Dao<EVP_bits<2>>> =
+    let dao_bsp: Rc<Dao<EvpBits<2>>> =
         Rc::new(hdf5_pubmed_f32_to_bsp_load(f_name, NUM_DATA, num_queries, NUM_VERTICES).unwrap());
 
     println!(
@@ -111,12 +111,12 @@ fn show_gt(qid: usize, gt_pairs: &Vec<Vec<Pair>>) {
 }
 
 fn do_queries(
-    queries: Vec<EVP_bits<2>>,
+    queries: Vec<EvpBits<2>>,
     descent: &RDescentMatrix,
-    dao: Rc<Dao<EVP_bits<2>>>,
+    dao: Rc<Dao<EvpBits<2>>>,
     gt_pairs: &Vec<Vec<Pair>>,
     nn_table: &Array2<usize>,
-    distance: fn(&EVP_bits<2>, &EVP_bits<2>) -> f32,
+    distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
         let now = Instant::now();

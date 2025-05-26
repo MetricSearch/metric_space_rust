@@ -4,7 +4,7 @@
 pub mod heap;
 
 use crate::heap::Heap;
-use bits::EVP_bits;
+use bits::EvpBits;
 use dao::Dao;
 use itertools::Itertools;
 use ndarray::Array1;

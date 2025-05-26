@@ -3,7 +3,7 @@
 mod updates;
 
 use crate::updates::Updates;
-use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EVP_bits};
+use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::parallel::prelude::*;
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
@@ -259,7 +259,7 @@ impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
     }
 }
 
-impl IntoRDescent for Dao<EVP_bits<2>> {
+impl IntoRDescent for Dao<EvpBits<2>> {
     fn into_rdescent(
         self: Rc<Self>,
         num_neighbours: usize,
@@ -287,7 +287,7 @@ impl IntoRDescent for Dao<EVP_bits<2>> {
     }
 }
 
-impl IntoRDescentWithRevNNs for Dao<EVP_bits<2>> {
+impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
     fn into_rdescent_with_rev_nn(
         self: Rc<Self>,
         num_neighbours: usize,
@@ -932,7 +932,7 @@ fn get_slice_using_selected(
 //************** BSP impl below here **************
 
 pub fn initialise_table_bsp(
-    dao: Rc<Dao<EVP_bits<2>>>,
+    dao: Rc<Dao<EvpBits<2>>>,
     chunk_size: usize,
     num_neighbours: usize,
 ) -> (Array2<usize>, Array2<f32>) {
@@ -1019,7 +1019,7 @@ pub fn initialise_table_bsp(
 }
 
 pub fn get_nn_table2_bsp(
-    dao: Rc<Dao<EVP_bits<2>>>,
+    dao: Rc<Dao<EvpBits<2>>>,
     neighbours: &mut Array2<usize>,
     similarities: &mut Array2<f32>, // bigger is better
     num_neighbours: usize,
@@ -1366,10 +1366,10 @@ pub fn get_nn_table2_bsp(
 //********* Helper functions *********
 
 fn get_bsp_slice_using_selected(
-    source: &ArrayView1<EVP_bits<2>>,
+    source: &ArrayView1<EvpBits<2>>,
     selectors: &ArrayView1<usize>,
     result_shape: [usize; 1],
-) -> Array1<EVP_bits<2>> {
+) -> Array1<EvpBits<2>> {
     let mut sliced = Array1::uninit(result_shape); //
 
     for count in 0..selectors.len() {

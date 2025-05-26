@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance, EVP_bits};
+use bits::{bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance, EvpBits};
 use bitvec_simd::BitVecSimd;
 use dao::laion_10M_hdf5_dao_loader::hdf5_laion_f32_load;
 use dao::Dao;
@@ -139,8 +139,8 @@ fn brute_force_all_dists(
 }
 
 fn generate_bsp_dists<const D: usize>(
-    queries_bitreps: Vec<EVP_bits<D>>,
-    data_bitreps: Vec<EVP_bits<D>>,
+    queries_bitreps: Vec<EvpBits<D>>,
+    data_bitreps: Vec<EvpBits<D>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .par_iter()

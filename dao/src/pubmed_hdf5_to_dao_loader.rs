@@ -1,5 +1,5 @@
 use crate::{Dao, DaoMetaData, Normed};
-use bits::{f32_embedding_to_bsp, EVP_bits};
+use bits::{f32_embedding_to_bsp, EvpBits};
 use hdf5::File;
 use ndarray::{s, Array1, Array2};
 use rayon::prelude::*;
@@ -11,7 +11,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     num_records_required: usize, // zero if all the data
     num_queries: usize,
     num_vertices: usize,
-) -> anyhow::Result<Dao<EVP_bits<2>>> {
+) -> anyhow::Result<Dao<EvpBits<2>>> {
     let file = File::open(data_path)?; // open for reading
     let h5_data = file.dataset("train")?; // the data
 
@@ -46,7 +46,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
         })
         .collect::<Vec<(usize, usize)>>();
 
-    let mut bsp_data: Vec<EVP_bits<2>> = chunks
+    let mut bsp_data: Vec<EvpBits<2>> = chunks
         .par_iter()
         .flat_map(|&(start, end)| {
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
@@ -57,7 +57,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
             data.rows()
                 .into_iter()
                 .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
-                .collect::<Vec<EVP_bits<2>>>()
+                .collect::<Vec<EvpBits<2>>>()
         })
         .collect();
 
@@ -93,7 +93,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
     bsp_data.extend(bsp_o_test);
 
-    let all_combined: Array1<EVP_bits<2>> = Array1::from_vec(bsp_data);
+    let all_combined: Array1<EvpBits<2>> = Array1::from_vec(bsp_data);
 
     let dao_meta = DaoMetaData {
         name: name.to_string(),
@@ -120,7 +120,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
     num_records_required: usize, // zero if all the data
     num_queries: usize,
     num_vertices: usize,
-) -> anyhow::Result<Dao<EVP_bits<2>>> {
+) -> anyhow::Result<Dao<EvpBits<2>>> {
     let file = File::open(data_path)?; // open for reading
     let ds_data = file.dataset("train")?; // the data
                                           //let i_queries_group = file.group("itest")?;     // in distribution queries
@@ -162,8 +162,8 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
         rows_at_a_time = num_records;
     }
 
-    let mut bsp_data: Array1<EVP_bits<2>> =
-        unsafe { Array1::<EVP_bits<2>>::uninit(num_records).assume_init() };
+    let mut bsp_data: Array1<EvpBits<2>> =
+        unsafe { Array1::<EvpBits<2>>::uninit(num_records).assume_init() };
 
     for start in (0..num_records).step_by(rows_at_a_time) {
         let end = (start + rows_at_a_time).min(num_records);
@@ -173,14 +173,14 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
             .rows()
             .into_iter()
             .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
-            .collect::<Array1<EVP_bits<2>>>();
+            .collect::<Array1<EvpBits<2>>>();
 
         bsp_data.slice_mut(s![start..end]).assign(&bsp_rows);
     }
 
     let o_queries_slice: Array2<f32> = o_queries.read_slice(s![0..num_queries, ..]).unwrap();
 
-    let bsp_o_test: Array1<EVP_bits<2>> = o_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
+    let bsp_o_test: Array1<EvpBits<2>> = o_queries_slice // i_queries.read_slice(s![.., ..]).unwrap()  // read the dataset i_test queries
         .rows()
         .into_iter()
         .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
@@ -191,7 +191,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
     //     .chain(bsp_o_test.into_iter())
     //     .collect();
 
-    let all_combined: Array1<EVP_bits<2>> =
+    let all_combined: Array1<EvpBits<2>> =
         bsp_data.into_iter().chain(bsp_o_test.into_iter()).collect();
 
     let dao_meta = DaoMetaData {

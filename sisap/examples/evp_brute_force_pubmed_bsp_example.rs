@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_similarity, EVP_bits};
+use bits::{bsp_similarity, EvpBits};
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use dao::Dao;
@@ -18,11 +18,11 @@ fn main() -> Result<()> {
 
     tracing::info!("Loading Pubmed {} data...", num_records);
 
-    let dao_bsp: Dao<EVP_bits<2>> =
+    let dao_bsp: Dao<EvpBits<2>> =
         hdf5_pubmed_f32_to_bsp_load(f_name, num_records, num_queries, vertices).unwrap();
 
-    let queries: ArrayView1<EVP_bits<2>> = dao_bsp.get_queries();
-    let data: ArrayView1<EVP_bits<2>> = dao_bsp.get_data();
+    let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
+    let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
     println!(
         "Pubmed data size: {} queries size: {}",
@@ -128,8 +128,8 @@ fn std_dev(mean: f64, data: Vec<usize>) -> f64 {
 }
 
 fn generate_bsp_dists(
-    queries_bitreps: ArrayView1<EVP_bits<2>>,
-    data_bitreps: ArrayView1<EVP_bits<2>>,
+    queries_bitreps: ArrayView1<EvpBits<2>>,
+    data_bitreps: ArrayView1<EvpBits<2>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .iter()

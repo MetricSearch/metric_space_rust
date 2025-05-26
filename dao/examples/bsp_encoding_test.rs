@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bits::{
     bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance,
-    EVP_bits,
+    EvpBits,
 };
 use bitvec_simd::BitVecSimd;
 use dao::csv_dao_loader::dao_from_csv_dir;
@@ -142,8 +142,8 @@ fn brute_force_all_dists(
 }
 
 fn generate_bsp_dists<const D: usize>(
-    queries_bitreps: Vec<EVP_bits<D>>,
-    data_bitreps: Vec<EVP_bits<D>>,
+    queries_bitreps: Vec<EvpBits<D>>,
+    data_bitreps: Vec<EvpBits<D>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .par_iter()

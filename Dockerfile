@@ -17,7 +17,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
-ARG RUST_ARGS='--release --package sisap --target x86_64-unknown-linux-musl'
+ENV RUSTFLAGS='-C target-cpu=native'
+ARG RUST_ARGS='--release --all-targets --target x86_64-unknown-linux-musl'
 
 # build dependencies
 RUN cargo chef cook $RUST_ARGS --recipe-path recipe.json

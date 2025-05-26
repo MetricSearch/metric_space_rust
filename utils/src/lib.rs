@@ -3,6 +3,7 @@ pub mod pair;
 
 use crate::non_nan::NonNan;
 use crate::pair::Pair;
+use byte_unit::{AdjustedByte, Byte};
 use ndarray::{
     parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, Axis, Ix1, ViewRepr,
 };
@@ -301,4 +302,9 @@ fn matrix_dot_i8(
         });
 
     result
+}
+
+/// Number of bytes to human-readable `Display`able
+pub fn bytes_fmt(num: usize) -> AdjustedByte {
+    Byte::from(num).get_appropriate_unit(byte_unit::UnitType::Binary)
 }

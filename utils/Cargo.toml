@@ -9,3 +9,4 @@ rand_distr = "0.5.1"
 rand_chacha = "0.9.0"
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 randperm-crt = "0.3.0"
+byte-unit = { version = "5.1.6", default-features = false, features = ["byte", "rust_decimal"] }

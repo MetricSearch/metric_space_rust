@@ -932,6 +932,10 @@ pub fn initialise_table_bsp(
     chunk_size: usize,
     num_neighbours: usize,
 ) -> (Array2<usize>, Array2<f32>) {
+    log::info!(
+        "initializing table bsp, chunk_size: {chunk_size}, num_neighbours: {num_neighbours}"
+    );
+
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
@@ -948,6 +952,12 @@ pub fn initialise_table_bsp(
         unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init() };
     let mut result_sims =
         unsafe { Array2::<f32>::uninit((num_data, num_neighbours)).assume_init() };
+
+    log::info!(
+        "result sizes: indices: {}, sims: {}",
+        bytes_fmt(result_indices.len() * size_of::<usize>()),
+        bytes_fmt(result_sims.len() * size_of::<f32>())
+    );
 
     result_indices
         .axis_chunks_iter_mut(Axis(0), chunk_size)
@@ -1006,13 +1016,19 @@ pub fn initialise_table_bsp(
 
 pub fn get_nn_table2_bsp(
     dao: Rc<Dao<EVP_bits<2>>>,
-    mut neighbours: &mut Array2<usize>,
-    mut similarities: &mut Array2<f32>, // bigger is better
+    neighbours: &mut Array2<usize>,
+    similarities: &mut Array2<f32>, // bigger is better
     num_neighbours: usize,
     rho: f64,
     delta: f64,
     reverse_list_size: usize,
 ) {
+    log::warn!(
+        "neighbours: {}, similarities: {}",
+        bytes_fmt(neighbours.len() * size_of::<usize>()),
+        bytes_fmt(similarities.len() * size_of::<f32>())
+    );
+
     let start_time = Instant::now();
 
     let num_data = dao.num_data;

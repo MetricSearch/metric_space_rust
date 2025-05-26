@@ -1,5 +1,4 @@
 use anyhow::Result;
-use bits::Bsp;
 use bits::EVP_bits;
 use chrono::Utc;
 use clap::Parser;
@@ -103,15 +102,58 @@ fn main() -> Result<()> {
 
     let (gt_nns, gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
 
-    let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
+    // let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
 
-    let gt_queries = dao_f32.get_queries();
+    // let gt_queries = dao_f32.get_queries();
 
-    log::info!("Pubmed:");
-    log::info!("results_size,gt_size,Mean,Max,Min,Std_dev");
-    for bsp_set_size in (30..101).step_by(5) {
-        report_queries(gt_queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
-    }
+    // log::info!("Pubmed:");
+    // log::info!("results_size,gt_size,Mean,Max,Min,Std_dev");
+    // for bsp_set_size in (30..101).step_by(5) {
+    //     report_queries(gt_queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
+    // }
 
     Ok(())
 }
+
+// fn report_queries(
+//     num_queries: usize,
+//     gt_nns: &Array2<usize>,
+//     hamming_nns: &Array2<usize>,
+//     hamming_set_size: usize,
+//     nns_size: usize,
+// ) {
+//     println!(
+//         "Benchmarking queries: hamming_set_size: {:?}",
+//         hamming_set_size
+//     );
+//     let mut sum = 0;
+//     let mut min = 100;
+//     let mut max = 0;
+//     (0..num_queries).into_iter().for_each(|qi| {
+//         let (hamming_nns, _rest_nns) = hamming_nns.get(qi).unwrap().split_at(hamming_set_size);
+//         let (gt_nns, _rest_gt_nns) = gt_nns.get(qi).unwrap().split_at(nns_size);
+
+//         // println!("Hamming NNs for q{} = {:?} ", query_index, hamming_500_nns );
+//         // println!("GT NNs for q{} = {:?} ", query_index, gt_100_nns );
+
+//         let hamming_set: HashSet<&usize> = HashSet::from_iter(hamming_nns);
+//         let gt_set: HashSet<&usize> = HashSet::from_iter(gt_nns);
+//         let intersection = hamming_set.intersection(&gt_set);
+
+//         let intersection_size = intersection.count();
+//         sum = sum + intersection_size;
+//         max = max.max(intersection_size);
+//         min = min.min(intersection_size);
+
+//         println!(
+//             "Intersection of q{:?} {:?} Hamming vs {:?} nns, size: {:?}",
+//             qi, hamming_set_size, nns_size, intersection_size
+//         );
+//     });
+//     println!(
+//         "Mean size = {}, Max = {}, Min = {}",
+//         sum / num_queries,
+//         max,
+//         min
+//     );
+// }

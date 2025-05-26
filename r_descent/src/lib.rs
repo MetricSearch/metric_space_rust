@@ -19,6 +19,7 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::ptr;
 use std::rc::Rc;
 use std::time::Instant;
+use utils::bytes_fmt;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 use utils::{arg_sort_big_to_small, index_of_min, min_index_and_value, minimum_in, rand_perm};
@@ -49,7 +50,7 @@ pub trait IntoRDescentWithRevNNs {
         rho: f64,
         delta: f64,
         nns_in_search_structure: usize,
-    ) -> RDescentMatrix;
+    ) -> RDescentMatrixWithRev;
 }
 
 pub struct RDescentMatrixWithRev {
@@ -89,7 +90,7 @@ impl<T: Clone + Default + Hasher> KnnSearch<T> for RDescentMatrix {
     ) -> (usize, Vec<Pair>) {
         let mut visited_set: HashSet<usize, BuildHasherDefault<T>> = HashSet::default();
         let entry_point = 0; // <<<<<<<<<<<<<< TODO ENTRY POINT OF ZERO FOR NOW
-        let ep_q_dist = NonNan(distance(&query, dao.get_datum(0)));
+        let ep_q_dist = NonNan::new(distance(&query, dao.get_datum(0)));
         let mut results_list: BinaryHeap<Pair> = BinaryHeap::new(); // biggest first - a max-heap
         let mut candidates_list: BinaryHeap<Reverse<Pair>> = BinaryHeap::new(); // in reverse order - smallest first
         candidates_list.push(Reverse(Pair::new(ep_q_dist, entry_point)));
@@ -135,7 +136,7 @@ impl<T: Clone + Default + Hasher> KnnSearch<T> for RDescentMatrix {
                         })
                         .map(|unseen_neighbour| {
                             let distance_q_next_neighbour =
-                                NonNan(distance(&query, &unseen_neighbour.1));
+                                NonNan::new(distance(&query, &unseen_neighbour.1));
 
                             // let distance_q_next_neighbour = dist_fn(&query, &unseen_neighbour.1);
                             Reverse(Pair::new(distance_q_next_neighbour, unseen_neighbour.0))
@@ -164,39 +165,39 @@ impl<T: Clone + Default + Hasher> RevSearch<T> for RDescentMatrixWithRev {
         num_neighbours: usize,
         distance: fn(&T, &T) -> f32,
     ) -> (usize, Vec<Pair>) {
-        let num_data = dao.num_data;
-        let dims = dao.get_dim();
-        let data = dao.get_data();
+        // let num_data = dao.num_data;
+        // let dims = dao.get_dim();
+        // let data = dao.get_data();
 
-        // let mut result_indices = unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init()};
-        // let mut result_sims = unsafe {Array2::<f32>::uninit((num_data, num_neighbours)).assume_init()};
+        // // let mut result_indices = unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init()};
+        // // let mut result_sims = unsafe {Array2::<f32>::uninit((num_data, num_neighbours)).assume_init()};
 
-        // First, cheaply find some reasonably good solutions
+        // // First, cheaply find some reasonably good solutions
 
-        let data_subset = data.slice(s![0..1000, 0..]);
-        let sims: Array2<f32> = data_subset.dot(&query); // matrix mult all the distances - all relative to the original_rows
-        let (ords, sims) = arg_sort_big_to_small(&sims); // ords are row relative indices - these are is 1 X 1000
+        // let data_subset = data.slice(s![0..1000, 0..]);
+        // let sims: Array2<f32> = data_subset.dot(&query); // matrix mult all the distances - all relative to the original_rows
+        // let (ords, sims) = arg_sort_big_to_small(&sims); // ords are row relative indices - these are is 1 X 1000
 
-        // these ords are row relative all range from 0..1000 in data - so therefore real dao indices
+        // // these ords are row relative all range from 0..1000 in data - so therefore real dao indices
 
-        // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algoritm terminates
+        // // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algoritm terminates
 
-        let q_nns: Array1<usize> = ords
-            .into_shape_with_order(1000)
-            .unwrap()
-            .slice(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
-        let q_sims: Array1<f32> = sims
-            .into_shape_with_order(1000)
-            .unwrap()
-            .slice(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
+        // let q_nns: Array1<usize> = ords
+        //     .into_shape_with_order(1000)
+        //     .unwrap()
+        //     .slice(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
+        // let q_sims: Array1<f32> = sims
+        //     .into_shape_with_order(1000)
+        //     .unwrap()
+        //     .slice(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
 
-        // same as in nnTableBuild, the new flags
+        // // same as in nnTableBuild, the new flags
 
-        let new_flags: Array1<bool> = Array1::from_elem(q_nns.len(), true);
+        // let new_flags: Array1<bool> = Array1::from_elem(q_nns.len(), true);
 
-        // The amount of work done in the iteration
+        // // The amount of work done in the iteration
 
-        let mut work_done = 1;
+        // let mut work_done = 1;
 
         todo!("AL IS HERE");
 
@@ -295,7 +296,7 @@ impl IntoRDescentWithRevNNs for Dao<EVP_bits<2>> {
         rho: f64,
         delta: f64,
         nns_in_search_structure: usize,
-    ) -> RDescentMatrix {
+    ) -> RDescentMatrixWithRev {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
         let (mut neighbours, mut similarities) =
             initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
@@ -318,9 +319,12 @@ impl IntoRDescentWithRevNNs for Dao<EVP_bits<2>> {
 
         // TODO perhaps need to deal with MAXINT values
 
-        RDescentMatrix {
-            neighbours: neighbours,
-            similarities: similarities,
+        RDescentMatrixWithRev {
+            rdescent: RDescentMatrix {
+                neighbours,
+                similarities,
+            },
+            reverse_neighbours: todo!(), // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         }
     }
 }

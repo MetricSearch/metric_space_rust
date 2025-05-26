@@ -2,33 +2,33 @@
 // al * ben
 
 mod class_labels;
-pub mod csv_dao_loader;
-pub mod hdf5_dao_loader;
-mod csv_nn_table_loader;
-pub mod convert_f32_to_cubic;
+pub mod convert_f32_to_bsp;
 pub mod convert_f32_to_cube_oct;
-pub mod csv_dao_matrix_loader;
-mod hdf5_dao_matrix_loader;
-pub mod glove100_hdf5_dao_loader;
-pub mod laion_10M_hdf5_dao_loader;
+pub mod convert_f32_to_cubic;
 pub mod convert_f32_to_evp;
+pub mod csv_dao_loader;
+pub mod csv_dao_matrix_loader;
+mod csv_nn_table_loader;
+pub mod glove100_hdf5_dao_loader;
+pub mod hdf5_dao_loader;
+mod hdf5_dao_matrix_loader;
+pub mod laion_10M_hdf5_dao_loader;
 pub mod laion_10_m_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
-pub mod pubmed_hdf5_to_i8_dao_loader;
 pub mod pubmed_hdf5_to_dao_loader;
-pub mod convert_f32_to_bsp;
+pub mod pubmed_hdf5_to_i8_dao_loader;
 
 pub use anndists::{dist::DistDot, prelude::*};
-use anyhow::{Result};
+use anyhow::Result;
 use bitvec_simd::BitVecSimd;
 use std::string::ToString;
 
+use bits::f32_embedding_to_evp;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use wide::u64x4;
-use bits::f32_embedding_to_evp;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Normed {
@@ -66,10 +66,10 @@ pub struct Dao<DataRep: Clone> {
 }
 
 pub struct DaoMatrix<T> {
-    pub meta: DaoMetaData,                           // The meta data for this dao
-    pub num_data: usize,                             // the size of the data (a subset of the total data)
-    pub num_queries: usize,                          // the size of the queries (a subset of the total data)
-    pub embeddings: Array2<T>,                     // the data and queries
+    pub meta: DaoMetaData,     // The meta data for this dao
+    pub num_data: usize,       // the size of the data (a subset of the total data)
+    pub num_queries: usize,    // the size of the queries (a subset of the total data)
+    pub embeddings: Array2<T>, // the data and queries
 }
 
 impl<T: Clone> Dao<T> {
@@ -114,10 +114,14 @@ impl<T: Clone> Dao<T> {
     }
 }
 
-impl<T> DaoMatrix::<T> {
-
-    pub fn new(meta_data: DaoMetaData, all_embeddings: Array2<T>, num_data: usize, num_queries: usize) -> Self {
-        Self{
+impl<T> DaoMatrix<T> {
+    pub fn new(
+        meta_data: DaoMetaData,
+        all_embeddings: Array2<T>,
+        num_data: usize,
+        num_queries: usize,
+    ) -> Self {
+        Self {
             meta: meta_data,
             num_data,
             num_queries,
@@ -125,7 +129,9 @@ impl<T> DaoMatrix::<T> {
         }
     }
 
-    pub fn get_dim(&self) -> usize { self.meta.dim }
+    pub fn get_dim(&self) -> usize {
+        self.meta.dim
+    }
 
     pub fn data_len(&self) -> usize {
         self.num_data
@@ -135,29 +141,30 @@ impl<T> DaoMatrix::<T> {
         self.num_queries
     }
 
-    pub fn get_datum(&self, id: usize) -> ArrayBase<ViewRepr<&T>,Ix1> {
-        if id >= self.num_data  { // TODO consider putting option back in here
+    pub fn get_datum(&self, id: usize) -> ArrayBase<ViewRepr<&T>, Ix1> {
+        if id >= self.num_data {
+            // TODO consider putting option back in here
             panic!("id out of bounds");
         }
         self.embeddings.row(id)
     }
 
-    pub fn get_query(&self, id: usize) -> ArrayBase<ViewRepr<&T>,Ix1>  {
-        if id < self.num_data && id >= self.meta.num_records {   // TODO consider putting option back in here
+    pub fn get_query(&self, id: usize) -> ArrayBase<ViewRepr<&T>, Ix1> {
+        if id < self.num_data && id >= self.meta.num_records {
+            // TODO consider putting option back in here
             panic!("id out of bounds");
         }
-        self.embeddings.row(self.num_data+id)
+        self.embeddings.row(self.num_data + id)
     }
 
     pub fn get_data(&self) -> ArrayView2<T> {
-        self.embeddings.slice( s![..self.num_data, ..] )
+        self.embeddings.slice(s![..self.num_data, ..])
     }
 
     pub fn get_queries(&self) -> ArrayView2<T> {
-        self.embeddings.slice( s![self.num_data.., ..] )
+        self.embeddings.slice(s![self.num_data.., ..])
     }
 }
-
 
 pub fn dao_metadata_from_dir(dir_name: &str) -> Result<DaoMetaData> {
     let mut meta_data_file_path = dir_name.to_string();
@@ -186,9 +193,12 @@ pub fn dao_metadata_from_dir(dir_name: &str) -> Result<DaoMetaData> {
 //     Ok(Self::new(meta_data, data_and_queries, num_data, num_queries))
 // }
 
-pub fn f32_embeddings_to_evp<const D: usize>(embeddings: &Array1<Array1<f32>>, non_zeros: usize) -> Array1<BitVecSimd<[u64x4; D], 4>> {
+pub fn f32_embeddings_to_evp<const D: usize>(
+    embeddings: &Array1<Array1<f32>>,
+    non_zeros: usize,
+) -> Array1<BitVecSimd<[u64x4; D], 4>> {
     embeddings
         .iter()
-        .map( |row| { f32_embedding_to_evp::<D>(row,non_zeros) } )
+        .map(|row| f32_embedding_to_evp::<D>(row, non_zeros))
         .collect()
 }

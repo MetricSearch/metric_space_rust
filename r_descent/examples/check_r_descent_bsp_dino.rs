@@ -1,7 +1,8 @@
 use anyhow::Result;
 use bits::{bsp_similarity, bsp_similarity_as_f32, f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
-use dao::csv_dao_matrix_loader::{dao_matrix_from_csv_dir};
+use dao::convert_f32_to_bsp::f32_dao_to_bsp;
+use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
 use metrics::euc;
 use ndarray::Array1;
@@ -12,10 +13,8 @@ use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
 use utils::dot_product_f32;
-use dao::convert_f32_to_bsp::f32_dao_to_bsp;
 
 fn main() -> Result<()> {
-
     println!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
@@ -32,7 +31,7 @@ fn main() -> Result<()> {
 
     println!("Converting mf dino to bsp...");
 
-    let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(),200);
+    let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(), 200);
     println!("Running r_descent<bsp>...");
 
     let start_post_load = Instant::now();
@@ -44,7 +43,7 @@ fn main() -> Result<()> {
     let reverse_list_size = 32;
 
     println!("Initializing NN table with chunk size {}", chunk_size);
-    let (mut ords,mut dists) = initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours );
+    let (mut ords, mut dists) = initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
 
     // println!("ORDS: {:?}", ords);
     // println!("Dists: {:?}", dists);
@@ -58,22 +57,31 @@ fn main() -> Result<()> {
 
     println!("Getting NN table");
 
-    get_nn_table2_bsp(dao_bsp.clone(), &mut ords, &mut dists, num_neighbours, rho, delta, reverse_list_size);
+    get_nn_table2_bsp(
+        dao_bsp.clone(),
+        &mut ords,
+        &mut dists,
+        num_neighbours,
+        rho,
+        delta,
+        reverse_list_size,
+    );
 
-    println!("Line 0 of table:" );
+    println!("Line 0 of table:");
     for i in 0..10 {
-        println!(" neighbours: {} dists: {}", ords[[0,i]], dists[[0,i]] );
+        println!(" neighbours: {} dists: {}", ords[[0, i]], dists[[0, i]]);
     }
 
     let end = Instant::now();
 
-    println!("Finished (including load time in {} s", (end - start).as_secs());
-    println!("Finished (post load time) in {} s", (end - start_post_load).as_secs());
+    println!(
+        "Finished (including load time in {} s",
+        (end - start).as_secs()
+    );
+    println!(
+        "Finished (post load time) in {} s",
+        (end - start_post_load).as_secs()
+    );
 
     Ok(())
 }
-
-
-
-
-

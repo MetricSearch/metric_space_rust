@@ -76,7 +76,10 @@ pub fn hdf5_f32_write(
         .map(|x| *x)
         .collect::<Array1<f32>>();
 
-    let arrai: Array2<f32> = arrai.into_shape_with_order([num_records, dim]).unwrap().into();
+    let arrai: Array2<f32> = arrai
+        .into_shape_with_order([num_records, dim])
+        .unwrap()
+        .into();
 
     let ds = builder.with_data(&arrai).create("all_embeddings")?;
 

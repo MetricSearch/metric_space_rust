@@ -3,38 +3,33 @@ use hdf5::{Dataset, File};
 use ndarray::{s, Array1, Array2};
 //use tracing::metadata;
 
-pub fn hdf5_glove_f32_load(
-    data_path: &str,
-) -> anyhow::Result<Dao<Array1<f32>>> {
+pub fn hdf5_glove_f32_load(data_path: &str) -> anyhow::Result<Dao<Array1<f32>>> {
     let file = File::open(data_path)?; // open for reading
     let ds_data = file.dataset("train")?; // open the test dataset
     let ds_queries = file.dataset("test")?; // open the test dataset
 
     let name = "Glove-100";
-    let description ="Glove-100";
+    let description = "Glove-100";
     let dim = 100;
     let num_records = 1183514;
-    let num_queries= 1000;
+    let num_queries = 1000;
 
     let normed = Normed::L2; //?????
 
     let data: Array2<f32> = ds_data.read_slice(s![.., ..]).unwrap(); // read the dataset
 
-    let data = data
-        .rows()
-        .into_iter()
-        .map(|x| x.to_owned());
-        // .collect::<Array1<Array1<f32>>>();
+    let data = data.rows().into_iter().map(|x| x.to_owned());
+    // .collect::<Array1<Array1<f32>>>();
 
     let queries: Array2<f32> = ds_queries.read_slice(s![.., ..]).unwrap(); // read the dataset
 
-    let queries = queries
-        .rows()
-        .into_iter()
-        .map(|x| x.to_owned());
-        // .collect::<Array1<Array1<f32>>>();
+    let queries = queries.rows().into_iter().map(|x| x.to_owned());
+    // .collect::<Array1<Array1<f32>>>();
 
-    let combined = data.chain(queries).map(|x| x).collect::<Array1<Array1<f32>>>();
+    let combined = data
+        .chain(queries)
+        .map(|x| x)
+        .collect::<Array1<Array1<f32>>>();
 
     // let combined: Array1<Array1<f32>> = [ data.view(), queries.view() ].
 

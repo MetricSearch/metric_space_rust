@@ -1,15 +1,15 @@
-use std::rc::Rc;
-use dao::Dao;
 use anyhow::Result;
-use ndarray::Array1;
-use dao::csv_dao_loader::{dao_from_csv_dir};
-use dao::convert_f32_to_cubic::to_cubic_dao;
 use bitvec_simd::BitVecSimd;
+use dao::convert_f32_to_cubic::to_cubic_dao;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::Dao;
 use descent::Descent;
-use wide::u64x4;
+use ndarray::Array1;
 use std::fs::File;
 use std::io::BufWriter;
+use std::rc::Rc;
 use utils::distance_f32;
+use wide::u64x4;
 
 fn main() -> Result<()> {
     println!("Hello from Serialize Descent example");

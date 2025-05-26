@@ -1,16 +1,15 @@
-
 use anyhow::Result;
-use dao::csv_dao_loader::{dao_from_csv_dir};
 use dao::convert_f32_to_cubic::to_cubic_dao;
+use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
+use ndarray::Array1;
 use std::rc::Rc;
 use wide::u64x4;
-use ndarray::{Array1};
 //use tracing_subscriber::EnvFilter;
+use bits::whamming_distance;
 use bitvec_simd::BitVecSimd;
-use bits::{whamming_distance};
-use std::time::Instant;
 use metrics::euc;
+use std::time::Instant;
 
 fn main() -> Result<()> {
     println!("Hello from Hamming Brute Force");
@@ -68,7 +67,10 @@ fn main() -> Result<()> {
 
         let elapsed = now.elapsed();
         println!("Hamming Elapsed: {:.2?}", elapsed);
-        println!("Distances per second: {}", num_data as f64 / elapsed.as_secs_f64());
+        println!(
+            "Distances per second: {}",
+            num_data as f64 / elapsed.as_secs_f64()
+        );
 
         let num_nns = 20;
 
@@ -78,7 +80,12 @@ fn main() -> Result<()> {
         let first_distances = &distances_bits[0..num_nns];
         println!("Hamming NNs of Q({}):", query_index);
         for i in 0..num_nns {
-            println!("{} dist {} position {}", first_indices[i], first_distances[i], get_index(first_indices[i], &indices_f32) );
+            println!(
+                "{} dist {} position {}",
+                first_indices[i],
+                first_distances[i],
+                get_index(first_indices[i], &indices_f32)
+            );
         }
     }
 
@@ -86,7 +93,7 @@ fn main() -> Result<()> {
 }
 
 fn get_index(p0: i32, true_nns: &Vec<i32>) -> usize {
-    true_nns.iter().position(|&n| n == p0).unwrap_or( 99999 )
+    true_nns.iter().position(|&n| n == p0).unwrap_or(99999)
 }
 
 fn add_to_nns(
@@ -108,4 +115,3 @@ fn add_to_nns(
         true
     }
 }
-

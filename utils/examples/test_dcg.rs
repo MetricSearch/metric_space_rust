@@ -27,8 +27,14 @@ pub fn main() {
     gt.push(Pair::new(NonNan(1.7), 7));
     gt.push(Pair::new(NonNan(2.0), 6));
 
-    println!( "Gt and gt = {} should be 1", ndcg(&gt,&gt)); // Should be 1.
-    println!( "perfect and gt = {} should be 1", ndcg(&perfect_results,&gt)); // Should be 1
-    println!("bad and gt = {} should be 0", ndcg(&bad_results,&gt)); // Should be 0
-    println!("mixed and gt = {} should be between 0 and 1", ndcg(&mixed_results,&gt)); // Should be somewhere between 0 and 1.
+    println!("Gt and gt = {} should be 1", ndcg(&gt, &gt)); // Should be 1.
+    println!(
+        "perfect and gt = {} should be 1",
+        ndcg(&perfect_results, &gt)
+    ); // Should be 1
+    println!("bad and gt = {} should be 0", ndcg(&bad_results, &gt)); // Should be 0
+    println!(
+        "mixed and gt = {} should be between 0 and 1",
+        ndcg(&mixed_results, &gt)
+    ); // Should be somewhere between 0 and 1.
 }

@@ -1,14 +1,13 @@
-
 use anyhow::Result;
-use dao::csv_dao_loader::{dao_from_csv_dir};
+use bits::hamming_distance_as_f32;
+use bitvec_simd::BitVecSimd;
+use dao::convert_f32_to_cubic::to_cubic_dao;
+use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
+use descent::Descent;
+use ndarray::Array1;
 use std::rc::Rc;
 use wide::u64x4;
-use ndarray::Array1;
-use bitvec_simd::BitVecSimd;
-use bits::hamming_distance_as_f32;
-use descent::Descent;
-use dao::convert_f32_to_cubic::to_cubic_dao;
 //use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -30,9 +29,14 @@ fn main() -> Result<()> {
     let num_neighbours = 10;
     //let max_candidates = 50;
 
-    let dao : Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_cubic_dao(dao.clone());
+    let dao: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_cubic_dao(dao.clone());
 
-    let descent = Descent::new(dao.clone(), num_neighbours, true, hamming_distance_as_f32::<4>);
+    let descent = Descent::new(
+        dao.clone(),
+        num_neighbours,
+        true,
+        hamming_distance_as_f32::<4>,
+    );
 
     println!("First row: {:?}", descent.current_graph.nns[0]);
     println!("First row: {:?}", descent.current_graph.distances[0]);

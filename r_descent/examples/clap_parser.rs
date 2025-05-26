@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bits::{f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
+use clap::Parser;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
 use metrics::euc;
@@ -11,7 +12,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use clap::Parser;
 use utils::dot_product_f32;
 
 /// clap parser

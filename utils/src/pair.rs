@@ -1,8 +1,8 @@
-use std::cmp::Ordering;
 use crate::non_nan::NonNan;
+use std::cmp::Ordering;
 
 #[derive(Clone)]
-pub struct Pair{
+pub struct Pair {
     pub distance: NonNan,
     pub index: usize,
 }
@@ -13,7 +13,8 @@ impl Pair {
     }
 }
 
-impl Eq for Pair { // Marker Trait
+impl Eq for Pair {
+    // Marker Trait
 }
 
 impl PartialEq for Pair {

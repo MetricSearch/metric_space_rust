@@ -1,10 +1,10 @@
 use anyhow::Result;
-use dao::csv_dao_loader::{dao_from_csv_dir};
+use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
-use std::rc::Rc;
-use ndarray::Array1;
-use tracing_subscriber::EnvFilter;
 use descent::Descent;
+use ndarray::Array1;
+use std::rc::Rc;
+use tracing_subscriber::EnvFilter;
 //use std::time::Instant;
 
 fn main() -> Result<()> {

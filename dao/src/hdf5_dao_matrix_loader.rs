@@ -52,7 +52,7 @@ pub fn hdf5_matrix_write(
     normed: &str,
     arrai: &Array2<f32>,
     dim: usize,
-    num_records : usize,
+    num_records: usize,
 ) -> anyhow::Result<()> {
     let file = File::create(data_path)?; // open for writing
     let group = file.create_group("/embeddings")?; // create a group

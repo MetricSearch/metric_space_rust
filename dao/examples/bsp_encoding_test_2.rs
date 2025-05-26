@@ -1,16 +1,19 @@
 use anyhow::Result;
-use bits::{EVP_bits, bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, f32_embedding_to_bsp, whamming_distance};
+use bits::{
+    bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep,
+    f32_embedding_to_bsp, whamming_distance, EVP_bits,
+};
 use bitvec_simd::BitVecSimd;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
-use wide::u64x4;
-use dao::{Dao};
-use dao::csv_dao_loader::{dao_from_csv_dir};
 use utils::arg_sort_2d;
+use wide::u64x4;
 //use divan::Bencher;
 
 fn main() -> Result<()> {
@@ -29,16 +32,23 @@ fn main() -> Result<()> {
     let data = dao_f32.get_data();
 
     for i in (0..10) {
-        println!( "Data [0][{}]: {}", i, data[0][i] );
+        println!("Data [0][{}]: {}", i, data[0][i]);
     }
 
     let bsp_0 = f32_embedding_to_bsp::<2>(&data[0].view(), 200);
 
-    println!("Data_0 has {} bits | XORed = {} bits", bsp_0.ones.count_ones() + bsp_0.negative_ones.count_ones(), bsp_0.ones.xor_cloned(&bsp_0.negative_ones).count_ones());
+    println!(
+        "Data_0 has {} bits | XORed = {} bits",
+        bsp_0.ones.count_ones() + bsp_0.negative_ones.count_ones(),
+        bsp_0.ones.xor_cloned(&bsp_0.negative_ones).count_ones()
+    );
 
     // println!("Data_1 has {} bits | XORed = {} bits", data_1.ones.count_ones() + data_1.negative_ones.count_ones(), data_1.ones.xor_cloned(&data_1.negative_ones).count_ones());
     //
-    println!("Object 0 bitrep ones: {:?} | negative ones: {:?}", bsp_0.ones, bsp_0.negative_ones);
+    println!(
+        "Object 0 bitrep ones: {:?} | negative ones: {:?}",
+        bsp_0.ones, bsp_0.negative_ones
+    );
 
     // println!( "Smoking 0-0 distance {} similarity: {} ", bsp_distance::<2>(&data_0, &data_0), bsp_similarity::<2>(&data_0, &data_0) ); // two girls  --> 1024 + 200
     // println!( "data 1-1 leaves distance {} similarity: {} ", bsp_distance::<2>(data_1, &data_1), bsp_similarity::<2>(data_1, &data_1) ); // smoking girl and leaves.

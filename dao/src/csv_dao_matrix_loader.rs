@@ -1,4 +1,4 @@
-use crate::{dao_metadata_from_dir, DaoMatrix};
+use crate::{DaoMatrix, DaoMetaData};
 use anyhow::anyhow;
 use ndarray::{Array, Array2};
 
@@ -40,7 +40,7 @@ pub fn dao_matrix_from_csv_dir(
     num_data: usize,
     num_queries: usize,
 ) -> anyhow::Result<DaoMatrix<f32>> {
-    let meta = dao_metadata_from_dir(dir_name).unwrap();
+    let meta = DaoMetaData::from_directory(dir_name).unwrap();
     let mut data_file_path = dir_name.to_string();
     data_file_path.push_str("/");
     data_file_path.push_str(meta.path_to_data.as_str());

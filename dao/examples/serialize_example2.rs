@@ -1,9 +1,9 @@
-use dao::dao_metadata_from_dir;
+use dao::DaoMetaData;
 
 fn main() -> std::io::Result<()> {
     let f_name = "../_scratch/meta_data.txt";
 
-    let toml = dao_metadata_from_dir(f_name).unwrap();
+    let toml = DaoMetaData::from_directory(f_name).unwrap();
     println!("{:?}", toml);
 
     Ok(())

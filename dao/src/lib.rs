@@ -1,6 +1,18 @@
 // Dao impl
 // al * ben
 
+pub use anndists::{dist::DistDot, prelude::*};
+use anyhow::Result;
+use bits::f32_embedding_to_evp;
+use bitvec_simd::BitVecSimd;
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
+use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+use std::string::ToString;
+use wide::u64x4;
+
 mod class_labels;
 pub mod convert_f32_to_bsp;
 pub mod convert_f32_to_cube_oct;
@@ -12,23 +24,11 @@ mod csv_nn_table_loader;
 pub mod glove100_hdf5_dao_loader;
 pub mod hdf5_dao_loader;
 mod hdf5_dao_matrix_loader;
-pub mod laion_10M_hdf5_dao_loader;
+pub mod laion_10_m_hdf5_dao_loader;
 pub mod laion_10_m_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
 pub mod pubmed_hdf5_to_dao_loader;
 pub mod pubmed_hdf5_to_i8_dao_loader;
-
-pub use anndists::{dist::DistDot, prelude::*};
-use anyhow::Result;
-use bitvec_simd::BitVecSimd;
-use std::string::ToString;
-
-use bits::f32_embedding_to_evp;
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
-use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Read;
-use wide::u64x4;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Normed {
@@ -50,29 +50,45 @@ impl ToString for Normed {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DaoMetaData {
     pub name: String,
-    pub description: String, // An English description of the data e.g. Mirflkr 1M encoded with Dino2
-    pub data_disk_format: String, // A descriptor of the data format on disk - may be used to determine the name of loader e.g format = "csv_f32" -> use the csv_f32_loader
-    pub path_to_data: String,     // the path to where the data is stored on disk - URL?
-    pub normed: Normed,           // is the data normed?
-    pub num_records: usize,       // the total number of records/data items/rows in the data set
-    pub dim: usize,               // the dimension/number of columns in the data set
+    /// An English description of the data e.g. Mirflkr 1M encoded with Dino2
+    pub description: String,
+    ///  A descriptor of the data format on disk - may be used to determine the name of loader e.g format = "csv_f32" -> use the csv_f32_loader
+    pub data_disk_format: String,
+    /// the path to where the data is stored on disk - URL?
+    pub path_to_data: String,
+    /// is the data normed?
+    pub normed: Normed,
+    /// the total number of records/data items/rows in the data set
+    pub num_records: usize,
+    /// the dimension/number of columns in the data set
+    pub dim: usize,
 }
 
-pub struct Dao<DataRep: Clone> {
-    pub meta: DaoMetaData,           // The meta data for this dao
-    pub num_data: usize,             // the size of the data (a subset of the total data)
-    pub num_queries: usize,          // the size of the queries (a subset of the total data)
-    pub embeddings: Array1<DataRep>, // the data and queries
+impl DaoMetaData {
+    pub fn from_directory<P: AsRef<Path>>(dir_name: P) -> Result<Self> {
+        let meta_data_file_path = dir_name.as_ref().join("meta_data.txt");
+
+        let mut file = File::open(meta_data_file_path)?;
+        let mut contents = String::new();
+
+        file.read_to_string(&mut contents)?;
+
+        Ok(toml::from_str(&contents).unwrap())
+    }
 }
 
-pub struct DaoMatrix<T> {
-    pub meta: DaoMetaData,     // The meta data for this dao
-    pub num_data: usize,       // the size of the data (a subset of the total data)
-    pub num_queries: usize,    // the size of the queries (a subset of the total data)
-    pub embeddings: Array2<T>, // the data and queries
+pub struct Dao<Element> {
+    /// The meta data for this dao
+    pub meta: DaoMetaData,
+    /// the size of the data (a subset of the total data)
+    pub num_data: usize,
+    /// the size of the queries (a subset of the total data)
+    pub num_queries: usize,
+    /// the data and queries
+    pub embeddings: Array1<Element>,
 }
 
-impl<T: Clone> Dao<T> {
+impl<T> Dao<T> {
     // pub fn new(dir_name: &str) -> Self {
     //     todo!()
     // }
@@ -112,6 +128,17 @@ impl<T: Clone> Dao<T> {
         let queries = self.embeddings.slice(s![self.num_data..]);
         queries
     }
+}
+
+pub struct DaoMatrix<T> {
+    /// The meta data for this dao
+    pub meta: DaoMetaData,
+    /// the size of the data (a subset of the total data)
+    pub num_data: usize,
+    /// the size of the queries (a subset of the total data)
+    pub num_queries: usize,
+    /// the data and queries
+    pub embeddings: Array2<T>,
 }
 
 impl<T> DaoMatrix<T> {
@@ -164,15 +191,6 @@ impl<T> DaoMatrix<T> {
     pub fn get_queries(&self) -> ArrayView2<T> {
         self.embeddings.slice(s![self.num_data.., ..])
     }
-}
-
-pub fn dao_metadata_from_dir(dir_name: &str) -> Result<DaoMetaData> {
-    let mut meta_data_file_path = dir_name.to_string();
-    meta_data_file_path.push_str("/meta_data.txt");
-    let mut file = File::open(meta_data_file_path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    Ok(toml::from_str(&contents).unwrap())
 }
 
 // TODO FIX AND MOVE THESE

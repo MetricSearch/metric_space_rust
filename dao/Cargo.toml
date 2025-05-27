@@ -23,3 +23,8 @@ hdf5 = { package = "hdf5-metno", version = "0.10.1", features = [
 ] }
 bitvec_simd = "0.20.5"
 wide = "0.7.32"
+log = "0.4.27"
+memmap2 = "0.9.5"
+
+[dev-dependencies]
+pretty_env_logger = "0.5.0"

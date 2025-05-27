@@ -3,8 +3,11 @@ use bits::{f32_embedding_to_bsp, EvpBits};
 use hdf5::File;
 use ndarray::{s, Array1, Array2};
 use rayon::prelude::*;
+use std::{path::Path, sync::Arc};
 use tracing::error;
 //use tracing::metadata;
+
+const DATASET: &str = "train";
 
 pub fn hdf5_pubmed_f32_to_bsp_load(
     data_path: &str,
@@ -13,9 +16,11 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     num_vertices: usize,
 ) -> anyhow::Result<Dao<EvpBits<2>>> {
     let file = File::open(data_path)?; // open for reading
-    let h5_data = file.dataset("train")?; // the data
+    let h5_data = file.dataset(DATASET)?; // the data
 
-    let train_size = h5_data.shape()[0]; // 23_887_701
+    let train_size = usize::try_from(h5_data.shape()[0]).unwrap(); // 23_887_701
+    let dim = usize::try_from(h5_data.shape()[1]).unwrap();
+    assert_eq!(dim, 384);
 
     if num_records_required > train_size {
         error!("Too many records requested")
@@ -26,7 +31,6 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
         num_records_required.min(train_size)
     };
 
-    let dim = 384;
     let mut rows_at_a_time = 10000;
 
     if rows_at_a_time > num_records {
@@ -56,10 +60,17 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
 
             data.rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
+                .map(|xs| f32_embedding_to_bsp::<2>(&xs.as_slice().unwrap(), num_vertices))
                 .collect::<Vec<EvpBits<2>>>()
         })
         .collect();
+
+    log::info!(
+        "bsp_data: len: {}, first-last {:?}-{:?}",
+        bsp_data.len(),
+        bsp_data[0],
+        bsp_data.last().unwrap()
+    );
 
     // Don't bother doing this in parallel
     // Queries not big enough
@@ -86,7 +97,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load(
     let bsp_o_test = o_queries_slice
         .rows()
         .into_iter()
-        .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices));
+        .map(|x| f32_embedding_to_bsp::<2>(x.as_slice().unwrap(), num_vertices));
 
     let name = "Pubmed";
     let description = "PubmedHDF5Dataset";
@@ -122,7 +133,7 @@ pub fn hdf5_pubmed_f32_to_bsp_load_sequential(
     num_vertices: usize,
 ) -> anyhow::Result<Dao<EvpBits<2>>> {
     let file = File::open(data_path)?; // open for reading
-    let ds_data = file.dataset("train")?; // the data
+    let ds_data = file.dataset(DATASET)?; // the data
                                           //let i_queries_group = file.group("itest")?;     // in distribution queries
     let o_queries_group = file.group("otest")?; // out of distribution queries
 

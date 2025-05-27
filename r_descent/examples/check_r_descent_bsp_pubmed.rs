@@ -7,7 +7,7 @@ use dao::Dao;
 use ndarray::ArrayView1;
 use r_descent_matrix::{get_nn_table2_bsp, initialise_table_bsp};
 use std::rc::Rc;
-use std::time::Instant;
+use utils::bytes_fmt;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -39,13 +39,13 @@ fn main() -> Result<()> {
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
     log::info!(
-        "Pubmed data size: {} queries size: {}, num data: {}",
+        "Pubmed data size: {}, num queries: {} ({}), num data: {} ({})",
         data.len(),
         queries.len(),
+        bytes_fmt(queries.len() * size_of::<EvpBits<2>>()),
         dao_bsp.num_data,
+        bytes_fmt(dao_bsp.num_data * size_of::<EvpBits<2>>()),
     );
-
-    let start_post_load = Instant::now();
 
     let num_neighbours = 10;
     let chunk_size = 200;
@@ -78,16 +78,7 @@ fn main() -> Result<()> {
         );
     }
 
-    let end = Instant::now();
-
-    log::info!(
-        "Finished (including load time in {} s",
-        (end - start).as_secs()
-    );
-    log::info!(
-        "Finished (post load time) in {} s",
-        (end - start_post_load).as_secs()
-    );
+    log::info!("finished");
 
     let knns = 30;
 

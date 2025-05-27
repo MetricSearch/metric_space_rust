@@ -15,6 +15,7 @@ mod hdf5_dao_matrix_loader;
 pub mod laion_10M_hdf5_dao_loader;
 pub mod laion_10_m_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
+pub mod pubmed_hdf5_mmap_loader;
 pub mod pubmed_hdf5_to_dao_loader;
 pub mod pubmed_hdf5_to_i8_dao_loader;
 
@@ -30,7 +31,7 @@ use std::fs::File;
 use std::io::Read;
 use wide::u64x4;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum Normed {
     L1,
     L2,
@@ -47,7 +48,7 @@ impl ToString for Normed {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DaoMetaData {
     pub name: String,
     pub description: String, // An English description of the data e.g. Mirflkr 1M encoded with Dino2
@@ -58,6 +59,7 @@ pub struct DaoMetaData {
     pub dim: usize,               // the dimension/number of columns in the data set
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Dao<DataRep: Clone> {
     pub meta: DaoMetaData,           // The meta data for this dao
     pub num_data: usize,             // the size of the data (a subset of the total data)

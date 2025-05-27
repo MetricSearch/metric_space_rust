@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bits::EvpBits;
-use chrono::Utc;
 use clap::Parser;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
@@ -26,9 +25,10 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     log::info!("Loading Pubmed data...");
+    let start = Instant::now();
 
     let num_queries = 10_000;
-    const ALL_RECORDS: usize = 1000;
+    const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 200;
 
     let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
@@ -45,67 +45,65 @@ fn main() -> Result<()> {
         dao_bsp.num_data,
     );
 
-    loop {}
+    let start_post_load = Instant::now();
 
-    // let start_post_load = Instant::now();
+    let num_neighbours = 10;
+    let chunk_size = 200;
+    let rho = 1.0;
+    let delta = 0.01;
+    let reverse_list_size = 32;
 
-    // let num_neighbours = 10;
-    // let chunk_size = 200;
-    // let rho = 1.0;
-    // let delta = 0.01;
-    // let reverse_list_size = 32;
+    log::info!("Initializing NN table with chunk size {}", chunk_size);
+    let (mut bsp_nns, mut bsp_dists) =
+        initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
 
-    // log::info!("Initializing NN table with chunk size {}", chunk_size);
-    // let (mut bsp_nns, mut bsp_dists) =
-    //     initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
+    log::info!("Getting NN table");
 
-    // log::info!("Getting NN table");
+    get_nn_table2_bsp(
+        dao_bsp.clone(),
+        &mut bsp_nns,
+        &mut bsp_dists,
+        num_neighbours,
+        rho,
+        delta,
+        reverse_list_size,
+    );
 
-    // get_nn_table2_bsp(
-    //     dao_bsp.clone(),
-    //     &mut bsp_nns,
-    //     &mut bsp_dists,
-    //     num_neighbours,
-    //     rho,
-    //     delta,
-    //     reverse_list_size,
-    // );
+    log::info!("Line 0 of table:");
+    for i in 0..10 {
+        log::info!(
+            " neighbours: {} dists: {}",
+            bsp_nns[[0, i]],
+            bsp_dists[[0, i]]
+        );
+    }
 
-    // log::info!("Line 0 of table:");
-    // for i in 0..10 {
-    //     log::info!(
-    //         " neighbours: {} dists: {}",
-    //         bsp_nns[[0, i]],
-    //         bsp_dists[[0, i]]
-    //     );
+    let end = Instant::now();
+
+    log::info!(
+        "Finished (including load time in {} s",
+        (end - start).as_secs()
+    );
+    log::info!(
+        "Finished (post load time) in {} s",
+        (end - start_post_load).as_secs()
+    );
+
+    let knns = 30;
+
+    let (_gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
+
+    // let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
+
+    // let gt_queries = dao_f32.get_queries();
+
+    // log::info!("Pubmed:");
+    // log::info!("results_size,gt_size,Mean,Max,Min,Std_dev");
+    // for bsp_set_size in (30..101).step_by(5) {
+    //     report_queries(gt_queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
     // }
 
-    // let end = Instant::now();
-
-    // log::info!(
-    //     "Finished (including load time in {} s",
-    //     (end - start).as_secs()
-    // );
-    // log::info!(
-    //     "Finished (post load time) in {} s",
-    //     (end - start_post_load).as_secs()
-    // );
-
-    // let knns = 30;
-
-    // let (gt_nns, gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
-
-    // // let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
-
-    // // let gt_queries = dao_f32.get_queries();
-
-    // // log::info!("Pubmed:");
-    // // log::info!("results_size,gt_size,Mean,Max,Min,Std_dev");
-    // // for bsp_set_size in (30..101).step_by(5) {
-    // //     report_queries(gt_queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
-    // // }
-
-    // Ok(())
+    Ok(())
 }
 
 // fn report_queries(

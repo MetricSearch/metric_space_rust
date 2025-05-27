@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bits::{f32_data_to_evp, whamming_distance};
 use bitvec_simd::BitVecSimd;
-use dao::laion_10M_hdf5_dao_loader::hdf5_laion_f32_load;
+use dao::laion_10_m_hdf5_dao_loader::hdf5_laion_f32_load;
 use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dao::laion_10M_hdf5_dao_loader::hdf5_laion_f32_load;
+use dao::laion_10_m_hdf5_dao_loader::hdf5_laion_f32_load;
 
 fn main() -> Result<()> {
     let f_name = "/Volumes/Data/laion/laion2B-en-clip768v2-n=10M.h5";

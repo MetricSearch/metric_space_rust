@@ -1,6 +1,3 @@
-pub mod non_nan;
-pub mod pair;
-
 use crate::non_nan::NonNan;
 use crate::pair::Pair;
 use byte_unit::{AdjustedByte, Byte};
@@ -14,7 +11,11 @@ use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
 use std::sync::{LazyLock, Mutex};
 
+pub mod non_nan;
+pub mod pair;
+
 const SEED: u64 = 323 * 162;
+
 static RNG: LazyLock<Mutex<ChaCha8Rng>> =
     LazyLock::new(|| Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
 
@@ -199,6 +200,7 @@ fn calc_norm_factor(size: usize) -> f32 {
     }
     idcg(&a_list, &a_list)
 }
+
 /* Ideal DCG */
 fn idcg(results: &[Pair], true_nns: &[Pair]) -> f32 {
     let num_true_nns = true_nns.len();

@@ -24,6 +24,10 @@ struct Args {
 }
 
 fn main() -> Result<()> {
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(log::LevelFilter::Trace)
+        .init();
+
     let args = Args::parse();
 
     println!("Loading mf dino data...");

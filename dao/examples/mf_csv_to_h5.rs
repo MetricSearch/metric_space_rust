@@ -1,9 +1,9 @@
-use anyhow::Result;
 use bits::{
     bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance,
     EvpBits,
 };
 use bitvec_simd::BitVecSimd;
+use anyhow::Result;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_dao_loader::hdf5_f32_write;
 use dao::Dao;

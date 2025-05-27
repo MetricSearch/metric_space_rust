@@ -480,7 +480,7 @@ pub fn initialise_table_m(
         });
 
     let end_time = Instant::now();
-    println!(
+    log::debug!(
         "Initialistion in {:?}ms",
         ((end_time - start_time).as_millis() as f64)
     );
@@ -517,9 +517,11 @@ pub fn get_nn_table2_m(
         // condition is fraction of lines whose min similarity has changed when this gets low - no much work done then stop.
         iterations += 1;
 
-        println!(
+        log::debug!(
             "iterating: c: {} num_data: {} iters: {}",
-            work_done, num_data, iterations
+            work_done,
+            num_data,
+            iterations
         );
 
         // phase 1
@@ -570,7 +572,7 @@ pub fn get_nn_table2_m(
         }
 
         let after = Instant::now();
-        println!("Phase 1: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
 
         // phase 2  Matlab line 88
 
@@ -751,11 +753,11 @@ pub fn get_nn_table2_m(
             .sum::<usize>();
 
         let after = Instant::now();
-        println!("Phase 3: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));
     }
 
     let final_time = Instant::now();
-    println!(
+    log::debug!(
         "Overall time 3: {} ms",
         ((final_time - start_time).as_millis() as f64)
     );
@@ -829,7 +831,7 @@ pub fn get_new_reverse_links_not_in_forward(
     }
 
     let after = Instant::now();
-    println!("Phase 2: {} ms", ((after - now).as_millis() as f64));
+    log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
     (reverse, reverse_sims)
 }
 
@@ -871,7 +873,7 @@ pub fn get_reverse_links_not_in_forward(
             let neighbours_of_next_dont_contain_current_row =
                 !neighbours_of_next_id_in_row.iter().any(|x| *x == row);
 
-            println!(
+            log::debug!(
                 "Row {} col {} next_id {} sim {} neighbours of next {} don't contain {} row {}",
                 row,
                 col,
@@ -889,13 +891,15 @@ pub fn get_reverse_links_not_in_forward(
             // first find all the forward links containing the row
 
             if neighbours_of_next_dont_contain_current_row {
-                println!("count is {} ", reverse_count[*next_id_in_row]);
+                log::debug!("count is {} ", reverse_count[*next_id_in_row]);
                 if reverse_count[*next_id_in_row] < reverse_list_size {
                     // if the list is not full
                     // update the reverse pointer list and the similarities
-                    println!(
+                    log::debug!(
                         "Adding row {} refers to {} insert position {}",
-                        row, *next_id_in_row, reverse_count[*next_id_in_row]
+                        row,
+                        *next_id_in_row,
+                        reverse_count[*next_id_in_row]
                     );
                     reverse[[*next_id_in_row, reverse_count[*next_id_in_row]]] = row;
                     reverse_sims[[*next_id_in_row, reverse_count[*next_id_in_row]]] =
@@ -905,7 +909,7 @@ pub fn get_reverse_links_not_in_forward(
                 } else {
                     // it is full, so we will only add it if it's more similar than another one already there
                     let (position, value) = min_index_and_value(&reverse_sims.row(*next_id_in_row)); // Matlab line 109
-                    println!(
+                    log::debug!(
                         "full min index in {} and value of row {} are {} {}",
                         &reverse_sims.row(*next_id_in_row),
                         row,
@@ -914,7 +918,7 @@ pub fn get_reverse_links_not_in_forward(
                     );
                     if value < next_sim_in_row {
                         // Matlab line 110  if the value in reverse_sims is less similar we over write
-                        println!("overwriting");
+                        log::debug!("overwriting");
                         reverse[[*next_id_in_row, position]] = row; // replace the old min with the new sim value
                         reverse_sims[[*next_id_in_row, position]] = next_sim_in_row;
                     }
@@ -969,9 +973,10 @@ mod tests {
         let reverse_links =
             get_reverse_links_not_in_forward(&&mut forward_links, &&mut forward_sims, 2);
 
-        println!(
+        log::debug!(
             "Reverse links: {:?} reverse sims: {:?}",
-            reverse_links.0, reverse_links.1
+            reverse_links.0,
+            reverse_links.1
         );
 
         assert_eq!(reverse_links.0, gt_links);
@@ -1115,7 +1120,7 @@ pub fn initialise_table_bsp(
         });
 
     let end_time = Instant::now();
-    println!(
+    log::debug!(
         "Initialistion in {:?}ms",
         ((end_time - start_time).as_millis() as f64)
     );
@@ -1159,9 +1164,11 @@ pub fn get_nn_table2_bsp(
         // condition is fraction of lines whose min similarity has changed when this gets low - no much work done then stop.
         iterations += 1;
 
-        println!(
+        log::debug!(
             "iterating: c: {} num_data: {} iters: {}",
-            work_done, num_data, iterations
+            work_done,
+            num_data,
+            iterations
         );
 
         // phase 1
@@ -1212,7 +1219,7 @@ pub fn get_nn_table2_bsp(
         }
 
         let after = Instant::now();
-        println!("Phase 1: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
 
         // phase 2  Matlab line 88
 
@@ -1287,7 +1294,7 @@ pub fn get_nn_table2_bsp(
         }
 
         let after = Instant::now();
-        println!("Phase 2: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
 
         // phase 3
 
@@ -1460,11 +1467,11 @@ pub fn get_nn_table2_bsp(
             .sum::<usize>();
 
         let after = Instant::now();
-        println!("Phase 3: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));
     }
 
     let final_time = Instant::now();
-    println!(
+    log::debug!(
         "Overall time 3: {} ms",
         ((final_time - start_time).as_millis() as f64)
     );

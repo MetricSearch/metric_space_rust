@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 pub struct Updates {
     inner: Vec<Mutex<Vec<Update>>>,
@@ -20,13 +20,13 @@ impl Updates {
     } // atomic refer counted pntr
 
     pub fn add(&self, row: usize, index: usize, sim: f32) {
-        self.inner[row].lock().unwrap().push(Update { index, sim })
+        self.inner[row].lock().push(Update { index, sim })
     }
 
     pub fn into_inner(self) -> Vec<Vec<Update>> {
         self.inner
             .into_iter()
-            .map(|mutex| mutex.into_inner().unwrap())
+            .map(|mutex| mutex.into_inner())
             .collect()
     }
 }

@@ -30,7 +30,7 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    println!("Loading mf dino data...");
+    log::info!("Loading mf dino data...");
     let num_queries = 10_000;
     let num_data = 1_000_000 - num_queries;
 
@@ -39,10 +39,10 @@ fn main() -> Result<()> {
     let dao_f32: Rc<DaoMatrix<f32>> =
         Rc::new(dao_matrix_from_csv_dir(&args.path, num_data, num_queries)?);
 
-    println!("Converting mf dino to bsp...");
+    log::info!("Converting mf dino to bsp...");
 
     let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(), 200);
-    println!("Running r_descent<bsp>...");
+    log::info!("Running r_descent<bsp>...");
 
     let start_post_load = Instant::now();
 
@@ -52,20 +52,20 @@ fn main() -> Result<()> {
     let delta = 0.01;
     let reverse_list_size = 32;
 
-    println!("Initializing NN table with chunk size {}", chunk_size);
+    log::info!("Initializing NN table with chunk size {}", chunk_size);
     let (mut ords, mut dists) = initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
 
-    // println!("ORDS: {:?}", ords);
-    // println!("Dists: {:?}", dists);
+    // log::info!("ORDS: {:?}", ords);
+    // log::info!("Dists: {:?}", dists);
     //
     // for i in 0..3 {
-    //     println!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
+    //     log::info!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
     //     for ord in ords.row(i) {
-    //         println!( "dist({},{}) real dist is: {} ", i, ord, bsp_similarity_as_f32::<2>(dao_bsp.get_datum(i), dao_bsp.get_datum(*ord)) );
+    //         log::info!( "dist({},{}) real dist is: {} ", i, ord, bsp_similarity_as_f32::<2>(dao_bsp.get_datum(i), dao_bsp.get_datum(*ord)) );
     //     }
     // }
 
-    println!("Getting NN table");
+    log::info!("Getting NN table");
 
     get_nn_table2_bsp(
         dao_bsp.clone(),
@@ -77,18 +77,18 @@ fn main() -> Result<()> {
         reverse_list_size,
     );
 
-    println!("Line 0 of table:");
+    log::info!("Line 0 of table:");
     for i in 0..10 {
-        println!(" neighbours: {} dists: {}", ords[[0, i]], dists[[0, i]]);
+        log::info!(" neighbours: {} dists: {}", ords[[0, i]], dists[[0, i]]);
     }
 
     let end = Instant::now();
 
-    println!(
+    log::info!(
         "Finished (including load time in {} s",
         (end - start).as_secs()
     );
-    println!(
+    log::info!(
         "Finished (post load time) in {} s",
         (end - start_post_load).as_secs()
     );

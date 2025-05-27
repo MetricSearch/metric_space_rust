@@ -156,9 +156,7 @@ pub fn arg_sort_big_to_small(dists: &Array2<f32>) -> (Array2<usize>, Array2<f32>
     let (ords, vals): (Vec<Vec<usize>>, Vec<Vec<f32>>) = dists
         .axis_iter(Axis(0))
         .map(|row: ArrayView<f32, Ix1>| {
-            let mut enumerated = row.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
-            enumerated.sort_by(|a, b| NonNan::new(*b.1).partial_cmp(&NonNan::new(*a.1)).unwrap());
-            enumerated.into_iter().unzip()
+            arg_sort_big_to_small_1d(row)
         })
         .unzip();
 
@@ -168,6 +166,12 @@ pub fn arg_sort_big_to_small(dists: &Array2<f32>) -> (Array2<usize>, Array2<f32>
         Array2::from_shape_vec((shape.0, shape.1), vals.into_iter().flatten().collect()).unwrap();
 
     (ords, vals)
+}
+
+pub fn arg_sort_big_to_small_1d(dists: ArrayView<f32, Ix1>) -> (Vec<usize>, Vec<f32>) {
+    let mut enumerated = dists.iter().enumerate().collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists)
+    enumerated.sort_by(|a, b| NonNan::new(*b.1).partial_cmp(&NonNan::new(*a.1)).unwrap());
+    enumerated.into_iter().unzip()
 }
 
 // Converts vectors of distances into vectors of indices and distances
@@ -277,7 +281,7 @@ pub fn dot_product_f32(
 }
 
 // Matrix multiply: C = A × B using mult.
-fn matrix_dot_i8(
+pub fn matrix_dot_i8(
     a: &Array2<i8>,
     b: &Array2<i8>,
     mult: fn(a: &[i8], b: &[i8]) -> i32,

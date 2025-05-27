@@ -5,7 +5,8 @@ use crate::non_nan::NonNan;
 use crate::pair::Pair;
 use byte_unit::{AdjustedByte, Byte};
 use ndarray::{
-    parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, Axis, Ix1, ViewRepr,
+    parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Ix1,
+    ViewRepr,
 };
 use rand::seq::index::sample;
 use rand::SeedableRng;
@@ -150,14 +151,12 @@ pub fn arg_sort_small_to_big(dists: Array2<f32>) -> (Array2<usize>, Array2<f32>)
 
 // Converts 2d arrays of distances into 2d arrays of indices and distances
 // sorts into order from bigger to smaller
-pub fn arg_sort_big_to_small(dists: &Array2<f32>) -> (Array2<usize>, Array2<f32>) {
+pub fn arg_sort_big_to_small_2d(dists: &ArrayView2<f32>) -> (Array2<usize>, Array2<f32>) {
     let shape = dists.dim();
 
     let (ords, vals): (Vec<Vec<usize>>, Vec<Vec<f32>>) = dists
         .axis_iter(Axis(0))
-        .map(|row: ArrayView<f32, Ix1>| {
-            arg_sort_big_to_small_1d(row)
-        })
+        .map(|row: ArrayView<f32, Ix1>| arg_sort_big_to_small_1d(row))
         .unzip();
 
     let ords =

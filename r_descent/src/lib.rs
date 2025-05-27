@@ -8,10 +8,12 @@ use dao::{Dao, DaoMatrix};
 use ndarray::parallel::prelude::*;
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
 use ndarray::{
-    concatenate, s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Ix1, Order,
+    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut1, Axis,
+    Ix1, Order, OwnedRepr,
 };
 use rand_chacha::rand_core::SeedableRng;
 use rayon::prelude::*;
+use rayon::spawn;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashSet};
@@ -19,10 +21,9 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::ptr;
 use std::rc::Rc;
 use std::time::Instant;
-use rayon::spawn;
-use utils::{arg_sort_big_to_small_1d, bytes_fmt};
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
+use utils::{arg_sort_big_to_small_1d, bytes_fmt};
 use utils::{arg_sort_big_to_small_2d, index_of_min, min_index_and_value, minimum_in, rand_perm};
 
 #[derive(Serialize, Deserialize)]
@@ -178,27 +179,20 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
         let query_as_array: ArrayBase<OwnedRepr<EvpBits<{ X }>>, Ix1> = Array1::from_elem(1, query);
 
         let data_subset = data.slice(s![0..1000]);
-        let sims: Array2<f32> = matrix_dot_bsp::<X>(
-            &data_subset,
-            &query_as_array.view(),
-            |a, b| { bsp_similarity_as_f32::<X>(a, b) }); // matrix mult all the distances - all relative to the original_rows
+        let sims: Array2<f32> =
+            matrix_dot_bsp::<X>(&data_subset, &query_as_array.view(), |a, b| {
+                bsp_similarity_as_f32::<X>(a, b)
+            }); // matrix mult all the distances - all relative to the original_rows
         let (ords, sims) = arg_sort_big_to_small_2d(&sims.view()); // ords are row relative indices - these are is 1 X 1000
 
         // // these ords are row relative all range from 0..1000 in data - so therefore real dao indices
 
         // // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algoritm terminates
 
-        let mut binding = ords
-            .into_shape_with_order(1000)
-            .unwrap();
-        let mut q_nns: ArrayViewMut1<usize> =
-            binding
-            .slice_mut(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
-        let mut binding = sims.into_shape_with_order(1000)
-            .unwrap();
-        let mut q_sims: ArrayViewMut1<f32> =
-            binding
-            .slice_mut(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
+        let mut binding = ords.into_shape_with_order(1000).unwrap();
+        let mut q_nns: ArrayViewMut1<usize> = binding.slice_mut(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
+        let mut binding = sims.into_shape_with_order(1000).unwrap();
+        let mut q_sims: ArrayViewMut1<f32> = binding.slice_mut(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
 
         let mut current_min_sim = -1.0;
 
@@ -216,8 +210,12 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
             // q_nns are the current best NNs that we know about
             // but don't re-try ones that have already been added before this loop
 
-            let selectors = get_selectors_from_flags( &new_flags );
-            let these_q_nns: Array1<usize> = get_slice_using_selectors(&q_nns.view(), &selectors.view(), selectors.shape().try_into().unwrap());
+            let selectors = get_selectors_from_flags(&new_flags);
+            let these_q_nns: Array1<usize> = get_slice_using_selectors(
+                &q_nns.view(),
+                &selectors.view(),
+                selectors.shape().try_into().unwrap(),
+            );
 
             // set all to false; will be reset to true when overwritten with new values
             new_flags.fill(false);
@@ -227,7 +225,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
 
             // TODO what if these_q_nns is bigger than number of neighbours in the table
 
-            let forward_nns: Array2<usize> = get_2D_slice_using(&self.rdescent.neighbours.view(), &these_q_nns.view());
+            let forward_nns: Array2<usize> =
+                get_2D_slice_using(&self.rdescent.neighbours.view(), &these_q_nns.view());
 
             // and we make it into a one-dim Array
             let rows = forward_nns.nrows();
@@ -236,10 +235,11 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
 
             // these two lines do the same for the reverse table as above for the forward table
 
-            let reverse_nns: Array2<usize> = get_2D_slice_using(&self.reverse_neighbours.view(), &these_q_nns.view());
+            let reverse_nns: Array2<usize> =
+                get_2D_slice_using(&self.reverse_neighbours.view(), &these_q_nns.view());
             let rows = reverse_nns.nrows();
             let cols = reverse_nns.ncols();
-            let reverse_nns = reverse_nns.into_shape_with_order((rows*cols)).unwrap();
+            let reverse_nns = reverse_nns.into_shape_with_order((rows * cols)).unwrap();
 
             // TODO eliminate duplicates from reverse_nns - but leave for now - expensive and tricky
 
@@ -255,10 +255,9 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
             // allSims is a flat vector is distances
             // ie it is a 1 x N array where N is the number of elements in allIds
             // only it isnt so needs flattening
-            let all_sims = matrix_dot_bsp(
-                &nn_data.view(),
-                &query_as_array.view(),
-                |a, b| { bsp_similarity_as_f32::<X>(a, b) });
+            let all_sims = matrix_dot_bsp(&nn_data.view(), &query_as_array.view(), |a, b| {
+                bsp_similarity_as_f32::<X>(a, b)
+            });
 
             let all_sims = all_sims.flatten();
 
@@ -269,8 +268,10 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
                 // is the similarity of the query and thisId greater than the smallest similarity in the result set?
                 // if it's not, then do nothing and carry on
 
-                if this_sim > current_min_sim { // more similar than what we have so far
-                    if !q_nns.iter().any(|x| *x == this_id) {  // check if this_id is in the result set already
+                if this_sim > current_min_sim {
+                    // more similar than what we have so far
+                    if !q_nns.iter().any(|x| *x == this_id) {
+                        // check if this_id is in the result set already
                         // and it's not, so we're doing a replacement
                         // first find where the current smallest similarity is
                         let (position, value) = min_index_and_value(&q_sims.view());
@@ -287,7 +288,15 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
         }
 
         let (sorted_ords, sorted_dists) = arg_sort_big_to_small_1d(q_sims.view());
-        let sorted_pairs = sorted_ords.iter().map(|index| { Pair::new(NonNan::new(sorted_dists[*index]), q_nns[sorted_ords[*index]]) }).collect();
+        let sorted_pairs = sorted_ords
+            .iter()
+            .map(|index| {
+                Pair::new(
+                    NonNan::new(sorted_dists[*index]),
+                    q_nns[sorted_ords[*index]],
+                )
+            })
+            .collect();
 
         (sorted_ords.len(), sorted_pairs) /* distances plus Vec<Pair> */
     }
@@ -297,8 +306,8 @@ fn get_selectors_from_flags(selectors: &Array1<bool>) -> Array1<usize> {
     let vec = selectors
         .into_iter()
         .enumerate()
-        .filter_map( |(index, value)| if *value { Some(index) } else { None })
-    .collect();
+        .filter_map(|(index, value)| if *value { Some(index) } else { None })
+        .collect();
 
     Array1::from_vec(vec)
 }
@@ -454,7 +463,7 @@ pub fn initialise_table_m(
             let chunk_dists: Array2<f32> = chunk.dot(&rand_data.t()); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists) = arg_sort_big_to_small_2d(&chunk_dists.view()); // sorted ords are row relative indices.
-                                                                                   // these ords are row relative all range from 0..real_chunk_size
+                                                                                             // these ords are row relative all range from 0..real_chunk_size
 
             // get the num_neighbours closest original data indices
             let mut closest_dao_indices: Array2<usize> =
@@ -1015,7 +1024,7 @@ fn get_slice_using_selected(
     unsafe { sliced.assume_init() }
 }
 
-fn get_1D_slice_using_selected<T:Clone>(
+fn get_1D_slice_using_selected<T: Clone>(
     source: &ArrayView1<T>,
     selectors: &ArrayView1<usize>,
 ) -> Array1<T> {
@@ -1029,7 +1038,6 @@ fn get_1D_slice_using_selected<T:Clone>(
 
     unsafe { sliced.assume_init() }
 }
-
 
 //************** BSP impl below here **************
 
@@ -1090,7 +1098,7 @@ pub fn initialise_table_bsp(
                 }); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists) = arg_sort_big_to_small_2d(&chunk_dists.view()); // sorted ords are row relative indices.
-                                                                                   // these ords are row relative all range from 0..real_chunk_size
+                                                                                             // these ords are row relative all range from 0..real_chunk_size
 
             // get the num_neighbours closest original data indices
             let mut closest_dao_indices: Array2<usize> =
@@ -1327,10 +1335,8 @@ pub fn get_nn_table2_bsp(
                 let new_row_union_len = new_row_union.len();
 
                 // index the data using the rows indicated in old_row
-                let old_data =
-                    get_slice_using_selectors(&data, &old_row.view(), [old_row.len()]); // Matlab line 136
-                let new_data =
-                    get_slice_using_selectors(&data, &new_row.view(), [new_row.len()]); // Matlab line 137
+                let old_data = get_slice_using_selectors(&data, &old_row.view(), [old_row.len()]); // Matlab line 136
+                let new_data = get_slice_using_selectors(&data, &new_row.view(), [new_row.len()]); // Matlab line 137
                 let new_union_data =
                     get_slice_using_selectors(&data, &new_row_union.view(), [new_row_union_len]); // Matlab line 137
 
@@ -1466,7 +1472,7 @@ pub fn get_nn_table2_bsp(
 
 //********* Helper functions *********
 
-fn get_slice_using_selectors<T:Clone>(
+fn get_slice_using_selectors<T: Clone>(
     source: &ArrayView1<T>,
     selectors: &ArrayView1<usize>,
     result_shape: [usize; 1],
@@ -1483,18 +1489,17 @@ fn get_slice_using_selectors<T:Clone>(
     unsafe { sliced.assume_init() }
 }
 
-
-fn get_2D_slice_using<T:Clone>(
+fn get_2D_slice_using<T: Clone>(
     source: &ArrayView2<T>,
     selectors: &ArrayView1<usize>,
 ) -> Array2<T> {
-    let mut sliced = Array2::uninit((selectors.len(),source.ncols()));
+    let mut sliced = Array2::uninit((selectors.len(), source.ncols()));
 
     for count in 0..selectors.len() {
         // was result_shape
         source
-            .slice(s![selectors[count],0..])
-            .assign_to(sliced.slice_mut(s![count,0..]));
+            .slice(s![selectors[count], 0..])
+            .assign_to(sliced.slice_mut(s![count, 0..]));
     }
 
     unsafe { sliced.assume_init() }

@@ -1,8 +1,10 @@
 use bitvec_simd::BitVecSimd;
+use core::panic;
 use ndarray::parallel::prelude::*;
 use ndarray::{Array1, Array2, ArrayView1};
 use rayon::iter::ParallelBridge;
 use std::hash::Hasher;
+use std::mem::MaybeUninit;
 use std::ops::BitXor;
 use std::sync::Arc;
 use utils::arg_sort;
@@ -206,7 +208,7 @@ pub fn whamming_distance<const D: usize>(
 
 // Bit Scalar Product
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EvpBits<const X: usize> {
     pub ones: BitVecSimd<[u64x4; X], 4>,
     pub negative_ones: BitVecSimd<[u64x4; X], 4>,
@@ -248,43 +250,64 @@ pub fn f32_embeddings_to_bsp<const D: usize>(
     embeddings
         .rows()
         .into_iter()
-        .map(|row| f32_embedding_to_bsp::<D>(&row, non_zeros))
+        .map(|row| f32_embedding_to_bsp::<D>(row.as_slice().unwrap(), non_zeros))
         .collect()
 }
 
-pub fn f32_embedding_to_bsp<const D: usize>(
-    embedding: &ArrayView1<f32>,
-    non_zeros: usize,
-) -> EvpBits<D> {
-    let mut ones = vec![];
-    let mut negative_ones = vec![];
+pub fn f32_embedding_to_bsp<const D: usize>(embedding: &[f32], non_zeros: usize) -> EvpBits<D> {
+    let mut ones = [MaybeUninit::<bool>::uninit(); 384];
+    let mut ones_idx = 0usize;
+    let mut negative_ones = [MaybeUninit::<bool>::uninit(); 384];
+    let mut negative_ones_idx = 0usize;
     let embedding_len = embedding.len();
 
-    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| x.abs()).collect());
+    let mut enumerated = embedding
+        .iter()
+        .map(|x| x.abs())
+        .enumerate()
+        .collect::<Vec<_>>();
 
-    let (_smallest_indices, biggest_indices) = indices.split_at(embedding_len - non_zeros);
+    enumerated.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+    let (_, biggest_pairs) = enumerated.split_at(embedding_len - non_zeros);
+    let biggest = biggest_pairs
+        .into_iter()
+        .map(|(idx, _)| *idx)
+        .collect::<Vec<_>>();
 
     (0..embedding.len()).for_each(|index| {
-        if biggest_indices.contains(&index) {
+        if biggest.contains(&index) {
             if embedding[index] > 0.0 {
-                ones.push(true);
+                ones[ones_idx].write(true);
+                ones_idx += 1;
             } else {
-                ones.push(false);
+                ones[ones_idx].write(false);
+                ones_idx += 1;
             }
             if embedding[index] < 0.0 {
-                negative_ones.push(true);
+                negative_ones[negative_ones_idx].write(true);
+                negative_ones_idx += 1;
             } else {
-                negative_ones.push(false);
+                negative_ones[negative_ones_idx].write(false);
+                negative_ones_idx += 1;
             }
         } else {
-            ones.push(false);
-            negative_ones.push(false);
+            ones[ones_idx].write(false);
+            ones_idx += 1;
+
+            negative_ones[negative_ones_idx].write(false);
+            negative_ones_idx += 1;
         }
     });
 
+    let ones = unsafe { std::mem::transmute::<_, [bool; 384]>(ones) };
+    let negative_ones = unsafe { std::mem::transmute::<_, [bool; 384]>(negative_ones) };
+
     EvpBits::<D> {
-        ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
-        negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()),
+        ones: BitVecSimd::from_bool_iterator(ones[..ones_idx].into_iter().copied()),
+        negative_ones: BitVecSimd::from_bool_iterator(
+            negative_ones[..negative_ones_idx].into_iter().copied(),
+        ),
     }
 }
 
@@ -294,7 +317,7 @@ pub fn f32_data_to_bsp<const D: usize>(
 ) -> Vec<EvpBits<D>> {
     embeddings
         .iter()
-        .map(|embedding| f32_embedding_to_bsp::<D>(&embedding.view(), non_zeros))
+        .map(|embedding| f32_embedding_to_bsp::<D>(embedding.as_slice().unwrap(), non_zeros))
         .collect::<Vec<EvpBits<D>>>()
 }
 

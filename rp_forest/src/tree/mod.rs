@@ -8,6 +8,7 @@ use rand_chacha::ChaCha8Rng;
 use std::cmp::max;
 use std::rc::Rc;
 use tracing_subscriber::prelude::__tracing_subscriber_field_MakeExt;
+use utils::index::Index;
 // const SEED: [u8; 32] = [
 //     1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
 //     8, 39, 55, 23, 37, 112, 72, 5,
@@ -19,7 +20,7 @@ use tracing_subscriber::prelude::__tracing_subscriber_field_MakeExt;
 
 pub struct RpNode<T> {
     pub pivot: T,            // The pivot for this node
-    pub payload: Vec<usize>, // A vec of indices into the vectors structure
+    pub payload: Vec<Index>, // A vec of indices into the vectors structure
     pub split_value: f32,    // the split value that is used to subdivide the data into children
     pub left: Option<Box<Self>>,
     pub right: Option<Box<Self>>,
@@ -27,11 +28,11 @@ pub struct RpNode<T> {
 
 impl<T: Clone> RpNode<T> {
     pub fn new(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> Self {
-        let payload: Vec<usize> = vec![];
+        let payload = vec![];
         //let distribution = Normal::new(0.0, 1.0).unwrap();
         Self {
             pivot: make_pivot2(dao, rng),
-            payload: payload,
+            payload,
             split_value: 0.0,
             left: None,
             right: None,
@@ -44,7 +45,7 @@ impl<T: Clone> RpNode<T> {
 
     pub fn add(
         &mut self,
-        index: usize,
+        index: Index,
         max_load: usize,
         dim: usize,
         dao: Rc<Dao<T>>,
@@ -57,7 +58,7 @@ impl<T: Clone> RpNode<T> {
 
     fn do_insert(
         &mut self,
-        index: usize,
+        index: Index,
         max_load: usize,
         dim: usize,
         dao: Rc<Dao<T>>,
@@ -102,7 +103,7 @@ impl<T: Clone> RpNode<T> {
         1 + max(right_depth, left_depth)
     }
 
-    pub fn do_lookup(&self, query: T, dot_product: fn(&T, &T) -> f32) -> Option<Vec<usize>> {
+    pub fn do_lookup(&self, query: T, dot_product: fn(&T, &T) -> f32) -> Option<Vec<Index>> {
         if self.is_leaf() {
             Some(self.payload.clone())
         } else {
@@ -202,7 +203,7 @@ impl<T> std::fmt::Debug for RpNode<T> {
 pub fn make_pivot2<T: Clone>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> T {
     let index = rng.gen_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
-    dao.get_datum(index).clone()
+    dao.get_datum(Index::from(index)).clone()
 }
 
 // fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
@@ -265,13 +266,13 @@ impl<T: Clone> RPTree<T> {
         }
     }
 
-    pub fn lookup(&self, query: T) -> Option<Vec<usize>> {
+    pub fn lookup(&self, query: T) -> Option<Vec<Index>> {
         self.root
             .as_ref()
             .and_then(|node| node.do_lookup(query, self.dot_product))
     }
 
-    pub fn add(&mut self, table_index: usize, dot_product: fn(&T, &T) -> f32) {
+    pub fn add(&mut self, table_index: Index, dot_product: fn(&T, &T) -> f32) {
         match &mut self.root {
             None => {
                 let mut node = RpNode::new(self.dao.clone(), &mut self.rng);
@@ -299,7 +300,7 @@ impl<T: Clone> RPTree<T> {
             if i % 100_000 == 0 {
                 tracing::info!("Adding data {i}");
             }
-            self.add(i, dot_product);
+            self.add(Index::from(i), dot_product);
         }
     }
 }
@@ -356,7 +357,7 @@ impl<T: Clone> RPForest<T> {
         for i in 0..dao.data_len() {
             if i % 100_000 == 0 {
                 for j in 0..self.trees.len() {
-                    self.trees[j].add(i, self.dot_product);
+                    self.trees[j].add(Index::from(i), self.dot_product);
                 }
                 tracing::info!("Adding data {i}");
             }
@@ -367,10 +368,10 @@ impl<T: Clone> RPForest<T> {
     pub fn add(&mut self, index: usize) {
         self.trees
             .iter_mut()
-            .for_each(|tree| tree.add(index, self.dot_product));
+            .for_each(|tree| tree.add(Index::from(index), self.dot_product));
     }
 
-    pub fn lookup(&self, query: T) -> Vec<usize> {
+    pub fn lookup(&self, query: T) -> Vec<Index> {
         self.trees
             .iter()
             .filter_map(|tree| tree.lookup(query.clone()))

@@ -4,6 +4,7 @@ use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use ndarray::Array1;
 use std::rc::Rc;
+use utils::index::Index;
 use wide::u64x4;
 //use tracing_subscriber::EnvFilter;
 use bits::whamming_distance;
@@ -32,17 +33,19 @@ fn main() -> Result<()> {
 
     let dao_hamming: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> = to_cubic_dao(dao_f32.clone());
 
-    let mut indices_f32: Vec<i32> = vec![-1; num_neighbours]; // build a new array of nns
-    let mut distances_f32: Vec<f32> = vec![f32::MAX; num_neighbours]; // build a new array of infinity distances
+    let mut indices_f32 = vec![Index::MAX; num_neighbours]; // build a new array of nns
+    let mut distances_f32 = vec![f32::MAX; num_neighbours]; // build a new array of infinity distances
 
     for query_index in 0..10 {
+        let query_index = Index::from(query_index);
         let query_f32 = dao_f32.get_query(query_index);
         let query_bits = dao_hamming.get_query(query_index);
 
         for i in 0..num_data {
+            let i = Index::from(i);
             let data = dao_f32.get_datum(i);
             let dist = euc(&query_f32, &data);
-            add_to_nns(&mut distances_f32, &mut indices_f32, &dist, &i);
+            add_to_nns(&mut distances_f32, &mut indices_f32, dist, i);
         }
 
         distances_f32.reverse();
@@ -54,15 +57,16 @@ fn main() -> Result<()> {
         //     println!("{} euc dist {}", first_10_indices[i], first_10_distances[i]);
         // }
 
-        let mut indices_bits: Vec<i32> = vec![-1; num_neighbours]; // build a new array of nns
-        let mut distances_bits: Vec<f32> = vec![f32::MAX; num_neighbours]; // build a new array of infinity distances
+        let mut indices_bits = vec![Index::MAX; num_neighbours]; // build a new array of nns
+        let mut distances_bits = vec![f32::MAX; num_neighbours]; // build a new array of infinity distances
 
         let now = Instant::now();
 
         for i in 0..num_data {
+            let i = Index::from(i);
             let data = dao_hamming.get_datum(i);
             let dist = whamming_distance(&query_bits, &data);
-            add_to_nns(&mut distances_bits, &mut indices_bits, &(dist as f32), &i);
+            add_to_nns(&mut distances_bits, &mut indices_bits, (dist as f32), i);
         }
 
         let elapsed = now.elapsed();
@@ -92,24 +96,28 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_index(p0: i32, true_nns: &Vec<i32>) -> usize {
-    true_nns.iter().position(|&n| n == p0).unwrap_or(99999)
+fn get_index(p0: Index, true_nns: &[Index]) -> Index {
+    true_nns
+        .iter()
+        .position(|&n| n == p0)
+        .map(Index::from)
+        .unwrap_or(Index::MAX)
 }
 
 fn add_to_nns(
     distances: &mut Vec<f32>,
-    indices: &mut Vec<i32>,
-    distance: &f32,
-    index: &usize,
+    indices: &mut Vec<Index>,
+    distance: f32,
+    index: Index,
 ) -> bool {
-    if distance >= &distances[0] {
+    if distance >= distances[0] {
         false
     } else {
-        distances[0] = *distance; // insert the new priority in place of the furthest
+        distances[0] = distance; // insert the new priority in place of the furthest
         distances.sort_by(|a, b| b.partial_cmp(a).unwrap()); // get the new entry into the right position
-        let insert_position = distances.iter().position(|&x| x == *distance).unwrap(); // find out where it went
+        let insert_position = distances.iter().position(|&x| x == distance).unwrap(); // find out where it went
 
-        indices.insert(insert_position + 1, *index as i32); // insert into the rest of the indices - ignore the zeroth
+        indices.insert(insert_position + 1, index); // insert into the rest of the indices - ignore the zeroth
         indices.remove(0); // remove the old first index
 
         true

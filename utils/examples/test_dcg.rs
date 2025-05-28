@@ -1,31 +1,32 @@
+use utils::index::Index;
 use utils::ndcg;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 
 pub fn main() {
     let mut perfect_results: Vec<Pair> = Vec::new();
-    perfect_results.push(Pair::new(NonNan::new(1.0), 5));
-    perfect_results.push(Pair::new(NonNan::new(1.2), 9));
-    perfect_results.push(Pair::new(NonNan::new(1.5), 7));
-    perfect_results.push(Pair::new(NonNan::new(2.0), 6));
+    perfect_results.push(Pair::new(NonNan::new(1.0), Index::new(5)));
+    perfect_results.push(Pair::new(NonNan::new(1.2), Index::new(9)));
+    perfect_results.push(Pair::new(NonNan::new(1.5), Index::new(7)));
+    perfect_results.push(Pair::new(NonNan::new(2.0), Index::new(6)));
 
     let mut bad_results: Vec<Pair> = Vec::new();
-    bad_results.push(Pair::new(NonNan::new(1.0), 10));
-    bad_results.push(Pair::new(NonNan::new(1.2), 20));
-    bad_results.push(Pair::new(NonNan::new(1.5), 30));
-    bad_results.push(Pair::new(NonNan::new(2.0), 40));
+    bad_results.push(Pair::new(NonNan::new(1.0), Index::new(10)));
+    bad_results.push(Pair::new(NonNan::new(1.2), Index::new(20)));
+    bad_results.push(Pair::new(NonNan::new(1.5), Index::new(30)));
+    bad_results.push(Pair::new(NonNan::new(2.0), Index::new(40)));
 
     let mut mixed_results: Vec<Pair> = Vec::new();
-    mixed_results.push(Pair::new(NonNan::new(1.0), 5));
-    mixed_results.push(Pair::new(NonNan::new(1.2), 9));
-    mixed_results.push(Pair::new(NonNan::new(1.5), 3));
-    mixed_results.push(Pair::new(NonNan::new(2.0), 4));
+    mixed_results.push(Pair::new(NonNan::new(1.0), Index::new(5)));
+    mixed_results.push(Pair::new(NonNan::new(1.2), Index::new(9)));
+    mixed_results.push(Pair::new(NonNan::new(1.5), Index::new(3)));
+    mixed_results.push(Pair::new(NonNan::new(2.0), Index::new(4)));
 
     let mut gt: Vec<Pair> = Vec::new();
-    gt.push(Pair::new(NonNan::new(1.2), 5));
-    gt.push(Pair::new(NonNan::new(1.5), 9));
-    gt.push(Pair::new(NonNan::new(1.7), 7));
-    gt.push(Pair::new(NonNan::new(2.0), 6));
+    gt.push(Pair::new(NonNan::new(1.2), Index::new(5)));
+    gt.push(Pair::new(NonNan::new(1.5), Index::new(9)));
+    gt.push(Pair::new(NonNan::new(1.7), Index::new(7)));
+    gt.push(Pair::new(NonNan::new(2.0), Index::new(6)));
 
     println!("Gt and gt = {} should be 1", ndcg(&gt, &gt)); // Should be 1.
     println!(

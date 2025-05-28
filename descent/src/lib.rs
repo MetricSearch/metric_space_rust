@@ -22,6 +22,7 @@ use std::iter;
 use std::rc::Rc;
 use twox_hash::XxHash64;
 use utils::arg_sort;
+use utils::index::Index;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 
@@ -65,21 +66,21 @@ impl Descent {
         &self,
         dao: Rc<Dao<T>>,
         distance: fn(&T, &T) -> f32,
-    ) -> Vec<Vec<usize>> {
+    ) -> Vec<Vec<Index>> {
         let num_entries = self.current_graph.num_entries;
         println!("num entries: {}", num_entries);
 
-        let mut result: Vec<Vec<usize>> = vec![];
+        let mut result: Vec<Vec<Index>> = vec![];
 
         (0..num_entries).for_each(|row_index| {
-            let mut rng_star: Vec<usize> = vec![];
+            let mut rng_star: Vec<Index> = vec![];
             let nns = &self.current_graph.nns[row_index];
             let first = nns[0]; // get the closest item in the row
-            rng_star.push(first as usize); // push on the nearest neighbour
+            rng_star.push(first); // push on the nearest neighbour
 
             for neighbour_index in 1..nns.len() {
                 let next_neighbour_id = nns[neighbour_index];
-                let next_neighbour = dao.get_datum(next_neighbour_id as usize);
+                let next_neighbour = dao.get_datum(next_neighbour_id);
                 let q_to_next_neighbour_dist =
                     self.current_graph.distances[row_index][neighbour_index]; //T::dist(q, next_datum);
 
@@ -98,7 +99,7 @@ impl Descent {
                     }
                 }
                 if !found_closer {
-                    rng_star.push(next_neighbour_id as usize);
+                    rng_star.push(next_neighbour_id);
                 }
             } // end for
             result.push(rng_star);
@@ -110,7 +111,7 @@ impl Descent {
     pub fn knn_search<T: Clone>(
         &self,
         query: T,
-        nn_table: &Vec<Vec<usize>>,
+        nn_table: &[Vec<Index>],
         dao: Rc<Dao<T>>,
         swarm_size: usize,
         distance: fn(&T, &T) -> f32,
@@ -156,8 +157,8 @@ fn find_good_entry_point<T: Clone>(
 }
 /******* Private below here *******/
 
-fn get_entry_point(nn_table: &Vec<Vec<usize>>) -> usize {
-    return 100; // nn_table.len() / 4;
+fn get_entry_point(nn_table: &[Vec<Index>]) -> Index {
+    return Index::new(100); // nn_table.len() / 4;
 }
 
 /**
@@ -169,13 +170,13 @@ fn get_entry_point(nn_table: &Vec<Vec<usize>>) -> usize {
  */
 fn knn_search_internal<T: Clone>(
     query: T,
-    nn_table: &Vec<Vec<usize>>,
+    nn_table: &[Vec<Index>],
     dao: Rc<Dao<T>>,
-    entry_point: usize,
+    entry_point: Index,
     ef: usize,
     distance: fn(&T, &T) -> f32,
 ) -> (usize, Vec<Pair>) {
-    let mut visited_set: HashSet<usize, BuildHasherDefault<XxHash64>> = HashSet::default();
+    let mut visited_set = HashSet::<Index>::default();
 
     let ep_q_dist = NonNan::new(distance(&query, dao.get_datum(entry_point)));
 
@@ -206,7 +207,8 @@ fn knn_search_internal<T: Clone>(
                     // might not be full so check length after push
                     results_list.pop();
                 }
-                let neighbours_of_nearest_candidate = &nn_table[nearest_candidate_pair.index]; // List<Integer> - nns of nearest_candidate
+                let neighbours_of_nearest_candidate =
+                    &nn_table[nearest_candidate_pair.index.as_usize()]; // List<Integer> - nns of nearest_candidate
 
                 let new_cands: Vec<Reverse<Pair>> = neighbours_of_nearest_candidate
                     .into_iter()
@@ -314,8 +316,8 @@ fn reorder(current_graph: &mut Heap) {
     // next check for -1s in indices
 
     current_graph.nns.iter().for_each(|row| {
-        if row[0] == -1 {
-            panic!("-1 found in indices")
+        if row[0] == Index::MAX {
+            panic!("Index::MAX found in indices")
         }
     });
 }
@@ -333,6 +335,7 @@ fn init_rp_forest<T: Clone>(
         if row % 100_000 == 0 {
             tracing::info!("\nForest initialised {} rows", row);
         }
+        let row = Index::from(row);
         let neighbour_indices = forest.lookup(dao.get_datum(row).clone());
 
         let neighbour_dists = neighbour_indices
@@ -349,11 +352,11 @@ fn init_rp_forest<T: Clone>(
 
                 if dao_index != row {
                     checked_flagged_heap_push(
-                        &mut current_graph.nns[row],
-                        &mut current_graph.distances[row],
-                        &mut current_graph.flags[row],
+                        &mut current_graph.nns[row.as_usize()],
+                        &mut current_graph.distances[row.as_usize()],
+                        &mut current_graph.flags[row.as_usize()],
                         &nn_dists[nth_closest_indirect],
-                        dao_index as i32,
+                        dao_index,
                         1,
                     );
                 }
@@ -373,23 +376,24 @@ fn init_random<T: Clone>(
     let num_data = dao.num_data;
 
     for row in 0..num_data {
+        let row = Index::from(row);
         for _ in 0..num_neighbours {
             // Stops duplicate entries in row or row containing itself in nn table
-            let mut index = rng.gen_range(0..num_data);
+            let mut index = Index::from(rng.gen_range(0..num_data));
 
-            while index == row || current_graph.nns[row].iter().contains(&(index as i32)) {
-                index = rng.gen_range(0..num_data);
+            while index == row || current_graph.nns[row.as_usize()].iter().contains(&index) {
+                index = Index::from(rng.gen_range(0..num_data));
             }
 
             let dist = distance(dao.get_datum(index), dao.get_datum(row));
             let flag = 1;
 
             checked_flagged_heap_push(
-                &mut current_graph.nns[row],
-                &mut current_graph.distances[row],
-                &mut current_graph.flags[row],
+                &mut current_graph.nns[row.as_usize()],
+                &mut current_graph.distances[row.as_usize()],
+                &mut current_graph.flags[row.as_usize()],
                 &dist,
-                index as i32,
+                index,
                 flag,
             );
         }
@@ -401,14 +405,14 @@ fn init_random<T: Clone>(
 fn apply_graph_updates(
     current_heap: &mut Heap,
     updates: Vec<Vec<Update>>,
-    nn_table: &mut Vec<Vec<i32>>,
+    nn_table: &mut Vec<Vec<Index>>,
 ) -> usize {
     let mut num_changes = 0;
 
     for i in 0..updates.len() {
         for j in 0..updates[i].len() {
             let Update(p, q, dist) = updates[i][j]; // TODO change to x,y
-            if p == -1 || q == -1 || p == q {
+            if p == Index::MAX || q == Index::MAX || p == q {
                 // not set or both equal
                 continue;
             }
@@ -418,40 +422,40 @@ fn apply_graph_updates(
                 panic!("Found a MAX dist when applying graph updates")
             }
 
-            if nn_table[p as usize].contains(&q) && nn_table[q as usize].contains(&p) {
+            if nn_table[p.as_usize()].contains(&q) && nn_table[q.as_usize()].contains(&p) {
                 // neighbours of q contains p and neighbours of p contains q
                 continue;
             }
-            if nn_table[p as usize].contains(&q) { // neighbours of q contains p
+            if nn_table[p.as_usize()].contains(&q) { // neighbours of q contains p
             } else {
                 let added = checked_flagged_heap_push(
-                    &mut current_heap.nns[p as usize],
-                    &mut current_heap.distances[p as usize],
-                    &mut current_heap.flags[p as usize],
+                    &mut current_heap.nns[p.as_usize()],
+                    &mut current_heap.distances[p.as_usize()],
+                    &mut current_heap.flags[p.as_usize()],
                     &dist,
                     q,
                     1,
                 );
 
                 if added > 0 {
-                    nn_table[p as usize].push(q);
+                    nn_table[p.as_usize()].push(q);
                 }
                 num_changes += added
             }
 
-            if p == q || nn_table[q as usize].contains(&p) {
+            if p == q || nn_table[q.as_usize()].contains(&p) {
             } else {
                 let added = checked_flagged_heap_push(
-                    &mut current_heap.nns[p as usize],
-                    &mut current_heap.distances[p as usize],
-                    &mut current_heap.flags[p as usize],
+                    &mut current_heap.nns[p.as_usize()],
+                    &mut current_heap.distances[p.as_usize()],
+                    &mut current_heap.flags[p.as_usize()],
                     &dist,
                     q,
                     1,
                 );
 
                 if added > 0 {
-                    nn_table[q as usize].push(p);
+                    nn_table[q.as_usize()].push(p);
                 }
                 num_changes += added
             }
@@ -462,8 +466,8 @@ fn apply_graph_updates(
 }
 
 fn generate_graph_updates<T: Clone>(
-    new_candidate_block: &[Vec<i32>],
-    old_candidate_block: &[Vec<i32>],
+    new_candidate_block: &[Vec<Index>],
+    old_candidate_block: &[Vec<Index>],
     current_graph: &mut Heap,
     dao: Rc<Dao<T>>,
     distance: fn(&T, &T) -> f32,
@@ -475,7 +479,7 @@ fn generate_graph_updates<T: Clone>(
     let mut updates: Vec<Vec<Update>> = vec![];
     // initialise the updates data structure with empty entries.
     for _ in 0..block_size {
-        updates.push(vec![Update(-1, -1, f32::MAX)]);
+        updates.push(vec![Update(Index::MAX, Index::MAX, f32::MAX)]);
     }
 
     // The names in this code assume the following:
@@ -490,32 +494,32 @@ fn generate_graph_updates<T: Clone>(
     for b in 0..block_size {
         for first_column_index in 0..max_candidates {
             let a = new_candidate_block[b][first_column_index];
-            if a < 0 {
+            if a == Index::MAX {
                 continue;
             }
 
             for rest_column_index in first_column_index..max_candidates {
                 let c = new_candidate_block[b][rest_column_index];
-                if c < 0 {
+                if c == Index::MAX {
                     continue;
                 }
 
-                let ac_dist = distance(dao.get_datum(a as usize), dao.get_datum(c as usize));
-                if ac_dist <= distances[a as usize][0] || ac_dist <= distances[c as usize][0] {
+                let ac_dist = distance(dao.get_datum(a), dao.get_datum(c));
+                if ac_dist <= distances[a.as_usize()][0] || ac_dist <= distances[c.as_usize()][0] {
                     // first entry in the distances is the highest?
-                    updates[b].push(Update(a as i32, c as i32, ac_dist));
+                    updates[b].push(Update(a, c, ac_dist));
                 }
             }
 
             for column_index2 in 0..max_candidates {
                 let c = old_candidate_block[b][column_index2];
-                if c < 0 {
+                if c == Index::MAX {
                     continue;
                 }
-                let dist = distance(dao.get_datum(a as usize), dao.get_datum(c as usize));
-                if dist <= distances[a as usize][0] || dist <= distances[c as usize][0] {
+                let dist = distance(dao.get_datum(a), dao.get_datum(c));
+                if dist <= distances[a.as_usize()][0] || dist <= distances[c.as_usize()][0] {
                     // first entry in the distances is the highest?
-                    updates[b].push(Update(a as i32, c as i32, dist));
+                    updates[b].push(Update(a, c, dist));
                 }
             }
         }
@@ -523,7 +527,7 @@ fn generate_graph_updates<T: Clone>(
     updates
 }
 
-fn dedup(indices: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+fn dedup(indices: &Vec<Vec<Index>>) -> Vec<Vec<Index>> {
     let indices = indices.clone(); // copy the indices
     let row_len = indices[0].len();
 
@@ -532,9 +536,9 @@ fn dedup(indices: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
         .map(|row| {
             row.into_iter()
                 .dedup()
-                .chain(iter::repeat(-1))
+                .chain(iter::repeat(Index::MAX))
                 .take(row_len)
-                .collect::<Vec<i32>>()
+                .collect::<Vec<Index>>()
         })
         .collect()
 }
@@ -549,14 +553,14 @@ fn new_build_candidates(
     num_neighbors: usize,
     num_vertices: usize,
     rng: &mut ChaCha8Rng,
-) -> (Vec<Vec<i32>>, Vec<Vec<i32>>) {
+) -> (Vec<Vec<Index>>, Vec<Vec<Index>>) {
     let current_indices = &current_graph.nns;
     let current_flags = &current_graph.flags;
 
-    let mut new_candidate_indices: Vec<Vec<i32>> = vec![vec![-1; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of indices of -1 = not connected
+    let mut new_candidate_indices = vec![vec![Index::MAX; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of indices of Index::MAX = not connected
     let mut new_candidate_distances: Vec<Vec<f32>> =
         vec![vec![f32::MAX; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of infinity
-    let mut old_candidate_indices: Vec<Vec<i32>> = vec![vec![-1; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of indices of -1 = not connected
+    let mut old_candidate_indices = vec![vec![Index::MAX; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of indices of -1 = not connected
     let mut old_candidate_distances: Vec<Vec<f32>> =
         vec![vec![f32::MAX; max_candidates]; num_vertices]; // build a new array n_vertices X max_candidates of infinity
 
@@ -567,12 +571,10 @@ fn new_build_candidates(
         for column_index in 0..num_neighbors {
             //let friend_index =
             let friend_index = current_indices[row_index][column_index]; // a friend from row_index,column_index (a dao index)
-            if friend_index < 0 {
-                // -1 represents data nor present
+            if friend_index == Index::MAX {
+                // MAX represents data not present
                 continue;
             }
-
-            let friend_index = friend_index as usize; // we have now checked it is not -1 can make it usize
 
             let priority = rng.gen_range(0.0..f32::MAX); // a random number - used to sort the data when pushed
 
@@ -586,24 +588,24 @@ fn new_build_candidates(
                 checked_heap_push(
                     &mut new_candidate_distances[row_index],
                     &mut new_candidate_indices[row_index],
-                    &priority,
-                    &friend_index,
+                    priority,
+                    friend_index,
                 ); // push the friend_index into the candidates for row
                 checked_heap_push(
-                    &mut new_candidate_distances[friend_index],
-                    &mut new_candidate_indices[friend_index],
-                    &priority,
-                    &row_index,
+                    &mut new_candidate_distances[friend_index.as_usize()],
+                    &mut new_candidate_indices[friend_index.as_usize()],
+                    priority,
+                    Index::from(row_index),
                 ); // push the row index into the candidates for the friend
             } else {
                 // the point at position j for row i is already in the set - add the row to the old friend only.
                 // TODO  thread code here in Python version
                 // remember the old state of the world here
                 checked_heap_push(
-                    &mut old_candidate_distances[friend_index],
-                    &mut old_candidate_indices[friend_index],
-                    &priority,
-                    &row_index,
+                    &mut old_candidate_distances[friend_index.as_usize()],
+                    &mut old_candidate_indices[friend_index.as_usize()],
+                    priority,
+                    Index::from(row_index),
                 ); // push the row_index into the candidates or the friend
             }
         }
@@ -634,18 +636,18 @@ fn new_build_candidates(
 
 fn checked_heap_push(
     priorities: &mut Vec<f32>,
-    indices: &mut Vec<i32>,
-    priority: &f32,
-    dao_index: &usize,
+    indices: &mut Vec<Index>,
+    priority: f32,
+    dao_index: Index,
 ) -> bool {
-    if priority >= &priorities[0] {
+    if priority >= priorities[0] {
         false
     } else {
-        priorities[0] = *priority; // insert the new priority in place of the furthest
+        priorities[0] = priority; // insert the new priority in place of the furthest
         priorities.sort_by(|a, b| b.partial_cmp(a).unwrap()); // get the new entry into the right position
-        let insert_position = priorities.iter().position(|&x| x == *priority).unwrap(); // find out where it went
+        let insert_position = priorities.iter().position(|&x| x == priority).unwrap(); // find out where it went
 
-        indices.insert(insert_position + 1, *dao_index as i32); // insert into the rest of the indices - ignore the zeroth
+        indices.insert(insert_position + 1, dao_index); // insert into the rest of the indices - ignore the zeroth
         indices.remove(0); // remove the old first index
 
         true
@@ -653,11 +655,11 @@ fn checked_heap_push(
 }
 
 fn checked_flagged_heap_push(
-    indices: &mut Vec<i32>,
+    indices: &mut Vec<Index>,
     priorities: &mut Vec<f32>,
     flags: &mut Vec<u8>,
     dist: &f32,
-    index: i32,
+    index: Index,
     flag: u8,
 ) -> usize {
     if dist >= &priorities[0] {
@@ -695,7 +697,7 @@ impl Debug for Descent {
     }
 }
 
-fn to_string_indices(indices: &Vec<Vec<i32>>) -> String {
+fn to_string_indices(indices: &Vec<Vec<Index>>) -> String {
     indices
         .iter()
         .map(|row| format!("[{}]", { row.iter().map(|&x| x.to_string()).join(", ") }))
@@ -709,4 +711,4 @@ fn to_string_distances(indices: &Vec<Vec<f32>>) -> String {
         .join("\n")
 }
 
-struct Update(i32, i32, f32);
+struct Update(Index, Index, f32);

@@ -19,3 +19,4 @@ rand_chacha.workspace = true
 ndarray.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+utils.workspace = true

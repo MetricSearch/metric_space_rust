@@ -10,3 +10,7 @@ rand_chacha.workspace = true
 ndarray.workspace = true
 randperm-crt.workspace = true
 byte-unit.workspace = true
+num-traits = "0.2.19"
+serde.workspace = true
+hdf5.workspace = true
+deepsize.workspace = true

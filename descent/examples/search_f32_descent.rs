@@ -4,6 +4,7 @@ use bitvec_simd::BitVecSimd;
 use metrics::euc;
 use ndarray::Array1;
 use std::collections::HashSet;
+use utils::index::Index;
 //use rayon::prelude::*;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
@@ -54,7 +55,7 @@ fn main() -> Result<()> {
     let (queries, _rest) = queries.split_at(this_many_queries);
 
     let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data, distance_f32);
-    let nn_table = to_usize(&descent.current_graph.nns);
+    let nn_table = &descent.current_graph.nns;
 
     println!("NNtable columns active {:?}", swarm_size);
 
@@ -77,7 +78,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn reduce_columns_to(nn_table: Vec<Vec<usize>>, num_columns: usize) -> Vec<Vec<usize>> {
+fn reduce_columns_to(nn_table: &[Vec<Index>], num_columns: usize) -> Vec<Vec<Index>> {
     nn_table
         .iter()
         .map(|row| row.iter().cloned().take(num_columns).collect())
@@ -164,7 +165,7 @@ fn show_results_and_gt(qid: usize, results: &Vec<Pair>, gt_pairs: &Vec<Pair>) {
     let gt_indexes = gt_pairs
         .iter()
         .map(|gt_pair| gt_pair.index)
-        .collect::<HashSet<usize>>();
+        .collect::<HashSet<_>>();
 
     let intersection = results
         .iter()
@@ -180,7 +181,7 @@ fn do_queries(
     descent: Descent,
     dao: Rc<Dao<Array1<f32>>>,
     gt_pairs: &Vec<Vec<Pair>>,
-    nn_table: Vec<Vec<usize>>,
+    nn_table: Vec<Vec<Index>>,
     swarm_size: usize,
     distance: fn(&Array1<f32>, &Array1<f32>) -> f32,
 ) {
@@ -207,13 +208,6 @@ fn do_queries(
     });
 }
 
-// TODO fix this mess somehow!
-fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
-    i32s.into_iter()
-        .map(|v| v.iter().map(|&v| v as usize).collect())
-        .collect()
-}
-
 //Returns the nn(k)
 fn brute_force_all_dists<T: Clone>(
     queries: Vec<T>,
@@ -226,7 +220,7 @@ fn brute_force_all_dists<T: Clone>(
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), it.0))
+                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), Index::from(it.0)))
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs

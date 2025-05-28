@@ -1,4 +1,5 @@
 use parking_lot::Mutex;
+use utils::index::Index;
 
 pub struct Updates {
     inner: Vec<Mutex<Vec<Update>>>,
@@ -6,7 +7,7 @@ pub struct Updates {
 
 #[derive(Clone, Copy)]
 pub struct Update {
-    pub index: usize,
+    pub index: Index,
     pub sim: f32,
 }
 
@@ -19,8 +20,10 @@ impl Updates {
         }
     } // atomic refer counted pntr
 
-    pub fn add(&self, row: usize, index: usize, sim: f32) {
-        self.inner[row].lock().push(Update { index, sim })
+    pub fn add(&self, row: Index, index: Index, sim: f32) {
+        self.inner[row.as_usize()]
+            .lock()
+            .push(Update { index, sim })
     }
 
     pub fn into_inner(self) -> Vec<Vec<Update>> {

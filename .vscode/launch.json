@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'check_r_descent_bsp_dino'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--release",
+                    "--example=check_r_descent_bsp_dino",
+                    "--package=r_descent"
+                ],
+                "filter": {
+                    "name": "check_r_descent_bsp_dino",
+                    "kind": "example"
+                }
+            },
+            "args": ["/home/fm208/Downloads/datasets/dino/"],
+            "cwd": "${workspaceFolder}"
+        },
+    ]
+}

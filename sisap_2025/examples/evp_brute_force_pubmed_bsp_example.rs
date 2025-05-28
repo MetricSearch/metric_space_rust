@@ -8,6 +8,7 @@ use ndarray::{s, Array2, ArrayView1};
 use std::collections::HashSet;
 use std::time::Instant;
 use utils::arg_sort_2d;
+use utils::index::Index;
 
 fn main() -> Result<()> {
     let num_records = 0;
@@ -73,8 +74,8 @@ fn add_one(ords: &Vec<Vec<usize>>) -> Vec<Vec<usize>> {
 
 fn report_queries(
     num_queries: usize,
-    gt_nns: &Array2<usize>,
-    bsp_nns: &Vec<Vec<usize>>,
+    gt_nns: &Array2<Index>,
+    bsp_nns: &Vec<Vec<Index>>,
     bsp_set_size: usize,
     gt_size: usize,
 ) {

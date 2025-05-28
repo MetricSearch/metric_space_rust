@@ -1,10 +1,11 @@
 use hdf5::File;
 use ndarray::{s, Array1, Array2, Axis};
+use utils::index::Index;
 
 pub fn hdf5_pubmed_gt_load(
     data_path: &str,
     num_knns_required: usize,
-) -> anyhow::Result<(Array2<usize>, Array2<f32>)> {
+) -> anyhow::Result<(Array2<Index>, Array2<f32>)> {
     let file = File::open(data_path)?; // open for reading
     let o_queries_group = file.group("otest")?; // out of distribution queries
 
@@ -20,7 +21,7 @@ pub fn hdf5_pubmed_gt_load(
         num_knns_required.min(num_cols)
     } as usize;
 
-    let knns: Array2<usize> = o_queries_knns
+    let knns: Array2<Index> = o_queries_knns
         .read_slice(s![0..num_rows, 0..num_cols])
         .unwrap();
     let dists: Array2<f32> = o_queries_dists

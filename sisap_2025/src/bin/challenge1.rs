@@ -23,6 +23,7 @@ use ndarray::{Array1, Array2, ArrayView1};
 use r_descent::{IntoRDescent, KnnSearch, RDescentMatrix};
 use std::rc::Rc;
 use std::time::Instant;
+use utils::index::Index;
 use utils::ndcg;
 use utils::pair::Pair;
 
@@ -109,7 +110,7 @@ fn do_queries(
     queries: Vec<EvpBits<2>>,
     descent: &RDescentMatrix,
     dao: Rc<Dao<EvpBits<2>>>,
-    gt_nns: &Array2<usize>,
+    gt_nns: &Array2<Index>,
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
@@ -139,7 +140,7 @@ fn show_results(qid: usize, results: &Vec<Pair>) {
     println!();
 }
 
-fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
+fn show_gt(qid: usize, gt_data: ArrayView1<Index>) {
     print!(
         "GT pairs size {} first few GT results for q{}:\t",
         gt_data.len(),
@@ -151,7 +152,7 @@ fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
     println!();
 }
 
-fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usize {
+fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<Index>) -> usize {
     results
         .iter()
         .filter_map(|pair| {
@@ -167,7 +168,7 @@ fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usiz
 fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
     let adjusted_results = results
         .into_iter()
-        .map(|pair| Pair::new(pair.distance, pair.index + 1))
+        .map(|pair| Pair::new(pair.distance, pair.index + Index::new(1)))
         .collect();
 
     (length, adjusted_results)

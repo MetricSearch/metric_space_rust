@@ -3,6 +3,7 @@ use dao::Dao;
 use ndarray::Array1;
 use rp_forest::tree::RPTree;
 use std::rc::Rc;
+use utils::index::Index;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -22,7 +23,7 @@ fn main() -> anyhow::Result<()> {
         // if i % 100_000 == 0 {
         //     tracing::info!("Adding data {i}");
         // }
-        tree.add(i, dot_product);
+        tree.add(Index::from(i), dot_product);
     }
 
     tracing::info!("{:?}", tree);
@@ -53,12 +54,12 @@ fn dot_product(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
         .sum()
 }
 
-fn lookup(
-    index: usize,
+fn lookup<I: Into<Index>>(
+    index: I,
     dao: Rc<Dao<Array1<f32>>>,
     tree: &mut RPTree<Array1<f32>>,
 ) -> anyhow::Result<()> {
-    let res = tree.lookup(dao.get_datum(index).clone());
+    let res = tree.lookup(dao.get_datum(index.into()).clone());
     match res {
         Some(results) => {
             println!("Number of results = {}", results.len());
@@ -71,7 +72,7 @@ fn lookup(
     Ok(())
 }
 
-fn display(results: Vec<usize>) {
+fn display(results: Vec<Index>) {
     for result in results {
         println!("{}", result);
     }

@@ -1190,6 +1190,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
+ "utils",
 ]
 
 [[package]]
@@ -1529,11 +1530,15 @@ name = "utils"
 version = "0.1.0"
 dependencies = [
  "byte-unit",
+ "deepsize",
+ "hdf5-metno",
  "ndarray",
+ "num-traits",
  "rand 0.9.1",
  "rand_chacha 0.9.0",
  "rand_distr",
  "randperm-crt",
+ "serde",
 ]
 
 [[package]]

@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::string::ToString;
+use utils::index::Index;
 use wide::u64x4;
 
 mod class_labels;
@@ -107,18 +108,18 @@ impl<T> Dao<T> {
         self.num_queries
     }
 
-    pub fn get_datum(&self, id: usize) -> &T {
-        if id >= self.num_data {
+    pub fn get_datum(&self, id: Index) -> &T {
+        if id.as_usize() >= self.num_data {
             panic!("id out of bounds | ID {}", id);
         }
-        self.embeddings.get(id).unwrap()
+        self.embeddings.get(id.as_usize()).unwrap()
     }
 
-    pub fn get_query(&self, id: usize) -> &T {
-        if id >= self.num_queries {
+    pub fn get_query(&self, id: Index) -> &T {
+        if id.as_usize() >= self.num_queries {
             panic!("id out of bounds");
         }
-        self.embeddings.get(self.num_data + id).unwrap()
+        self.embeddings.get(self.num_data + id.as_usize()).unwrap()
     }
 
     pub fn get_data(&self) -> ArrayView1<T> {
@@ -171,20 +172,20 @@ impl<T> DaoMatrix<T> {
         self.num_queries
     }
 
-    pub fn get_datum(&self, id: usize) -> ArrayBase<ViewRepr<&T>, Ix1> {
-        if id >= self.num_data {
+    pub fn get_datum(&self, id: Index) -> ArrayBase<ViewRepr<&T>, Ix1> {
+        if id.as_usize() >= self.num_data {
             // TODO consider putting option back in here
             panic!("id out of bounds");
         }
-        self.embeddings.row(id)
+        self.embeddings.row(id.as_usize())
     }
 
-    pub fn get_query(&self, id: usize) -> ArrayBase<ViewRepr<&T>, Ix1> {
-        if id < self.num_data && id >= self.meta.num_records {
+    pub fn get_query(&self, id: Index) -> ArrayBase<ViewRepr<&T>, Ix1> {
+        if id.as_usize() < self.num_data && id.as_usize() >= self.meta.num_records {
             // TODO consider putting option back in here
             panic!("id out of bounds");
         }
-        self.embeddings.row(self.num_data + id)
+        self.embeddings.row(self.num_data + id.as_usize())
     }
 
     pub fn get_data(&self) -> ArrayView2<T> {

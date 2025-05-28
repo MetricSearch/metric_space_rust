@@ -1,14 +1,14 @@
-use crate::non_nan::NonNan;
+use crate::{index::Index, non_nan::NonNan};
 use std::cmp::Ordering;
 
 #[derive(Clone)]
 pub struct Pair {
     pub distance: NonNan,
-    pub index: usize,
+    pub index: Index,
 }
 
 impl Pair {
-    pub fn new(distance: NonNan, index: usize) -> Pair {
+    pub fn new(distance: NonNan, index: Index) -> Pair {
         Pair { distance, index }
     }
 }

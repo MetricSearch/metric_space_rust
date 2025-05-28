@@ -13,6 +13,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::rc::Rc;
 use std::time::Instant;
+use utils::index::Index;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 use utils::{arg_sort_2d, ndcg};
@@ -53,7 +54,7 @@ fn main() -> Result<()> {
 
     let gt_pairs: Vec<Vec<Pair>> = brute_force_all_dists(queries.to_vec(), data, hamming_distance);
 
-    let nn_table = to_usize(&descent.current_graph.nns);
+    let nn_table = &descent.current_graph.nns;
 
     println!("Doing {:?} queries", queries.len());
 
@@ -61,7 +62,7 @@ fn main() -> Result<()> {
 
     do_queries(
         queries.to_vec(),
-        descent,
+        &descent,
         dao_cube.clone(),
         &gt_pairs,
         nn_table,
@@ -83,7 +84,7 @@ fn show_results(qid: usize, results: &Vec<Pair>) {
     println!();
 }
 
-fn show_gt(qid: usize, gt_pairs: &Vec<Vec<Pair>>) {
+fn show_gt(qid: usize, gt_pairs: &[Vec<Pair>]) {
     //<<<<<<<<<<<<<<<<<
     print!("first few GT results for q{}:\t", qid);
     gt_pairs.get(qid).unwrap().iter().take(5).for_each(|pair| {
@@ -94,10 +95,10 @@ fn show_gt(qid: usize, gt_pairs: &Vec<Vec<Pair>>) {
 
 fn do_queries(
     queries: Vec<BitVecSimd<[u64x4; 4], 4>>,
-    descent: Descent,
+    descent: &Descent,
     dao: Rc<Dao<BitVecSimd<[u64x4; 4], 4>>>,
-    gt_pairs: &Vec<Vec<Pair>>,
-    nn_table: Vec<Vec<usize>>,
+    gt_pairs: &[Vec<Pair>],
+    nn_table: &[Vec<Index>],
     distance: fn(&BitVecSimd<[u64x4; 4], 4>, &BitVecSimd<[u64x4; 4], 4>) -> f32,
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
@@ -118,13 +119,6 @@ fn do_queries(
     });
 }
 
-// TODO fix this mess somehow!
-fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
-    i32s.into_iter()
-        .map(|v| v.iter().map(|&v| v as usize).collect())
-        .collect()
-}
-
 fn brute_force_all_dists<T: Clone>(
     queries: Vec<T>,
     data: Vec<T>,
@@ -136,7 +130,7 @@ fn brute_force_all_dists<T: Clone>(
             let mut pairs = data
                 .iter()
                 .enumerate()
-                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), it.0))
+                .map(|it| Pair::new(NonNan::new(distance(q, it.1)), Index::from(it.0)))
                 .collect::<Vec<Pair>>();
             pairs.sort(); // Pair has Ord _by( |a, b| { a.distance.0.cmp(  b.distance.0 ) } );
             pairs

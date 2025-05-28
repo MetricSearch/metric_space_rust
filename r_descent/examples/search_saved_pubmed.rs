@@ -14,6 +14,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::rc::Rc;
 use std::time::Instant;
+use utils::index::Index;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 use utils::{arg_sort_2d, ndcg};
@@ -115,7 +116,7 @@ fn do_queries(
     descent: &RDescentMatrix,
     dao: Rc<Dao<EvpBits<2>>>,
     gt_pairs: &Vec<Vec<Pair>>,
-    nn_table: &Array2<usize>,
+    nn_table: &Array2<Index>,
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
@@ -142,7 +143,7 @@ fn do_queries(
 }
 
 fn intersection_size(results: &Vec<Pair>, gt_pairs: &Vec<Pair>) -> usize {
-    let gt_indices: Vec<usize> = gt_pairs.iter().map(|pair| pair.index).collect();
+    let gt_indices: Vec<Index> = gt_pairs.iter().map(|pair| pair.index).collect();
     results
         .iter()
         .filter_map(|pair| {
@@ -158,7 +159,7 @@ fn intersection_size(results: &Vec<Pair>, gt_pairs: &Vec<Pair>) -> usize {
 fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
     let adjusted_results = results
         .into_iter()
-        .map(|pair| Pair::new(pair.distance, pair.index + 1))
+        .map(|pair| Pair::new(pair.distance, pair.index + Index::new(1)))
         .collect();
 
     (length, adjusted_results)

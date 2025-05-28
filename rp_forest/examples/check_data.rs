@@ -2,6 +2,7 @@ use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use ndarray::Array1;
 use std::rc::Rc;
+use utils::index::Index;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -15,7 +16,7 @@ fn main() -> anyhow::Result<()> {
     )?);
     tracing::info!("mf dino data loaded, getting data 0...");
 
-    let data1 = dao.get_datum(999_999);
+    let data1 = dao.get_datum(Index::new(999_999));
 
     tracing::info!("{:?}", data1);
 

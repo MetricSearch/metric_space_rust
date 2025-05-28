@@ -7,6 +7,7 @@ use anyhow::Result;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use std::rc::Rc;
+use utils::index::Index;
 //use std::time::Instant;
 use ndarray::Array1;
 use tracing_subscriber::EnvFilter;
@@ -30,7 +31,7 @@ fn main() -> Result<()> {
 
     tracing::info!("Forest built, querying...");
 
-    let res = forest.lookup(dao.get_datum(0).clone());
+    let res = forest.lookup(dao.get_datum(Index::new(0)).clone());
     // was query not get
     println!("Number of results = {}", res.len());
     println!("{:?}", res);

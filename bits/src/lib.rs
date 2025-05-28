@@ -270,6 +270,7 @@ pub fn f32_embedding_to_bsp<const D: usize>(embedding: &[f32], non_zeros: usize)
     enumerated.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
     let (_, biggest_pairs) = enumerated.split_at(embedding_len - non_zeros);
+
     let biggest = biggest_pairs
         .into_iter()
         .map(|(idx, _)| *idx)

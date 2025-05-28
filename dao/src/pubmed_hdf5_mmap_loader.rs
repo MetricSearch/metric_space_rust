@@ -56,12 +56,12 @@ pub fn load(
     let offset = o_queries.offset().unwrap();
     let length = o_queries.size();
 
-    let bsp_o_test = load_from_file::<WIDTH, _>(data_path, offset, length)?;
+    //let bsp_o_test = load_from_file::<WIDTH, _>(data_path, offset, length)?;
 
     let name = "Pubmed";
     let description = "PubmedHDF5Dataset";
 
-    bsp_data.extend(bsp_o_test);
+    // bsp_data.extend(bsp_o_test);
 
     let all_combined: Array1<EvpBits<2>> = Array1::from_vec(bsp_data);
 
@@ -121,32 +121,40 @@ pub fn load_from_file<const WIDTH: usize, P: AsRef<Path>>(
 ) -> anyhow::Result<Vec<EvpBits<2>>> {
     let file = File::open(path)?;
 
-    let end = file_offset + u64::try_from(length).unwrap();
+    let map = unsafe {
+        MmapOptions::new()
+            .offset(0)
+            .len((file_offset as usize + length) as usize)
+            .map(&file)
+    }
+    .unwrap();
+    map.advise(memmap2::Advice::Sequential).unwrap();
 
-    Ok((file_offset..end)
-        .step_by(ROW_GROUP_SIZE * 384)
-        .map(|start| {
-            let end = min(start + (ROW_GROUP_SIZE * WIDTH) as u64, end);
+    let (prefix, shorts, suffix) = unsafe { map[file_offset as usize..].align_to::<f32>() };
 
-            let map = unsafe {
-                MmapOptions::new()
-                    .offset(start)
-                    .len((end - start) as usize)
-                    .map(&file)
-            }
-            .unwrap();
-            map.advise(memmap2::Advice::Sequential).unwrap();
+    assert!(prefix.is_empty());
+    assert!(suffix.is_empty());
 
-            let (prefix, shorts, suffix) = unsafe { map.align_to::<f32>() };
+    Ok(shorts
+        .par_chunks(WIDTH)
+        .map(|row| f32_embedding_to_bsp::<2>(row, NUM_VERTICES))
+        .collect::<Vec<_>>())
 
-            assert!(prefix.is_empty());
-            assert!(suffix.is_empty());
+    // Ok((file_offset..end)
+    //     .step_by(ROW_GROUP_SIZE * 384)
+    //     .map(|start| {
+    //         let end = min(start + (ROW_GROUP_SIZE * WIDTH) as u64, end);
 
-            shorts
-                .par_chunks(WIDTH)
-                .map(|row| f32_embedding_to_bsp::<2>(row, NUM_VERTICES))
-                .collect::<Vec<_>>()
-        })
-        .flatten()
-        .collect())
+    //         let map = unsafe {
+    //             MmapOptions::new()
+    //                 .offset(start)
+    //                 .len((end - start) as usize)
+    //                 .map(&file)
+    //         }
+    //         .unwrap();
+    //         map.advise(memmap2::Advice::Sequential).unwrap();
+
+    //     })
+    //     .flatten()
+    //     .collect())
 }

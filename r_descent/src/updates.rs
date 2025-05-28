@@ -29,4 +29,8 @@ impl Updates {
             .map(|mutex| mutex.into_inner())
             .collect()
     }
+
+    pub fn len(&self) -> usize {
+        self.inner.iter().map(|x| x.lock().len()).sum()
+    }
 }

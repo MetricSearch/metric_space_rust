@@ -20,11 +20,14 @@ use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use std::ptr;
 use std::rc::Rc;
+use std::sync::atomic::AtomicUsize;
 use std::time::Instant;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 use utils::{arg_sort_big_to_small_1d, bytes_fmt};
 use utils::{arg_sort_big_to_small_2d, index_of_min, min_index_and_value, minimum_in, rand_perm};
+
+const PARALLEL_WORK: usize = 1_000_000;
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
@@ -1302,9 +1305,16 @@ pub fn get_nn_table2_bsp(
 
         work_done = 0;
 
-        let updates = Updates::new(num_data);
-
-        old.axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
+        let formatted_data: Vec<(
+            usize,
+            ArrayViewMut1<usize>,
+            ArrayViewMut1<usize>,
+            Array1<usize>,
+            Array2<f32>,
+            Array1<EvpBits<2>>,
+            Array1<EvpBits<2>>,
+        )> = old
+            .axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()
             .zip(new.axis_iter_mut(Axis(0)))
             .par_bridge()
@@ -1362,109 +1372,151 @@ pub fn get_nn_table2_bsp(
                     old_data,
                 )
             })
-            .for_each(
-                |(row, new_row, old_row, new_row_union, new_new_sims, new_data, old_data)| {
-                    // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
-                    // First iterate over new_new_sims.. upper triangular (since distance table)
+            .collect();
+        
+        // SCHEMA: First bit denotes whether an update is done. Second bit denotes whether this item has been seen.
+        let mut updates_done_this_iter: Vec<u8> = vec![0; num_data];
+        let num_looked_at: AtomicUsize = AtomicUsize::new(0);
+             
+        // Checks that the last bit (whether it has been checked or not) is set to TRUE for all entries
+        while num_looked_at.load(std::sync::atomic::Ordering::SeqCst) < num_data {
 
-                    for new_ind1 in 0..new_row_union.len() - 1 {
-                        // Matlab line 144 (-1 since don't want the diagonal)
-                        let u1_id = new_row_union[new_ind1];
+            let updates = Updates::new(num_data);
+            let n_updates_to_apply = AtomicUsize::new(0);
 
-                        for new_ind2 in new_ind1 + 1..new_row_union.len() {
-                            // Matlab line 147
-                            let u2_id = new_row_union[new_ind2];
-                            // then get their similarity from the matrix
-                            let this_sim = new_new_sims[[new_ind1, new_ind2]];
-                            // is the current similarity greater than the biggest distance
-                            // in the row for u1_id? if it's not, then do nothing
+            updates_done_this_iter = formatted_data
+                .iter()
+                .zip(updates_done_this_iter.clone())
+                // Don't repeat the work!!
+                .par_bridge()
+                .map(
+                    |((row, new_row, old_row, new_row_union, new_new_sims, new_data, old_data), row_update_state)| {
+                        let mut new_row_update_state = row_update_state;
+                        let ok_to_do_work = n_updates_to_apply                 
+                            .load(std::sync::atomic::Ordering::SeqCst) < PARALLEL_WORK && (updates_done_this_iter[*row] & 0b1 as u8) == 0; // Checks whether this item is unseen
+                        // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
+                        // First iterate over new_new_sims.. upper triangular (since distance table)
 
-                            if this_sim > minimum_in(&similarities.row(u1_id)) {
-                                // Matlab line 154 // global_mins[u1_id]
-                                // if it is, then u2_id actually can't already be there
-                                updates.add(u1_id, u2_id, this_sim);
+                        if ok_to_do_work {
+                            new_row_update_state = new_row_update_state | 0b1;
+                            num_looked_at.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+                            for new_ind1 in 0..new_row_union.len() - 1 {
+                                // Matlab line 144 (-1 since don't want the diagonal)
+                                let u1_id = new_row_union[new_ind1];
+
+                                for new_ind2 in new_ind1 + 1..new_row_union.len() {
+                                    // Matlab line 147
+                                    let u2_id = new_row_union[new_ind2];
+                                    // then get their similarity from the matrix
+                                    let this_sim = new_new_sims[[new_ind1, new_ind2]];
+                                    // is the current similarity greater than the biggest distance
+                                    // in the row for u1_id? if it's not, then do nothing
+
+                                    if this_sim > minimum_in(&similarities.row(u1_id)) {
+                                        // Matlab line 154 // global_mins[u1_id]
+                                        // if it is, then u2_id actually can't already be there
+                                        updates.add(u1_id, u2_id, this_sim);
+                                        n_updates_to_apply
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+
+                                    if minimum_in(&similarities.row(u2_id)) < this_sim {
+                                        // Matlab line 166 // was global_mins[u2_id]
+                                        updates.add(u2_id, u1_id, this_sim);
+                                        n_updates_to_apply
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                } // Matlab line 175
                             }
 
-                            if minimum_in(&similarities.row(u2_id)) < this_sim {
-                                // Matlab line 166 // was global_mins[u2_id]
-                                updates.add(u2_id, u1_id, this_sim);
-                            }
-                        } // Matlab line 175
-                    }
+                            // nnw do the news vs the olds, no reverse links
+                            // newOldSims = newData * oldData';
 
-                    // nnw do the news vs the olds, no reverse links
-                    // newOldSims = newData * oldData';
+                            let new_old_sims =
+                                matrix_dot_bsp::<2>(&new_data.view(), &old_data.view(), |a, b| {
+                                    bsp_similarity_as_f32::<2>(a, b)
+                                });
 
-                    let new_old_sims =
-                        matrix_dot_bsp::<2>(&new_data.view(), &old_data.view(), |a, b| {
-                            bsp_similarity_as_f32::<2>(a, b)
-                        });
+                            // and do the same for each pair of elements in the new_row/old_row
 
-                    // and do the same for each pair of elements in the new_row/old_row
+                            for new_ind1 in 0..new_row.len() {
+                                // Matlab line 183  // rectangular matrix - need to look at all
+                                let u1_id = new_row[new_ind1];
+                                for new_ind2 in 0..old_row.len() {
+                                    let u2_id = old_row[new_ind2]; // Matlab line 186
+                                                                   // then get their distance from the matrix
+                                    let this_sim = new_old_sims[[new_ind1, new_ind2]];
+                                    // is the current distance greater than the biggest distance
+                                    // in the row for u1_id? if it's not, then do nothing
 
-                    for new_ind1 in 0..new_row.len() {
-                        // Matlab line 183  // rectangular matrix - need to look at all
-                        let u1_id = new_row[new_ind1];
-                        for new_ind2 in 0..old_row.len() {
-                            let u2_id = old_row[new_ind2]; // Matlab line 186
-                                                           // then get their distance from the matrix
-                            let this_sim = new_old_sims[[new_ind1, new_ind2]];
-                            // is the current distance greater than the biggest distance
-                            // in the row for u1_id? if it's not, then do nothing
+                                    if this_sim > minimum_in(&similarities.row(u1_id)) {
+                                        // Matlab line 191 // global_mins[u1_id]
+                                        // if it is, then u2Id actually can't already be there
+                                        updates.add(u1_id, u2_id, this_sim);
+                                        n_updates_to_apply
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
 
-                            if this_sim > minimum_in(&similarities.row(u1_id)) {
-                                // Matlab line 191 // global_mins[u1_id]
-                                // if it is, then u2Id actually can't already be there
-                                updates.add(u1_id, u2_id, this_sim);
-                            }
-
-                            if this_sim > minimum_in(&similarities.row(u2_id)) {
-                                // Matlab line 203 // was global_mins[u2_id]
-                                updates.add(u2_id, u1_id, this_sim);
+                                    if this_sim > minimum_in(&similarities.row(u2_id)) {
+                                        // Matlab line 203 // was global_mins[u2_id]
+                                        updates.add(u2_id, u1_id, this_sim);
+                                        n_updates_to_apply
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                }
                             }
                         }
-                    }
-                },
-            );
+                        new_row_update_state
+                    },
+                ).collect::<Vec<u8>>();
 
-        // Now apply all the updates.
+            // println!("Updates to apply: {}", updates.len());
 
-        work_done = updates
-            .into_inner()
-            .into_par_iter()
-            .zip(neighbours.axis_iter_mut(Axis(0)).into_par_iter())
-            .zip(similarities.axis_iter_mut(Axis(0)).into_par_iter())
-            .zip(neighbour_is_new.axis_iter_mut(Axis(0)).into_par_iter())
-            .enumerate()
-            .map(
-                |(
-                    row_id,
-                    (
-                        ((updates, mut neighbours_row), mut similarities_row),
-                        mut neighbour_is_new_row,
-                    ),
-                )| {
-                    updates
-                        .into_iter()
-                        .map(|update| {
-                            let this_sim = update.sim;
-                            let new_index = update.index;
-                            if !neighbours_row.iter().any(|x| *x == new_index) {
-                                // Matlab line 204
-                                let insert_pos = index_of_min(&similarities_row.view());
-                                neighbours_row[insert_pos] = new_index;
-                                similarities_row[insert_pos] = this_sim;
-                                neighbour_is_new_row[insert_pos] = true;
-                                // global_mins[row_id] = minimum_in(&similarities.row(row_id));  // TODO Matlab line 198 Do this later. <<<<<<<<<<<<<<<<<<<<<<
-                                true
-                            } else {
-                                false
-                            }
-                        })
-                        .fold(false, |acc, x| acc | x) as usize // .any() but it won't short circuit so all updates are applied!
-                },
-            )
-            .sum::<usize>();
+            // Now apply all the updates.
+            let rows_updated: Vec<u8> = updates
+                .into_inner()
+                .into_par_iter()
+                .zip(neighbours.axis_iter_mut(Axis(0)).into_par_iter())
+                .zip(similarities.axis_iter_mut(Axis(0)).into_par_iter())
+                .zip(neighbour_is_new.axis_iter_mut(Axis(0)).into_par_iter())
+                .enumerate()
+                .map(
+                    |(
+                        row_id,
+                        (
+                            ((updates, mut neighbours_row), mut similarities_row),
+                            mut neighbour_is_new_row,
+                        ),
+                    )| {
+                        updates
+                            .into_iter()
+                            .map(|update| {
+                                let this_sim = update.sim;
+                                let new_index = update.index;
+                                if !neighbours_row.iter().any(|x| *x == new_index) {
+                                    // Matlab line 204
+                                    let insert_pos = index_of_min(&similarities_row.view());
+                                    neighbours_row[insert_pos] = new_index;
+                                    similarities_row[insert_pos] = this_sim;
+                                    neighbour_is_new_row[insert_pos] = true;
+                                    // global_mins[row_id] = minimum_in(&similarities.row(row_id));  // TODO Matlab line 198 Do this later. <<<<<<<<<<<<<<<<<<<<<<
+                                    0b10 as u8
+                                } else {
+                                    0b00 as u8
+                                }
+                            })
+                            .fold(0, |acc, x| if x > 0 {acc + 1} else {acc}) // .any() but it won't short circuit so all updates are applied!
+                    },
+                ).collect();
+
+                // println!("rows_updated shape: {}", rows_updated.len());
+
+                updates_done_this_iter = updates_done_this_iter.into_iter().zip(rows_updated).map(|x| x.0 | x.1).collect();
+                work_done = updates_done_this_iter.iter().fold(0, |acc, x| acc + ((*x & 0b10) as usize));
+
+                // println!("Work done: {}", work_done);
+        }
 
         let after = Instant::now();
         log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));

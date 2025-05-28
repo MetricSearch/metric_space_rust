@@ -69,6 +69,8 @@ fn main() -> Result<()> {
         reverse_list_size,
     );
 
+    let start = Instant::now();
+
     log::info!("Line 0 of table:");
     for i in 0..10 {
         log::info!(
@@ -91,7 +93,7 @@ fn main() -> Result<()> {
 
     let knns = 30;
 
-    let (_gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
+    let (gt_nns, gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
 
     // let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
 

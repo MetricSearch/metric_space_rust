@@ -10,6 +10,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use utils::arg_sort_2d;
+use utils::index::Index;
 use wide::u64x4;
 //use divan::Bencher;
 
@@ -77,8 +78,8 @@ fn main() -> Result<()> {
 
 fn report_queries(
     num_queries: usize,
-    gt_nns: &Vec<Vec<usize>>,
-    hamming_nns: &Vec<Vec<usize>>,
+    gt_nns: &Vec<Vec<Index>>,
+    hamming_nns: &Vec<Vec<Index>>,
     hamming_set_size: usize,
     nns_size: usize,
 ) {
@@ -96,8 +97,8 @@ fn report_queries(
         // println!("Hamming NNs for q{} = {:?} ", query_index, hamming_500_nns );
         // println!("GT NNs for q{} = {:?} ", query_index, gt_100_nns );
 
-        let hamming_set: HashSet<&usize> = HashSet::from_iter(hamming_nns);
-        let gt_set: HashSet<&usize> = HashSet::from_iter(gt_nns);
+        let hamming_set = HashSet::<Index>::from_iter(hamming_nns.into_iter().copied());
+        let gt_set = HashSet::<Index>::from_iter(gt_nns.into_iter().copied());
         let intersection = hamming_set.intersection(&gt_set);
 
         let intersection_size = intersection.count();

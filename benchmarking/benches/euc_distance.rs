@@ -5,6 +5,7 @@ use divan::{black_box, Bencher};
 use metrics::euc;
 use ndarray::Array1;
 use std::rc::Rc;
+use utils::index::Index;
 
 fn main() {
     divan::main();
@@ -26,8 +27,8 @@ fn bench(bencher: Bencher) {
         .unwrap(),
     );
 
-    let query = dao.get_query(0);
-    let data = dao.get_datum(0);
+    let query = dao.get_query(Index::new(0));
+    let data = dao.get_datum(Index::new(0));
 
     bencher.bench(|| {
         for _ in 0..1_000_000 {

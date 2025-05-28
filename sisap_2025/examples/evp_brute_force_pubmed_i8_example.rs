@@ -9,6 +9,7 @@ use rayon::iter::IntoParallelIterator;
 use std::collections::HashSet;
 use std::time::Instant;
 use utils::arg_sort_2d;
+use utils::index::Index;
 
 fn main() -> Result<()> {
     let num_records = 0;
@@ -43,9 +44,9 @@ fn main() -> Result<()> {
         ((after - now).as_nanos() as f64) / num_queries as f64
     );
 
-    let (bsp_nns, _bsp_dists) = arg_sort_2d(i_8_distances);
+    let (mut bsp_nns, _bsp_dists) = arg_sort_2d(i_8_distances);
 
-    let bsp_nns = add_one(&bsp_nns);
+    add_one(&mut bsp_nns);
 
     // println!( "First row of bsp dists: {:?}", &_bsp_dists[0][..20] );
     // println!( "First row of bsp ords: {:?}", &bsp_nns[0][..20] );
@@ -66,16 +67,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn add_one(ords: &Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-    ords.iter()
-        .map(|row| row.iter().map(|entry| entry + 1).collect())
-        .collect()
-}
-
 fn report_queries(
     num_queries: usize,
-    gt_nns: &Array2<usize>,
-    bsp_nns: &Vec<Vec<usize>>,
+    gt_nns: &Array2<Index>,
+    bsp_nns: &Vec<Vec<Index>>,
     bsp_set_size: usize,
     gt_size: usize,
 ) {
@@ -92,8 +87,15 @@ fn report_queries(
             panic!("Not enough neighbors for query {}", qi);
         }
 
-        let hamming_set: HashSet<usize> = bsp_row[..bsp_set_size].iter().copied().collect();
-        let gt_set: HashSet<usize> = gt_row.slice(s![..gt_size]).iter().copied().collect();
+        let hamming_set = bsp_row[..bsp_set_size]
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
+        let gt_set = gt_row
+            .slice(s![..gt_size])
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
 
         let intersection_size = hamming_set.intersection(&gt_set).count();
 
@@ -126,6 +128,11 @@ fn std_dev(mean: f64, data: Vec<usize>) -> f64 {
         / data.len() as f64;
 
     variance.sqrt()
+}
+
+pub fn add_one(ords: &mut Vec<Vec<Index>>) {
+    ords.iter_mut()
+        .for_each(|row| row.iter_mut().for_each(|entry| *entry += 1))
 }
 
 fn generate_i8_dists_explicit(queries: ArrayView2<i8>, datas: ArrayView2<i8>) -> Vec<Vec<usize>> {

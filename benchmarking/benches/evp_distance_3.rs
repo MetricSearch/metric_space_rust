@@ -5,6 +5,7 @@ use dao::Dao;
 use divan::{black_box, Bencher};
 use ndarray::Array1;
 use std::rc::Rc;
+use utils::index::Index;
 
 fn main() {
     divan::main();
@@ -24,8 +25,8 @@ fn bench(bencher: Bencher) {
         .unwrap(),
     );
 
-    let query = f32_embedding_to_evp::<3>(dao.get_query(0), 200);
-    let data = f32_embedding_to_evp::<3>(dao.get_datum(0), 200);
+    let query = f32_embedding_to_evp::<3>(dao.get_query(Index::new(0)), 200);
+    let data = f32_embedding_to_evp::<3>(dao.get_datum(Index::new(0)), 200);
 
     bencher.bench(|| {
         for _ in 0..1_000_000 {

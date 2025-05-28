@@ -294,8 +294,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
         let sorted_pairs = (0..sorted_ords.len())
             .map(|index| {
                 Pair::new(
-                    NonNan::new(sorted_dists[index.as_usize()]),
-                    q_nns[sorted_ords[index.as_usize()].as_usize()],
+                    NonNan::new(sorted_sims[index]),
+                    q_nns[sorted_ords[index].as_usize()],
                 )
             })
             .collect();

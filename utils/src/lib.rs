@@ -22,11 +22,15 @@ static RNG: LazyLock<Mutex<ChaCha8Rng>> =
     LazyLock::new(|| Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
 
 // Converts vectors of distances into vectors of indices and distances
-pub fn arg_sort_2d<T: PartialOrd + Copy>(dists: Vec<Vec<T>>) -> (Vec<Vec<usize>>, Vec<Vec<T>>) {
+pub fn arg_sort_2d<T: PartialOrd + Copy>(dists: Vec<Vec<T>>) -> (Vec<Vec<Index>>, Vec<Vec<T>>) {
     dists
         .iter()
         .map(|vec| {
-            let mut enumerated = vec.iter().enumerate().collect::<Vec<(usize, &T)>>();
+            let mut enumerated = vec
+                .iter()
+                .enumerate()
+                .map(|(i, t)| (Index::from(i), t))
+                .collect::<Vec<(Index, &T)>>();
 
             enumerated.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
 
@@ -54,9 +58,10 @@ pub fn index_of_min(arrai: &ArrayView1<f32>) -> usize {
 }
 
 pub fn minimum_in(arrai: &ArrayView1<f32>) -> f32 {
-    *arrai
+    arrai
         .iter()
         .min_by(|best_so_far, to_compare| best_so_far.partial_cmp(to_compare).unwrap())
+        .copied()
         .unwrap()
 }
 

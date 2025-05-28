@@ -43,7 +43,7 @@ fn main() -> Result<()> {
     for q in queries_bitreps {
         let (_canidates_len, sorted_results) = descent.knn_search::<BitVecSimd<[u64x4; 3], 4>>(
             q.clone(),
-            &to_usize(&descent.current_graph.nns),
+            &descent.current_graph.nns,
             dao_evp.clone(),
             100,
             hamming_distance,
@@ -56,12 +56,6 @@ fn main() -> Result<()> {
 
 fn hamming_distance(a: &BitVecSimd<[u64x4; 3], 4>, b: &BitVecSimd<[u64x4; 3], 4>) -> f32 {
     a.xor_cloned(b).count_ones() as f32
-}
-
-pub fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
-    i32s.into_iter()
-        .map(|v| v.iter().map(|&v| v as usize).collect())
-        .collect()
 }
 
 fn distance_adapter(a: &EvpBits<2>, b: &EvpBits<2>) -> f32 {

@@ -127,6 +127,7 @@ dependencies = [
  "divan",
  "metrics",
  "ndarray",
+ "utils",
 ]
 
 [[package]]
@@ -1531,6 +1532,7 @@ version = "0.1.0"
 dependencies = [
  "byte-unit",
  "deepsize",
+ "divan",
  "hdf5-metno",
  "ndarray",
  "num-traits",

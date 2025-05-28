@@ -14,3 +14,6 @@ num-traits = "0.2.19"
 serde.workspace = true
 hdf5.workspace = true
 deepsize.workspace = true
+
+[dev-dependencies]
+divan.workspace =true

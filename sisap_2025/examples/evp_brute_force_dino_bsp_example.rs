@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use utils::arg_sort_2d;
+use utils::index::Index;
 
 fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
@@ -90,8 +91,8 @@ fn main() -> Result<()> {
 
 fn report_queries(
     num_queries: usize,
-    gt_nns: &Vec<Vec<usize>>,
-    bsp_nns: &Vec<Vec<usize>>,
+    gt_nns: &Vec<Vec<Index>>,
+    bsp_nns: &Vec<Vec<Index>>,
     bsp_set_size: usize,
     gt_size: usize,
 ) {
@@ -104,8 +105,8 @@ fn report_queries(
         let (hamming_nns, _rest_nns) = bsp_nns.get(qi).unwrap().split_at(bsp_set_size);
         let (gt_nns, _rest_gt_nns) = gt_nns.get(qi).unwrap().split_at(gt_size);
 
-        let hamming_set: HashSet<usize> = hamming_nns.into_iter().map(|x| *x).collect();
-        let gt_set: HashSet<usize> = gt_nns.into_iter().map(|x| *x).collect();
+        let hamming_set = hamming_nns.into_iter().collect::<HashSet<_>>();
+        let gt_set = gt_nns.into_iter().collect::<HashSet<_>>();
 
         let intersection = hamming_set.intersection(&gt_set);
 

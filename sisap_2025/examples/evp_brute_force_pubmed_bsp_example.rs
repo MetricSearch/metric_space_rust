@@ -66,9 +66,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn add_one(ords: &Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+fn add_one(ords: &Vec<Vec<Index>>) -> Vec<Vec<Index>> {
     ords.iter()
-        .map(|row| row.iter().map(|entry| entry + 1).collect())
+        .map(|row| row.iter().map(|entry| *entry + Index::new(1)).collect())
         .collect()
 }
 
@@ -92,8 +92,15 @@ fn report_queries(
             panic!("Not enough neighbors for query {}", qi);
         }
 
-        let hamming_set: HashSet<usize> = bsp_row[..bsp_set_size].iter().copied().collect();
-        let gt_set: HashSet<usize> = gt_row.slice(s![..gt_size]).iter().copied().collect();
+        let hamming_set = bsp_row[..bsp_set_size]
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
+        let gt_set = gt_row
+            .slice(s![..gt_size])
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
 
         let intersection_size = hamming_set.intersection(&gt_set).count();
 

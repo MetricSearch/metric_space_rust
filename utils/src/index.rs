@@ -4,7 +4,7 @@ use ndarray::{Dim, Dimension, NdIndex, SliceInfoElem, SliceNextDim};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
-    ops::Add,
+    ops::{Add, AddAssign},
 };
 
 /// Index into an array
@@ -51,6 +51,20 @@ impl Add for Index {
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::new(self.0 + rhs.0)
+    }
+}
+
+impl Add<u32> for Index {
+    type Output = Index;
+
+    fn add(self, rhs: u32) -> Self::Output {
+        Self::new(self.0 + rhs)
+    }
+}
+
+impl AddAssign<u32> for Index {
+    fn add_assign(&mut self, rhs: u32) {
+        self.0 += rhs;
     }
 }
 

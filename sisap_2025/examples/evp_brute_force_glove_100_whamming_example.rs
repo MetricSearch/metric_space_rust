@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::time::Instant;
 use utils::arg_sort_2d;
+use utils::index::Index;
 use wide::u64x4;
 
 fn main() -> Result<()> {
@@ -64,8 +65,8 @@ fn main() -> Result<()> {
 
 fn report_queries(
     num_queries: usize,
-    gt_nns: &Vec<Vec<usize>>,
-    hamming_nns: &Vec<Vec<usize>>,
+    gt_nns: &Vec<Vec<Index>>,
+    hamming_nns: &Vec<Vec<Index>>,
     hamming_set_size: usize,
     gt_size: usize,
 ) {
@@ -80,8 +81,8 @@ fn report_queries(
         let (hamming_nns, _rest_nns) = hamming_nns.get(qi).unwrap().split_at(hamming_set_size);
         let (gt_nns, _rest_gt_nns) = gt_nns.get(qi).unwrap().split_at(gt_size);
 
-        let hamming_set: HashSet<usize> = hamming_nns.into_iter().map(|x| *x).collect();
-        let gt_set: HashSet<usize> = gt_nns.into_iter().map(|x| *x).collect();
+        let hamming_set = hamming_nns.into_iter().collect::<HashSet<_>>();
+        let gt_set = gt_nns.into_iter().collect::<HashSet<_>>();
 
         let intersection = hamming_set.intersection(&gt_set);
 

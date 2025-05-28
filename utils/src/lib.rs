@@ -316,3 +316,25 @@ pub fn bytes_fmt(num: usize) -> String {
         Byte::from(num).get_appropriate_unit(byte_unit::UnitType::Binary)
     )
 }
+
+/// Index into an array
+#[derive(Debug, Clone, Copy)]
+pub struct Index(u32);
+
+impl Index {
+    pub fn new(idx: usize) -> Self {
+        Self(u32::try_from(idx).unwrap())
+    }
+}
+
+impl From<usize> for Index {
+    fn from(value: usize) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<Index> for usize {
+    fn from(value: Index) -> Self {
+        value.0.try_into().unwrap()
+    }
+}

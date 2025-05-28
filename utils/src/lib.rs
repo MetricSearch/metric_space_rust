@@ -310,6 +310,9 @@ pub fn matrix_dot_i8(
 }
 
 /// Number of bytes to human-readable `Display`able
-pub fn bytes_fmt(num: usize) -> AdjustedByte {
-    Byte::from(num).get_appropriate_unit(byte_unit::UnitType::Binary)
+pub fn bytes_fmt(num: usize) -> String {
+    format!(
+        "{:.2}",
+        Byte::from(num).get_appropriate_unit(byte_unit::UnitType::Binary)
+    )
 }

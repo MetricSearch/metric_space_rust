@@ -5,6 +5,7 @@ pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::Result;
 use bits::f32_embedding_to_evp;
 use bitvec_simd::BitVecSimd;
+use deepsize::DeepSizeOf;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -30,7 +31,7 @@ pub mod pubmed_hdf5_gt_loader;
 pub mod pubmed_hdf5_to_dao_loader;
 pub mod pubmed_hdf5_to_i8_dao_loader;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub enum Normed {
     L1,
     L2,
@@ -47,7 +48,7 @@ impl ToString for Normed {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub struct DaoMetaData {
     pub name: String,
     /// An English description of the data e.g. Mirflkr 1M encoded with Dino2
@@ -77,6 +78,7 @@ impl DaoMetaData {
     }
 }
 
+#[derive(DeepSizeOf)]
 pub struct Dao<Element> {
     /// The meta data for this dao
     pub meta: DaoMetaData,
@@ -130,6 +132,7 @@ impl<T> Dao<T> {
     }
 }
 
+#[derive(DeepSizeOf)]
 pub struct DaoMatrix<T> {
     /// The meta data for this dao
     pub meta: DaoMetaData,

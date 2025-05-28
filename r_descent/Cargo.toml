@@ -22,3 +22,4 @@ bincode.workspace = true
 pretty_env_logger.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+deepsize.workspace = true

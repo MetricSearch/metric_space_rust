@@ -9,6 +9,7 @@ bitvec_simd.workspace = true
 wide.workspace = true
 ndarray.workspace = true
 rayon.workspace = true
+deepsize.workspace = true
 
 [dev-dependencies]
 divan.workspace = true

@@ -25,10 +25,14 @@ anndists = "0.1.2"
 anyhow = "1.0.98"
 bincode = "1.3.3"
 bitvec_simd = "0.20.5"
-byte-unit = { version = "5.1.6", default-features = false, features = ["byte", "rust_decimal"]  }
+byte-unit = { version = "5.1.6", default-features = false, features = [
+    "byte",
+    "rust_decimal",
+] }
 chrono = "0.4.41"
 clap = { version = "4.5.38", features = ["derive"] }
 csv = "1.3.1"
+deepsize = { version = "0.2.0", features = ["smallvec"] }
 divan = "0.1.21"
 hdf5 = { version = "0.10.1", package = "hdf5-metno", features = [
     "blosc",
@@ -36,7 +40,12 @@ hdf5 = { version = "0.10.1", package = "hdf5-metno", features = [
 ] }
 itertools = "0.14.0"
 log = "0.4.27"
-ndarray = { version = "0.16.1", features = ["serde", "matrixmultiply-threading", "rayon"] }
+ndarray = { version = "0.16.1", features = [
+    "serde",
+    "matrixmultiply-threading",
+    "rayon",
+    "deepsize",
+] }
 parking_lot = "0.12.3"
 pretty_env_logger = "0.5.0"
 rand = "0.9.1"
@@ -48,9 +57,12 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8.22"
 tracing = "0.1.41"
-tracing-subscriber ={ version = "0.3.19", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 twox-hash = "2.1.0"
 wide = "0.7.32"
+
+[patch.crates-io]
+ndarray = { git = "https://github.com/fmckeogh/ndarray" }
 
 [profile.release]
 debug = true

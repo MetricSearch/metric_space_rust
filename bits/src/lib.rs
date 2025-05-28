@@ -1,4 +1,5 @@
 use bitvec_simd::BitVecSimd;
+use deepsize::DeepSizeOf;
 use ndarray::parallel::prelude::*;
 use ndarray::{Array1, Array2, ArrayView1};
 use rayon::iter::ParallelBridge;
@@ -238,6 +239,15 @@ impl<const X: usize> Default for EvpBits<X> {
             ones: BitVecSimd::from_slice(&[0]),
             negative_ones: BitVecSimd::from_slice(&[0]),
         }
+    }
+}
+
+impl<const X: usize> DeepSizeOf for EvpBits<X> {
+    fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
+        self.ones.storage_capacity() * size_of::<[u64x4; X]>()
+            + size_of::<usize>()
+            + self.negative_ones.storage_capacity() * size_of::<[u64x4; X]>()
+            + size_of::<usize>()
     }
 }
 

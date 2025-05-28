@@ -5,6 +5,7 @@ use clap::Parser;
 use dao::convert_f32_to_bsp::f32_dao_to_bsp;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
+use deepsize::DeepSizeOf;
 use metrics::euc;
 use ndarray::Array1;
 use r_descent_matrix::{get_nn_table2_bsp, initialise_table_bsp};
@@ -13,7 +14,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use utils::dot_product_f32;
+use utils::{bytes_fmt, dot_product_f32};
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -39,9 +40,17 @@ fn main() -> Result<()> {
     let dao_f32: Rc<DaoMatrix<f32>> =
         Rc::new(dao_matrix_from_csv_dir(&args.path, num_data, num_queries)?);
 
-    log::info!("Converting mf dino to bsp...");
+    log::info!(
+        "Loaded {}, converting mf dino to bsp...",
+        bytes_fmt(dao_f32.deep_size_of())
+    );
 
     let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(), 200);
+    log::info!(
+        "Loaded {}, converting mf dino to bsp...",
+        bytes_fmt(dao_bsp.deep_size_of())
+    );
+
     log::info!("Running r_descent<bsp>...");
 
     let start_post_load = Instant::now();

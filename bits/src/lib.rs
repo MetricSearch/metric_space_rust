@@ -1,7 +1,7 @@
 use bitvec_simd::BitVecSimd;
 use deepsize::DeepSizeOf;
 use ndarray::parallel::prelude::*;
-use ndarray::{Array1, Array2, ArrayView1};
+use ndarray::{Array1, Array2, ArrayView1, Axis};
 use rayon::iter::ParallelBridge;
 use std::hash::Hasher;
 use std::ops::BitXor;
@@ -255,11 +255,13 @@ pub fn f32_embeddings_to_bsp<const D: usize>(
     embeddings: &Array2<f32>,
     non_zeros: usize,
 ) -> Array1<EvpBits<D>> {
-    embeddings
-        .rows()
-        .into_iter()
-        .map(|row| f32_embedding_to_bsp::<D>(&row, non_zeros))
-        .collect()
+    Array1::from_vec(
+        embeddings
+            .axis_iter(Axis(0))
+            .into_par_iter()
+            .map(|row| f32_embedding_to_bsp::<D>(&row, non_zeros))
+            .collect::<Vec<_>>(),
+    )
 }
 
 pub fn f32_embedding_to_bsp<const D: usize>(

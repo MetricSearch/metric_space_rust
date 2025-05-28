@@ -1081,7 +1081,7 @@ pub fn initialise_table_bsp(
 
     result_indices
         .axis_chunks_iter_mut(Axis(0), chunk_size)
-        .into_iter() // .into_par_iter()
+        .into_par_iter()
         .zip(result_sims.axis_chunks_iter_mut(Axis(0), chunk_size))
         .enumerate()
         .for_each(|(i, (mut result_indices_chunk, mut result_sims_chunk))| {

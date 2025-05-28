@@ -1,6 +1,6 @@
+use anyhow::Result;
 use bits::{bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance, EvpBits};
 use bitvec_simd::BitVecSimd;
-use anyhow::Result;
 use dao::laion_10_m_hdf5_dao_loader::hdf5_laion_f32_load;
 use dao::Dao;
 use metrics::euc;

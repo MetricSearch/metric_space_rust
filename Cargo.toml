@@ -9,8 +9,7 @@ members = [
     "rp_forest",
     "utils",
     "r_descent",
-    "r_descent",
-    "sisap",
+    "sisap_2025",
 ]
 
 [workspace.dependencies]
@@ -18,6 +17,7 @@ utils = { path = "utils" }
 rp_forest = { path = "rp_forest" }
 metrics = { path = "metrics" }
 descent = { path = "descent" }
+r_descent = { path = "r_descent" }
 bits = { path = "bits" }
 dao = { path = "dao" }
 

@@ -8,7 +8,7 @@ use dao::pubmed_hdf5_to_dao_loader::{
 };
 use dao::Dao;
 use ndarray::{s, Array1, Array2, ArrayView1};
-use r_descent_matrix::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent, RDescentMatrix};
+use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent, RDescentMatrix};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufWriter;

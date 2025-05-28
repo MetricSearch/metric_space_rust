@@ -5,7 +5,7 @@ use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
 use metrics::euc;
 use ndarray::Array1;
-use r_descent_matrix::{get_nn_table2_m, initialise_table_m};
+use r_descent::{get_nn_table2_m, initialise_table_m};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;

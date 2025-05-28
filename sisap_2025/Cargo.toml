@@ -16,3 +16,7 @@ tracing-subscriber.workspace = true
 bitvec_simd.workspace = true
 wide.workspace = true
 rayon.workspace = true
+log.workspace = true
+clap.workspace = true
+pretty_env_logger.workspace = true
+r_descent.workspace = true

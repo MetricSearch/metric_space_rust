@@ -8,7 +8,7 @@ use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, Array2, ArrayView1};
-use r_descent_matrix::{KnnSearch, RDescentMatrix};
+use r_descent::{KnnSearch, RDescentMatrix};
 use serde::__private::de::borrow_cow_bytes;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};

@@ -8,7 +8,7 @@ use dao::{Dao, DaoMatrix};
 use deepsize::DeepSizeOf;
 use metrics::euc;
 use ndarray::Array1;
-use r_descent_matrix::{get_nn_table2_bsp, initialise_table_bsp};
+use r_descent::{get_nn_table2_bsp, initialise_table_bsp};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;

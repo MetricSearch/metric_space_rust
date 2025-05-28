@@ -5,7 +5,7 @@ use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use dao::Dao;
 use ndarray::ArrayView1;
-use r_descent_matrix::{get_nn_table2_bsp, initialise_table_bsp};
+use r_descent::{get_nn_table2_bsp, initialise_table_bsp};
 use std::rc::Rc;
 use std::time::Instant;
 

@@ -52,14 +52,6 @@ while c > 0
     % and we make it into a one-dim vector
     forwardNNs = reshape(forwardNNs,[1,size(forwardNNs,1) * size(forwardNNs,2)]);
 
-    % maybe we want these, maybe we don't...?
-    % they don't seem to add anything other than cost...
-    % if any of the current NNs are chosen, then the next friend set will
-    % be pulled anyway
-
-    % forwardNN2s = Btable(forwardNNs,:);
-    % forwardNN2s = reshape(forwardNN2s,[1,size(forwardNN2s,1) * size(forwardNN2s,2)]);
-
 
     %these two lines do the same for the reverse table as above for the
     %forward table

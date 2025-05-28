@@ -4,18 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dao = { path = "../dao" }
-metrics = { path = "../metrics" }
-anndists = "0.1.2"
-anyhow = "1.0.98"
-csv = "1.3.1"
-rayon = "1.10.0"
-rand = "0.9.1"
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-itertools = "0.14.0"
-rand_distr = "0.5.1"
-rand_chacha = "0.9.0"
-ndarray = { version = "0.16.1", features = ["serde"] }
-serde = "1.0.219"
-serde_json = "1.0"
+dao.workspace = true
+metrics.workspace = true
+anndists.workspace = true
+anyhow.workspace = true
+csv.workspace = true
+rayon.workspace = true
+rand.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+itertools.workspace = true
+rand_distr.workspace = true
+rand_chacha.workspace = true
+ndarray.workspace = true
+serde.workspace = true
+serde_json.workspace = true

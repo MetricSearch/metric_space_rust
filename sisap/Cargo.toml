@@ -4,15 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-utils = { path = "../utils" }
-dao = { path = "../dao" }
-bits = { path = "../bits" }
-metrics = { path = "../metrics" }
-descent = { path = "../descent" }
-ndarray = { version = "0.16.1", features = ["serde"] }
-anyhow = "1.0.98"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
-bitvec_simd = "0.20.5"
-wide = "0.7.32"
-rayon = "1.10.0"
+utils.workspace = true
+dao.workspace = true
+bits.workspace = true
+metrics.workspace = true
+descent.workspace = true
+ndarray.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+bitvec_simd.workspace = true
+wide.workspace = true
+rayon.workspace = true

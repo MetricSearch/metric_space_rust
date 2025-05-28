@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rand = "0.9.1"
-rand_distr = "0.5.1"
-rand_chacha = "0.9.0"
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-randperm-crt = "0.3.0"
-byte-unit = { version = "5.1.6", default-features = false, features = ["byte", "rust_decimal"] }
+rand.workspace = true
+rand_distr.workspace = true
+rand_chacha.workspace = true
+ndarray.workspace = true
+randperm-crt.workspace = true
+byte-unit.workspace = true

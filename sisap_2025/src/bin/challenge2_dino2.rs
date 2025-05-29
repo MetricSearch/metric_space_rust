@@ -14,11 +14,13 @@ use std::time::Instant;
 use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
+use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
+use dao::{convert_f32_to_bsp::f32_dao_to_bsp, pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load};
 use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
-use dao::Dao;
+use dao::{Dao, DaoMatrix};
 use ndarray::{s, ArrayView1};
 use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
+use utils::bytes_fmt;
 use std::rc::Rc;
 
 
@@ -45,14 +47,15 @@ fn main() -> Result<()>{
     const NUM_VERTICES: usize = 256;
     const num_queries: usize = 0;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_pubmed_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
-    );
+let dao_f32: Rc<DaoMatrix<f32>> =
+        Rc::new(dao_matrix_from_csv_dir(&args.path, 1_000_000, num_queries)?);
 
+
+    let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(), 200);
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
     log::info!(
-        "GOOAQ data size: {} | num data: {}",
+        "Dino2 data size: {} | num data: {}",
         data.len(),
         dao_bsp.num_data,
     );
@@ -60,7 +63,7 @@ fn main() -> Result<()>{
     let start_post_load = Instant::now();
 
     let num_neighbours = 18;
-    let chunk_size = 200;
+    let chunk_size = 500;
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 64;

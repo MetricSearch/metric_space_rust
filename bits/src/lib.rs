@@ -211,6 +211,7 @@ pub fn whamming_distance<const D: usize>(
 pub struct EvpBits<const X: usize> {
     pub ones: BitVecSimd<[u64x4; X], 4>,
     pub negative_ones: BitVecSimd<[u64x4; X], 4>,
+    pub max_index: u8,
 }
 
 impl<const X: usize> Hasher for EvpBits<X> {
@@ -238,6 +239,7 @@ impl<const X: usize> Default for EvpBits<X> {
         Self {
             ones: BitVecSimd::from_slice(&[0]),
             negative_ones: BitVecSimd::from_slice(&[0]),
+            max_index: 0
         }
     }
 }
@@ -297,6 +299,7 @@ pub fn f32_embedding_to_bsp<const D: usize>(
     EvpBits::<D> {
         ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
         negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()),
+        max_index: indices[indices.len() - 1] as u8,
     }
 }
 

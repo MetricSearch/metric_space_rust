@@ -64,16 +64,6 @@ fn main() -> Result<()> {
     log::info!("Initializing NN table with chunk size {}", chunk_size);
     let (mut ords, mut dists) = initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
 
-    // log::info!("ORDS: {:?}", ords);
-    // log::info!("Dists: {:?}", dists);
-    //
-    // for i in 0..3 {
-    //     log::info!("Row {} ids: {:?} dists: {:?} ", i, ords.row(i), dists.row(i));
-    //     for ord in ords.row(i) {
-    //         log::info!( "dist({},{}) real dist is: {} ", i, ord, bsp_similarity_as_f32::<2>(dao_bsp.get_datum(i), dao_bsp.get_datum(*ord)) );
-    //     }
-    // }
-
     log::info!("Getting NN table");
 
     get_nn_table2_bsp(

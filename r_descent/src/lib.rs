@@ -9,7 +9,7 @@ use ndarray::parallel::prelude::*;
 use ndarray::parallel::prelude::{IntoParallelIterator, IntoParallelRefIterator};
 use ndarray::{
     concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut1, Axis,
-    Dim, Ix1, Order, OwnedRepr,
+    Dim, Ix1, Order, OwnedRepr, Zip,
 };
 use parking_lot::Mutex;
 use rand_chacha::rand_core::SeedableRng;
@@ -24,12 +24,13 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::io::Write;
 use std::{io, ptr};
 use std::rc::Rc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
-use utils::{arg_sort_big_to_small_1d, bytes_fmt};
+use utils::{arg_sort_big_to_small_1d, bytes_fmt, min_index_and_value_neighbourlarities, minimum_in_nality, Nality};
 use utils::{arg_sort_big_to_small_2d, index_of_min, min_index_and_value, minimum_in, rand_perm};
+
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
@@ -358,11 +359,11 @@ impl IntoRDescent for Dao<EvpBits<2>> {
         delta: f64,
     ) -> RDescentMatrix {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
-        let (mut ords, mut dists) = initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
+        let neighbourlarities = initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
+
         get_nn_table2_bsp(
             self.clone(),
-            &mut ords,
-            &mut dists,
+            &neighbourlarities,
             num_neighbours,
             rho,
             delta,
@@ -723,7 +724,52 @@ pub fn get_nn_table2_m(
     );
 }
 
-pub fn apply_update(
+pub fn check_apply_update(
+    row_id: usize,
+    new_val: &Nality,
+    this_sim: f32,
+    neighbour_is_new: *mut Array2<bool>,
+    neighbourlarities: &Array2<Nality>,
+    work_done: &AtomicUsize,
+) -> () {
+    let neighbour_is_new = unsafe { &mut *neighbour_is_new };   // TODO fix
+
+    loop {
+        // We expect the old value to be the same as the new if there is no contention.
+        let (col_id, current_min_nality) = minimum_in_nality(&neighbourlarities.row(row_id));
+        if this_sim > current_min_nality.sim() {
+
+            let min_ality_before_check = current_min_nality.get().load(Ordering::SeqCst);
+            
+            if neighbourlarities.row(row_id).iter().any(|x| x.id() == new_val.id()) { // If we see the thing we're inserting, bomb out
+                return;
+            }
+
+            // And try to insert the new one if it's not been changed...
+            match current_min_nality.get().compare_exchange( min_ality_before_check, new_val.get().load(Ordering::SeqCst), Ordering::SeqCst, Ordering::SeqCst ) {
+                Ok(_) => {
+                    // we have done the swap and all is good.
+                    neighbour_is_new[[row_id, col_id]] = true;
+                    work_done.fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+
+                Err(x) => {
+                    let similarity = x as f32; // Nasty hack to get the similarity
+
+                    // The least similar thing is now something better than the update we are applying... bomb out
+                    if similarity > new_val.sim() {
+                        return;
+                    }
+                }
+            }
+        } else {
+            return; // If the update sim is smaller than the current min sim, return...
+        }
+    }
+}
+
+pub fn old_apply_update(
     row_id: usize,
     new_index: usize,
     sim: f32,
@@ -1144,7 +1190,7 @@ pub fn initialise_table_bsp(
     dao: Rc<Dao<EvpBits<2>>>,
     chunk_size: usize,
     num_neighbours: usize,
-) -> (Array2<usize>, Array2<f32>) {
+) -> Array2<Nality> {
     log::info!(
         "initializing table bsp, chunk_size: {chunk_size}, num_neighbours: {num_neighbours}"
     );
@@ -1220,25 +1266,27 @@ pub fn initialise_table_bsp(
     );
 
     // max bits is 64 * 4 * bits * 2 = 1024 + 200 =  1224 hardwire for now TODO parameterise
-    (
-        insert_index_at_position_1_inplace(result_indices),
-        insert_column_inplace(result_sims, 1224.0),
-    )
+    
+    let indices = insert_index_at_position_1_inplace(result_indices);
+    let sims = insert_column_inplace(result_sims, 1224.0);
+
+    // Makes neighbourlarities from similarities and ids
+    Zip::from(&indices).and(&sims).map_collect(|&id, &sim| {
+        Nality::new(sim, id as u32)
+    })
 }
 
 pub fn get_nn_table2_bsp(
     dao: Rc<Dao<EvpBits<2>>>,
-    neighbours: &mut Array2<usize>,
-    similarities: &mut Array2<f32>, // bigger is better
+    neighbourlarities: &Array2<Nality>,
     num_neighbours: usize,
     rho: f64,
     delta: f64,
     reverse_list_size: usize,
 ) {
     log::warn!(
-        "neighbours: {}, similarities: {}",
-        bytes_fmt(neighbours.len() * size_of::<usize>()),
-        bytes_fmt(similarities.len() * size_of::<f32>())
+        "Neighbourities length: {:?}",
+        neighbourlarities.shape(),
     );
 
     let start_time = Instant::now();
@@ -1250,7 +1298,8 @@ pub fn get_nn_table2_bsp(
     // Matlab lines refer to richard_build.txt file in the matlab dir
 
     let mut iterations = 0;
-    let mut neighbour_is_new = Array2::from_elem((num_data, num_neighbours), true);
+    let mut neighbour_is_new =  &mut Array2::from_elem((num_data, num_neighbours), true) as *mut Array2<bool>;
+
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
 
     while work_done.load(std::sync::atomic::Ordering::SeqCst) > ((num_data as f64) * delta) as usize {
@@ -1269,14 +1318,14 @@ pub fn get_nn_table2_bsp(
 
         let now = Instant::now();
 
-        let mut new: Array2<usize> = Array2::from_elem((num_data, num_neighbours), 0); // Matlab line 65
-        let mut old: Array2<usize> = Array2::from_elem((num_data, num_neighbours), 0);
+        let mut new: Array2<Nality> = Array2::from_elem((num_data, num_neighbours), Nality::new(-1f32, 0)); // Matlab line 65
+        let mut old: Array2<Nality> = Array2::from_elem((num_data, num_neighbours), Nality::new(-1f32, 0));
 
         // initialise old and new inline
 
         for row in 0..num_data {
             // in Matlab line 74
-            let row_flags = &neighbour_is_new.row_mut(row); // Matlab line 74
+            let row_flags = unsafe{*neighbour_is_new}.row_mut(row); // Matlab line 74
 
             // new_indices are the indices in this row whose flag is set to true (columns)
 
@@ -1321,11 +1370,13 @@ pub fn get_nn_table2_bsp(
 
         // initialise old' and new'  Matlab line 90
 
-        // the reverse NN table  Matlab line 91
-        let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), 0);
-        // all the distances from reverse NN table.
-        let mut reverse_sims: Array2<f32> =
-            Array2::from_elem((num_data, reverse_list_size), -1.0f32);
+        // // the reverse NN table  Matlab line 91
+        // let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), 0);
+        // // all the distances from reverse NN table.
+        // let mut reverse_sims: Array2<f32> =
+        //     Array2::from_elem((num_data, reverse_list_size), -1.0f32);
+
+        let reverse: Array2<Nality> = Array2::from_elem((num_data, reverse_list_size), Nality::new(-1.0f32, 0));
         // reverse_ptr - how many reverse pointers for each entry in the dataset
         let mut reverse_count = Array1::from_elem(num_data, 0);
 
@@ -1337,17 +1388,17 @@ pub fn get_nn_table2_bsp(
         for row in 0..num_data {
             // Matlab line 97
             // all_ids are the forward links in the current id's row
-            let all_ids = &neighbours.row(row); // Matlab line 98
+            let this_row_neighbourlarities = &neighbourlarities.row(row); // Matlab line 98
                                                 // so for each one of these (there are k...):
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
-                let this_id = &all_ids[id];
+                let this_id = this_row_neighbourlarities[id].id() as usize;
                 // and how similar it is to the current id
-                let local_sim = similarities[[row, id]];
+                let local_sim = this_row_neighbourlarities[id].sim();
 
                 // newForwardLinks = new(thisId,:);
-                let new_forward_links = new.row(*this_id);
+                let new_forward_links = new.row(this_id);
 
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
                 let forward_links_dont_contain_this = !new_forward_links.iter().any(|x| *x == row);
@@ -1367,20 +1418,24 @@ pub fn get_nn_table2_bsp(
                     // biggest similarity of size reverse_list_size.
                     // first find all the forward links containing the row
 
-                    if reverse_count[*this_id] < reverse_list_size {
+                    if reverse_count[this_id] < reverse_list_size {
                         // if the list is not full
                         // update the reverse pointer list and the similarities
-                        reverse[[*this_id, reverse_count[*this_id]]] = row;
-                        reverse_sims[[*this_id, reverse_count[*this_id]]] = local_sim; // pop that in too
-                        reverse_count[*this_id] = reverse_count[*this_id] + 1; // increment the count
+   
+                        reverse[[this_id, reverse_count[this_id]]] = Nality::new(local_sim, row as u32);
+                        reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
                     } else {
                         // but it is, so we will only add it if it's more similar than another one already there
 
-                        let (position, value) = min_index_and_value(&reverse_sims.row(*this_id)); // Matlab line 109
+                        let closest_nality = min_index_and_value_neighbourlarities(&reverse.row(this_id)); // Matlab line 109
+                        let position = closest_nality.id();
+                        let value = closest_nality.sim();
+
                         if value < local_sim {
                             // Matlab line 110  if the value in reverse_sims is less similar we over write
-                            reverse[[*this_id, position]] = row; // replace the old min with the new sim value
-                            reverse_sims[[*this_id, position]] = local_sim;
+
+                            reverse[[this_id, position as usize]] = Nality::new(local_sim, row as u32);
+                            reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
                         }
                     }
                 }
@@ -1392,60 +1447,59 @@ pub fn get_nn_table2_bsp(
 
         // phase 3
 
-        let unsafe_state = UnsafeState::new(similarities, neighbours, &mut neighbour_is_new);
-
         let now = Instant::now();
 
         work_done = AtomicUsize::new(0);
 
         // let updates = Updates::new(num_data);
 
-        let mut mutexes = vec![];
-
-        for i in 0..num_data {
-            mutexes.push(Mutex::new(()));
-        }
+        // let mut mutexes = vec![];
+        // for i in 0..num_data {
+        //     mutexes.push(Mutex::new(()));
+        // }
 
         old.axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()
             .zip(new.axis_iter_mut(Axis(0)))
             .par_bridge()
             .map(|((row, old_row), new_row)| {
-                let mut reverse_link_row: Array1<usize> = reverse
+
+                let mut reverse_link_row: Array1<Nality> = reverse
                     .row(row)
                     .iter()
-                    .filter(|&&v| v != 0)
+                    .filter(|&&v| v.id() != 0)
                     .map(|&x| x)
-                    .collect::<Array1<usize>>();
+                    .collect::<Array1<_>>();
 
-                if rho < 1.0 {
-                    // Matlab line 127
-                    // randomly shorten the reverse_link_row vector
-                    let reverse_indices = rand_perm(
-                        reverse_link_row.len(),
-                        (rho * reverse_link_row.len() as f64).round() as usize,
-                    );
-                    reverse_link_row = reverse_indices
-                        .iter()
-                        .map(|&i| reverse_link_row[i])
-                        .collect::<Array1<usize>>();
-                }
+                // if rho < 1.0 {
+                //     // Matlab line 127
+                //     // randomly shorten the reverse_link_row vector
+                //     let reverse_indices = rand_perm(
+                //         reverse_link_row.len(),
+                //         (rho * reverse_link_row.len() as f64).round() as usize,
+                //     );
+                //     reverse_link_row = reverse_indices
+                //         .iter()
+                //         .map(|&i| reverse_link_row[i])
+                //         .collect::<Array1<usize>>();
+                // }
+
                 let mut new_row_union: Array1<usize> = if new_row.len() == 0 {
                     // Matlab line 130
                     Array1::from(vec![])
                 } else {
                     new_row
                         .iter()
-                        .copied()
-                        .chain(reverse_link_row.iter().copied())
+                        .map(|x| x.id() as usize)
+                        .chain(reverse_link_row.iter().map(|x| x.id() as usize))
                         .collect::<Array1<usize>>() // <<<<< 2 row copies here
                 };
 
                 let new_row_union_len = new_row_union.len();
 
                 // index the data using the rows indicated in old_row
-                let old_data = get_slice_using_selectors(&data, &old_row.view(), [old_row.len()]); // Matlab line 136
-                let new_data = get_slice_using_selectors(&data, &new_row.view(), [new_row.len()]); // Matlab line 137
+                let old_data = get_slice_using_selectors(&data, &old_row.map(|x| x.id() as usize).view(), [old_row.len()]); // Matlab line 136
+                let new_data = get_slice_using_selectors(&data, &new_row.map(|x| x.id() as usize).view(), [new_row.len()]); // Matlab line 137
                 let new_union_data =
                     get_slice_using_selectors(&data, &new_row_union.view(), [new_row_union_len]); // Matlab line 137
 
@@ -1484,16 +1538,9 @@ pub fn get_nn_table2_bsp(
                             let this_sim = new_new_sims[[new_ind1, new_ind2]];
                             // is the current similarity greater than the biggest distance
                             // in the row for u1_id? if it's not, then do nothing
-
-                            if this_sim > minimum_in(&similarities.row(u1_id)) {
-                                // Matlab line 154 // global_mins[u1_id]
-                                apply_update(u1_id, u2_id, this_sim, &unsafe_state, &mutexes, &work_done);
-                            }
-
-                            if minimum_in(&similarities.row(u2_id)) < this_sim {
-                                // Matlab line 166 // was global_mins[u2_id]
-                                apply_update(u2_id, u1_id, this_sim, &unsafe_state, &mutexes, &work_done);
-                            }
+                 
+                            check_apply_update(u1_id, &Nality::new(this_sim, u2_id as u32), this_sim, neighbour_is_new, neighbourlarities, &work_done);
+                            check_apply_update(u2_id, &Nality::new(this_sim, u1_id as u32), this_sim, neighbour_is_new, neighbourlarities, &work_done);                         
                         } // Matlab line 175
                     }
 
@@ -1509,24 +1556,14 @@ pub fn get_nn_table2_bsp(
 
                     for new_ind1 in 0..new_row.len() {
                         // Matlab line 183  // rectangular matrix - need to look at all
-                        let u1_id = new_row[new_ind1];
+                        let u1 = new_row[new_ind1];
                         for new_ind2 in 0..old_row.len() {
-                            let u2_id = old_row[new_ind2]; // Matlab line 186
+                            let u2 = old_row[new_ind2]; // Matlab line 186
                                                            // then get their distance from the matrix
                             let this_sim = new_old_sims[[new_ind1, new_ind2]];
-                            // is the current distance greater than the biggest distance
-                            // in the row for u1_id? if it's not, then do nothing
 
-                            if this_sim > minimum_in(&similarities.row(u1_id)) {
-                                // Matlab line 191 // global_mins[u1_id]
-                                // if it is, then u2Id actually can't already be there
-                                apply_update(u1_id, u2_id, this_sim, &unsafe_state, &mutexes, &work_done);
-                            }
-
-                            if this_sim > minimum_in(&similarities.row(u2_id)) {
-                                // Matlab line 203 // was global_mins[u2_id]
-                                apply_update(u2_id, u1_id, this_sim, &unsafe_state, &mutexes, &work_done);
-                            }
+                            check_apply_update(u1.id() as usize, &u2, this_sim, neighbour_is_new, neighbourlarities, &work_done);
+                            check_apply_update(u2.id() as usize, &u1, this_sim, neighbour_is_new, neighbourlarities, &work_done);                         
                         }
                     }
                 },

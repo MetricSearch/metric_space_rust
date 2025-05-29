@@ -9,12 +9,51 @@ use rand::seq::index::sample;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{atomic::{AtomicU64, Ordering}, LazyLock, Mutex};
+use serde::{Deserialize, Serialize};
+
 
 pub mod non_nan;
 pub mod pair;
 
 const SEED: u64 = 323 * 162;
+
+#[derive(Serialize, Deserialize)]
+pub struct Nality (AtomicU64);
+
+impl Nality {
+    pub fn new(sim: f32, id: u32) -> Self {
+        Self(AtomicU64::new(Self::combine(sim, id)))
+    }
+
+	pub fn update(&self, sim: f32, id: u32) {
+		self.0.store(Self::combine(sim, id), Ordering::Relaxed)
+
+	}
+	
+	pub fn sim(&self) -> f32 {
+		self.0.load(Ordering::Relaxed) as f32
+	}
+	
+	pub fn id(&self) -> u32 {
+		(self.0.load(Ordering::Relaxed) >> 32) as u32
+	}
+	
+    fn combine(sim:f32, id:u32) -> u64 {
+		(sim as u64) | ((id as u64) << 32)
+	}
+
+    pub fn get(&self) -> &AtomicU64 {
+        &self.0
+    }
+}
+
+impl Clone for Nality {
+    fn clone(&self) -> Self {
+        Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
+    }
+}
+
 
 static RNG: LazyLock<Mutex<ChaCha8Rng>> =
     LazyLock::new(|| Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
@@ -42,6 +81,15 @@ pub fn min_index_and_value(arrai: &ArrayView1<f32>) -> (usize, f32) {
     (pair.0, *pair.1)
 }
 
+pub fn min_index_and_value_neighbourlarities(arrai: &ArrayView1<Nality>) -> Nality {
+    arrai.iter().min_by(|&best_so_far, &to_compare| {
+        best_so_far.sim()
+        .partial_cmp(&to_compare.sim())
+        .unwrap()
+    }).unwrap().clone()
+}
+
+
 pub fn index_of_min(arrai: &ArrayView1<f32>) -> usize {
     arrai
         .iter()
@@ -56,6 +104,16 @@ pub fn minimum_in(arrai: &ArrayView1<f32>) -> f32 {
         .iter()
         .min_by(|best_so_far, to_compare| best_so_far.partial_cmp(to_compare).unwrap())
         .unwrap()
+}
+
+pub fn minimum_in_nality(arrai: &ArrayView1<Nality>) -> (usize, Nality) {
+    let xx = arrai
+        .iter()
+        .enumerate()
+        .min_by(|best_so_far, to_compare| best_so_far.1.sim().partial_cmp(&to_compare.1.sim()).unwrap())
+        .unwrap();
+
+    (xx.0, xx.1.clone())
 }
 
 // Vec versions of the functions above.

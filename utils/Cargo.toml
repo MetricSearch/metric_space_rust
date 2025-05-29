@@ -10,3 +10,4 @@ rand_chacha.workspace = true
 ndarray.workspace = true
 randperm-crt.workspace = true
 byte-unit.workspace = true
+serde.workspace = true

@@ -1098,7 +1098,7 @@ pub fn initialise_table_ben(
 
     result_indices
         .axis_iter_mut(Axis(0))
-        .into_iter() // .into_par_iter()
+        .into_par_iter()
         .zip(result_sims.axis_iter_mut(Axis(0)))
         .enumerate()
         .for_each(|(i, (mut table_id_row, mut table_sim_row))| {

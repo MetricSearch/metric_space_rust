@@ -24,7 +24,7 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::io::Write;
 use std::{io, ptr};
 use std::rc::Rc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
@@ -33,8 +33,7 @@ use utils::{arg_sort_big_to_small_2d, index_of_min, min_index_and_value, minimum
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescentMatrix {
-    pub neighbours: Array2<usize>,
-    pub similarities: Array2<f32>,
+    pub neighbourlarities: Array2<Neighbourlaritie>,
 }
 
 pub trait IntoRDescent {
@@ -63,6 +62,31 @@ pub trait IntoRDescentWithRevNNs {
 pub struct RDescentMatrixWithRev {
     pub rdescent: RDescentMatrix,
     pub reverse_neighbours: Array2<usize>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Neighbourlaritie (AtomicU64);
+
+impl Neighbourlaritie {
+    pub fn new(sim: f32, id: u32) -> Self {
+        Self(AtomicU64::new(Self::combine(sim, id)))
+    }
+
+	pub fn update(&self, sim: f32, id: u32) {
+		self.0.store(Self::combine(sim, id), Ordering::Relaxed)
+	}
+	
+	pub fn sim(&self) -> f32 {
+		self.0.load(Ordering::Relaxed) as f32
+	}
+	
+	pub fn id(&self) -> u32 {
+		(self.0.load(Ordering::Relaxed) >> 32) as u32
+	}
+	
+    fn combine(sim:f32, id:u32) -> u64 {
+		(sim as u64) | ((id as u64) << 32)
+	}
 }
 
 pub trait KnnSearch<T: Clone> {
@@ -369,9 +393,17 @@ impl IntoRDescent for Dao<EvpBits<2>> {
             reverse_list_size,
         );
 
+        let neighbourlarities_1d = ords.into_iter().zip(dists).map(|(id, dist)| Neighbourlaritie::new(dist, id)).collect::<Array1<_>>();
+
+        let neighbourlarities = Array2::from_shape_vec(
+            ords.dim(),
+            neighbourlarities_1d.into_iter().collect(),
+        ).unwrap();
+        
+        // mapv(|x|).zip(dists).map(|x| Neighbourlaritie::new(x.1, x.0)).collect::<Vec<_>>();
+
         RDescentMatrix {
-            neighbours: ords,
-            similarities: dists,
+            neighbourlarities
         }
     }
 }

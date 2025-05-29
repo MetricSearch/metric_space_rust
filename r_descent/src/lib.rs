@@ -745,9 +745,9 @@ pub fn apply_update(
     let similarities = unsafe { &mut *state.similarities };
     let neighbour_is_new = unsafe { &mut *state.neighbours_is_new };
 
-    let _row_id_guard = mutexes[row_id].lock();
+    let _row_id_guard = mutexes[row_id.as_usize()].lock();
 
-    let mut neighbours_row = neighbours.row_mut(row_id);
+    let mut neighbours_row = neighbours.row_mut(row_id.as_usize());
 
     if !neighbours_row.iter().any(|x| *x == new_index) {
         let mut similarities_row = similarities.row_mut(row_id.as_usize());
@@ -916,10 +916,9 @@ pub fn get_reverse_links_not_in_forward(
                         reverse_count[next_id_in_row]
                     );
 
-                    reverse[[*next_id_in_row, reverse_count[*next_id_in_row]]] = row;
-                    reverse_sims[[*next_id_in_row, reverse_count[*next_id_in_row]]] =
-                        next_sim_in_row; // pop that in too
-                    reverse_count[*next_id_in_row] = reverse_count[*next_id_in_row] + 1;
+                    reverse[[next_id_in_row, reverse_count[next_id_in_row]]] = Index::from(row);
+                    reverse_sims[[next_id_in_row, reverse_count[next_id_in_row]]] = next_sim_in_row; // pop that in too
+                    reverse_count[next_id_in_row] = reverse_count[next_id_in_row] + 1;
                 // increment the count
                 } else {
                     // it is full, so we will only add it if it's more similar than another one already there
@@ -1070,7 +1069,7 @@ pub fn initialise_table_ben(
     dao: Rc<Dao<EvpBits<2>>>,
     chunk_size: usize,
     num_neighbours: usize,
-) -> (Array2<usize>, Array2<f32>) {
+) -> (Array2<Index>, Array2<f32>) {
     log::info!("initializing table bsp BEN, num_neighbours: {num_neighbours}");
 
     let start_time = Instant::now();
@@ -1080,21 +1079,21 @@ pub fn initialise_table_ben(
     let data = dao.get_data();
 
     let mut result_indices =
-        unsafe { Array2::<usize>::uninit((num_data, num_neighbours)).assume_init() };
+        unsafe { Array2::<Index>::uninit((num_data, num_neighbours)).assume_init() };
     let mut result_sims =
         unsafe { Array2::<f32>::uninit((num_data, num_neighbours)).assume_init() };
 
     log::info!(
         "result sizes: indices: {}, sims: {}",
-        bytes_fmt(result_indices.len() * size_of::<usize>()),
-        bytes_fmt(result_sims.len() * size_of::<f32>())
+        bytes_fmt(result_indices.deep_size_of()),
+        bytes_fmt(result_sims.deep_size_of())
     );
 
     // The vec of indexes
-    let mut hash_table: Vec<Vec<usize>> = vec![vec![]; dims];
+    let mut hash_table: Vec<Vec<Index>> = vec![vec![]; dims];
 
     for i in 0..num_data {
-        hash_table[dao.get_datum(i).max_index as usize].push(i);
+        hash_table[dao.get_datum(Index::from(i)).max_index as usize].push(i.into());
     }
 
     result_indices
@@ -1109,7 +1108,7 @@ pub fn initialise_table_ben(
 
             let row_length = nearby_row.len();
 
-            let mut nearby_ids: Array1<usize> = Array1::ones(Dim(1));
+            let mut nearby_ids: Array1<Index> = Array1::ones(Dim(1));
 
             if row_length > chunk_size {
                 // println!("1 | Drawing from {}  |  How many {}", row_length, chunk_size);
@@ -1117,7 +1116,7 @@ pub fn initialise_table_ben(
                 let nearby_row_random_ids = rand_perm(row_length, chunk_size);
                 nearby_ids = nearby_row_random_ids
                     .iter()
-                    .map(|&x| nearby_row[x])
+                    .map(|&x| nearby_row[x.as_usize()])
                     .collect();
             } else {
                 // println!("2 | Drawing from {}  |  How many {}", num_data, chunk_size - row_length);
@@ -1143,8 +1142,8 @@ pub fn initialise_table_ben(
 
             let final_row = sorted_ords
                 .iter()
-                .map(|&i| nearby_ids[i])
-                .collect::<Vec<usize>>();
+                .map(|&i| nearby_ids[i.as_usize()])
+                .collect::<Vec<_>>();
 
             table_id_row.assign(&Array1::from_vec(final_row.clone()).slice(s![0..num_neighbours]));
             table_sim_row

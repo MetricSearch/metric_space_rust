@@ -4,7 +4,7 @@ use ndarray::{Dim, Dimension, NdIndex, SliceInfoElem, SliceNextDim};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
-    ops::{Add, AddAssign},
+    ops::{Add, AddAssign, Mul},
 };
 
 /// Index into an array
@@ -54,6 +54,14 @@ impl Add for Index {
     }
 }
 
+impl Mul for Index {
+    type Output = Index;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 * rhs.0)
+    }
+}
+
 impl Add<u32> for Index {
     type Output = Index;
 
@@ -75,6 +83,12 @@ impl num_traits::identities::Zero for Index {
 
     fn is_zero(&self) -> bool {
         self.0 == 0
+    }
+}
+
+impl num_traits::identities::One for Index {
+    fn one() -> Self {
+        Self::new(1)
     }
 }
 

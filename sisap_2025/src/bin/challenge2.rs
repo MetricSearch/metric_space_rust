@@ -21,8 +21,6 @@ use ndarray::{s, ArrayView1};
 use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
 use std::rc::Rc;
 
-
-
 /// clap parser
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -31,7 +29,7 @@ struct Args {
     path: String,
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Trace)
         .init();
@@ -86,7 +84,16 @@ fn main() -> Result<()>{
     println!("***** Remember to add 1 to all results when returning for challenge!!");
     println!("====== Printing First 1000 Rows ======");
     for i in 0..20 {
-        println!("{:?}", descent.neighbours.row(i).slice(s![0..num_neighbours]).iter().map(|x| x + 1).collect::<Vec<usize>>());
+        println!(
+            "{:?}",
+            descent
+                .neighbours
+                .row(i)
+                .slice(s![0..num_neighbours])
+                .iter()
+                .map(|x| *x + 1)
+                .collect::<Vec<_>>()
+        );
     }
 
     Ok(())

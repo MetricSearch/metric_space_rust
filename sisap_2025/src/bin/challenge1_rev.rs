@@ -20,9 +20,13 @@ use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use dao::Dao;
 use ndarray::{Array1, Array2, ArrayView1};
-use r_descent::{IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescentMatrix, RDescentMatrixWithRev, RevSearch};
+use r_descent::{
+    IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescentMatrix, RDescentMatrixWithRev,
+    RevSearch,
+};
 use std::rc::Rc;
 use std::time::Instant;
+use utils::index::Index;
 use utils::ndcg;
 use utils::pair::Pair;
 
@@ -73,10 +77,14 @@ fn main() -> Result<()> {
 
     log::info!("Getting NN table");
 
-    let descent =
-        dao_bsp
-            .clone()
-            .into_rdescent_with_rev_nn(num_neighbours, reverse_list_size, chunk_size, rho, delta, num_reverse_neighbours);
+    let descent = dao_bsp.clone().into_rdescent_with_rev_nn(
+        num_neighbours,
+        reverse_list_size,
+        chunk_size,
+        rho,
+        delta,
+        num_reverse_neighbours,
+    );
 
     let end = Instant::now();
 
@@ -110,13 +118,13 @@ fn do_queries(
     queries: Vec<EvpBits<2>>,
     descent: &RDescentMatrixWithRev,
     dao: Rc<Dao<EvpBits<2>>>,
-    gt_nns: &Array2<usize>,
+    gt_nns: &Array2<Index>,
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
         let now = Instant::now();
         let (dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
-        let (dists, qresults) = ADD_ONE_TO_RESULTS(dists, qresults);
+        let (dists, qresults) = add_one_to_results(dists, qresults);
         let after = Instant::now();
         println!("Results for Q{}....", qid);
         println!("Time per query: {} ns", (after - now).as_nanos());
@@ -140,7 +148,7 @@ fn show_results(qid: usize, results: &Vec<Pair>) {
     println!();
 }
 
-fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
+fn show_gt(qid: usize, gt_data: ArrayView1<Index>) {
     print!(
         "GT pairs size {} first few GT results for q{}:\t",
         gt_data.len(),
@@ -152,7 +160,7 @@ fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
     println!();
 }
 
-fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usize {
+fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<Index>) -> usize {
     results
         .iter()
         .filter_map(|pair| {
@@ -165,7 +173,7 @@ fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usiz
         .count()
 }
 
-fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
+fn add_one_to_results(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
     let adjusted_results = results
         .into_iter()
         .map(|pair| Pair::new(pair.distance, pair.index + 1))

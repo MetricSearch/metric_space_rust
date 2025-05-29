@@ -358,7 +358,7 @@ impl IntoRDescent for Dao<EvpBits<2>> {
         delta: f64,
     ) -> RDescentMatrix {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
-        let (mut ords, mut dists) = initialise_table_ben(self.clone(), chunk_size, num_neighbours);
+        let (mut ords, mut dists) = initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
         get_nn_table2_bsp(
             self.clone(),
             &mut ords,
@@ -736,27 +736,24 @@ pub fn apply_update(
     let neighbour_is_new = unsafe { &mut *state.neighbours_is_new };
 
     let _row_id_guard = mutexes[row_id].lock();
-
     let mut neighbours_row = neighbours.row_mut(row_id);
+    let mut similarities_row = similarities.row_mut(row_id);
     
     if !neighbours_row.iter().any(|x| *x == new_index) {
-        let mut similarities_row = similarities.row_mut(row_id);
         let mut neighbour_is_new_row = neighbour_is_new.row_mut(row_id);
-
-        drop(_row_id_guard);
 
         // Matlab line 204
         let insert_pos = index_of_min(&similarities_row.view());
 
-        // Locks to insert. If we can't get the lock, we abort and return.
-        let _guard = mutexes[insert_pos].lock();
-
         // Updates
         neighbours_row[insert_pos] = new_index;
         similarities_row[insert_pos] = sim;
+
+        drop(_row_id_guard);
+
         neighbour_is_new_row[insert_pos] = true;
         // global_mins[row_id] = minimum_in(&similarities.row(row_id));  // TODO Matlab line 198 Do this later - don't keep global_mins - would it be faster??
-        work_done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        work_done.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -1467,6 +1464,10 @@ pub fn get_nn_table2_bsp(
                     old_data,
                 )
             })
+            .collect::<Vec<_>>()      
+            // Need to collect such that parallelism isn't accessing at the same time.
+            // In this for each block, we only write in apply_update which is mutex protected.
+            .into_par_iter()
             .for_each(
                 |(row, new_row, old_row, new_row_union, new_new_sims, new_data, old_data)| {
                     // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
@@ -1486,7 +1487,6 @@ pub fn get_nn_table2_bsp(
 
                             if this_sim > minimum_in(&similarities.row(u1_id)) {
                                 // Matlab line 154 // global_mins[u1_id]
-
                                 apply_update(u1_id, u2_id, this_sim, &unsafe_state, &mutexes, &work_done);
                             }
 

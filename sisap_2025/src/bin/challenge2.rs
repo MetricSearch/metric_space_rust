@@ -60,7 +60,7 @@ fn main() -> Result<()>{
     let start_post_load = Instant::now();
 
     let num_neighbours = 18;
-    let chunk_size = 200;
+    let chunk_size = 1000;
     let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 64;
@@ -84,9 +84,9 @@ fn main() -> Result<()>{
     );
 
     println!("***** Remember to add 1 to all results when returning for challenge!!");
-    println!("====== Printing First 1000 Rows ======");
-    for i in 0..20 {
-        println!("{:?}", descent.neighbours.row(i).slice(s![0..num_neighbours]).iter().map(|x| x + 1).collect::<Vec<usize>>());
+    println!("====== Printing First 100 Rows ======");
+    for i in 0..100 {
+        println!("{:?}", descent.neighbours.row(i).slice(s![0..]).iter().map(|x| x + 1).collect::<Vec<usize>>());
     }
 
     Ok(())

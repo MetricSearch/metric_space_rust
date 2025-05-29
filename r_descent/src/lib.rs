@@ -1360,7 +1360,7 @@ pub fn get_nn_table2_bsp(
 
            let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
            let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
-           let mut neighbour_row_view: ArrayViewMut1<bool> = neighbour_is_new.row_mut(row);
+           let mut neighbour_row_view: ArrayViewMut1<bool> = unsafe { *neighbour_is_new }.row_mut(row);
 
             fill_selected(&mut new_row_view, &neighbourlarities.row(row), &sampled.view()); // Matlab line 79
             fill_selected(&mut old_row_view, &neighbourlarities.row(row), &old_indices.view());
@@ -1407,7 +1407,7 @@ pub fn get_nn_table2_bsp(
                 let new_forward_links = new.row(this_id);
 
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
-                let forward_links_dont_contain_this = !new_forward_links.iter().any(|x| *x == row);
+                let forward_links_dont_contain_this = !new_forward_links.iter().any(|x| x.id() as usize == row);
 
                 // if the reverse list isn't full, we will just add this one
                 // this adds to a priority queue and keeps track of max

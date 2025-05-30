@@ -9,9 +9,10 @@ use rand::seq::index::sample;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
-use std::sync::{atomic::{AtomicU64, Ordering}, LazyLock, Mutex};
+use std::{fmt::Debug, sync::{atomic::{AtomicU64, Ordering}, LazyLock, Mutex}, u32};
 use serde::{Deserialize, Serialize};
 
+const LOW_32_BITS: u64 = 0xffff_fffff;
 
 pub mod non_nan;
 pub mod pair;
@@ -22,17 +23,25 @@ const SEED: u64 = 323 * 162;
 pub struct Nality (AtomicU64);
 
 impl Nality {
+    pub fn new_empty() -> Self {
+        Self(AtomicU64::new(Self::combine(-1f32, u32::MAX)))
+    }
+
     pub fn new(sim: f32, id: u32) -> Self {
         Self(AtomicU64::new(Self::combine(sim, id)))
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.id() == u32::MAX && self.sim() == -1f32
+    }
+
 	pub fn update(&self, sim: f32, id: u32) {
 		self.0.store(Self::combine(sim, id), Ordering::Relaxed)
-
 	}
 	
 	pub fn sim(&self) -> f32 {
-		self.0.load(Ordering::Relaxed) as f32
+		// (self.0.load(Ordering::Relaxed) & LOW_32_BITS) as f32
+        (self.0.load(Ordering::Relaxed) as u32) as f32
 	}
 	
 	pub fn id(&self) -> u32 {
@@ -40,7 +49,7 @@ impl Nality {
 	}
 	
     fn combine(sim:f32, id:u32) -> u64 {
-		(sim as u64) | ((id as u64) << 32)
+		((id as u64) << 32) | ((sim as u64) & LOW_32_BITS)
 	}
 
     pub fn get(&self) -> &AtomicU64 {
@@ -50,7 +59,13 @@ impl Nality {
 
 impl Clone for Nality {
     fn clone(&self) -> Self {
-        Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
+        Self(AtomicU64::new(self.0.load(Ordering::SeqCst)))
+    }
+}
+
+impl Debug for Nality {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Nality").field(&self.id()).field(&self.sim()).finish()
     }
 }
 

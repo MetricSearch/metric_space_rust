@@ -204,7 +204,6 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
         let mut current_min_sim = -1.0;
 
         // The amount of work done in the iteration
-
         let mut work_done = 1;
 
         while work_done > 0 {
@@ -1285,9 +1284,16 @@ pub fn initialise_table_bsp(
     let sims = insert_column_inplace(result_sims, 1224.0);
 
     // Makes neighbourlarities from similarities and ids
-    Zip::from(&indices)
+    let xx = Zip::from(&indices)
         .and(&sims)
-        .map_collect(|&id, &sim| Nality::new(sim, id as u32))
+        .map_collect(|&id, &sim| {
+            Nality::new(sim, id as u32)
+        
+    });
+
+    println!("First row initialisation: {:#?}", xx.row(0));
+
+    xx
 }
 
 pub fn get_nn_table2_bsp(
@@ -1333,9 +1339,9 @@ pub fn get_nn_table2_bsp(
         let now = Instant::now();
 
         let mut new: Array2<Nality> =
-            Array2::from_elem((num_data, num_neighbours), Nality::new(-1f32, 0)); // Matlab line 65
+            Array2::from_elem((num_data, num_neighbours), Nality::new_empty()); // Matlab line 65
         let mut old: Array2<Nality> =
-            Array2::from_elem((num_data, num_neighbours), Nality::new(-1f32, 0));
+            Array2::from_elem((num_data, num_neighbours), Nality::new_empty());
 
         // initialise old and new inline
 
@@ -1372,13 +1378,17 @@ pub fn get_nn_table2_bsp(
             let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
             let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
             let mut neighbour_row_view: ArrayViewMut1<bool> =
-                unsafe { &mut *neighbour_is_new.neighbours_is_new }.row_mut(row);
+            unsafe { &mut *neighbour_is_new.neighbours_is_new }.row_mut(row);
 
             fill_selected(
                 &mut new_row_view,
                 &neighbourlarities.row(row),
                 &sampled.view(),
             ); // Matlab line 79
+
+
+            println!("Neighbouralities: {:?} | Selector: {}", &neighbourlarities.row(row), old_indices.view());
+
             fill_selected(
                 &mut old_row_view,
                 &neighbourlarities.row(row),
@@ -1403,7 +1413,7 @@ pub fn get_nn_table2_bsp(
         //     Array2::from_elem((num_data, reverse_list_size), -1.0f32);
 
         let mut reverse: Array2<Nality> =
-            Array2::from_elem((num_data, reverse_list_size), Nality::new(-1.0f32, 0));
+            Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
         // reverse_ptr - how many reverse pointers for each entry in the dataset
         let mut reverse_count = Array1::from_elem(num_data, 0);
 
@@ -1500,7 +1510,7 @@ pub fn get_nn_table2_bsp(
 
                 let reverse_link_row: Array1<&Nality> = binding
                     .iter()
-                    .filter(|&v| v.id() != 0)
+                    .filter(|&v| !v.is_empty())
                     .map(|x| x)
                     .collect::<Array1<_>>();
 
@@ -1525,10 +1535,12 @@ pub fn get_nn_table2_bsp(
                         .iter()
                         .map(|x| x.id() as usize)
                         .chain(reverse_link_row.iter().map(|x| x.id() as usize))
-                        .collect::<Array1<usize>>() // <<<<< 2 row copies here
+                        .collect::<Array1<usize>>()
                 };
 
                 let new_row_union_len = new_row_union.len();
+
+                println!("Selecting {:#?} from data", &old_row.map(|x| x.id() as usize).view());
 
                 // index the data using the rows indicated in old_row
                 let old_data = get_slice_using_selectors(
@@ -1536,6 +1548,8 @@ pub fn get_nn_table2_bsp(
                     &old_row.map(|x| x.id() as usize).view(),
                     [old_row.len()],
                 ); // Matlab line 136
+
+
                 let new_data = get_slice_using_selectors(
                     &data,
                     &new_row.map(|x| x.id() as usize).view(),

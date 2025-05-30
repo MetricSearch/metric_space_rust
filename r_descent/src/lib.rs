@@ -1541,24 +1541,26 @@ pub fn get_nn_table2_bsp(
 
                 let new_row_union_len = new_row_union.len();
 
-                println!("*** old_row len {} old row {:?} ", old_row.len(), old_row );
-
                 // index the data using the rows indicated in old_row
                 let old_data = get_slice_using_selectors(
                     &data,
-                    &old_row.map(|x| x.id() as usize).view(),
+                    &old_row
+                        .iter()
+                        .filter_map( |x| if x.is_empty() { None } else { Some(x) } )
+                        .map(|x| x.id() as usize)
+                        .collect::<Array1<_>>().view(),
                     [old_row.len()],
                 ); // Matlab line 136
 
-                println!("+++");
-
                 let new_data = get_slice_using_selectors(
                     &data,
-                    &new_row.map(|x| x.id() as usize).view(),
+                    &new_row
+                        .iter()
+                        .filter_map( |x| if x.is_empty() { None } else { Some(x) } )
+                        .map(|x| x.id() as usize)
+                        .collect::<Array1<_>>().view(),
                     [new_row.len()],
                 ); // Matlab line 137
-
-                println!("===");
 
                 let new_union_data =
                     get_slice_using_selectors(&data, &new_row_union.view(), [new_row_union_len]); // Matlab line 137

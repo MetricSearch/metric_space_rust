@@ -17,7 +17,6 @@ use rand_chacha::rand_core::SeedableRng;
 use rayon::prelude::*;
 use rayon::spawn;
 use serde::{Deserialize, Serialize};
-use std::cell::UnsafeCell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
@@ -217,7 +216,6 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
             let these_q_nns: Array1<usize> = get_slice_using_selectors(
                 &q_nns.view(),
                 &selectors.view(),
-                selectors.shape().try_into().unwrap(),
             );
 
             // set all to false; will be reset to true when overwritten with new values
@@ -459,7 +457,6 @@ pub fn initialise_table_m(
             let rand_data = get_slice_using_selected(
                 &data,
                 &original_row_ids.view(),
-                chunk.shape().try_into().unwrap(),
             ); // a view of the original data points as a matrix
             let chunk_dists: Array2<f32> = chunk.dot(&rand_data.t()); // matrix mult all the distances - all relative to the original_rows
 
@@ -1070,9 +1067,8 @@ fn fill_selected(
 fn get_slice_using_selected(
     source: &ArrayView2<f32>,
     selectors: &ArrayView1<usize>,
-    result_shape: [usize; 2],
 ) -> Array2<f32> {
-    let mut sliced = Array2::uninit(result_shape);
+    let mut sliced = Array2::uninit([selectors.len(),source.ncols()]);
 
     for count in 0..selectors.len() {
         // was result_shape
@@ -1166,7 +1162,7 @@ pub fn initialise_table_ben(
             }
 
             // Gets some random nearby stuff
-            let nearby = get_slice_using_selectors(&data, &nearby_ids.view(), [chunk_size]);
+            let nearby = get_slice_using_selectors(&data, &nearby_ids.view());
 
             let chunk_dists = nearby
                 .iter()
@@ -1251,7 +1247,6 @@ pub fn initialise_table_bsp(
             let rand_data = get_slice_using_selectors(
                 &data,
                 &original_row_ids.view(),
-                chunk.shape().try_into().unwrap(),
             ); // a view of the original data points as a matrix
 
             let chunk_dists: Array2<f32> =
@@ -1551,7 +1546,6 @@ pub fn get_nn_table2_bsp(
                         .filter_map( |x| if x.is_empty() { None } else { Some(x) } )
                         .map(|x| x.id() as usize)
                         .collect::<Array1<_>>().view(),
-                    [old_row.len()],
                 ); // Matlab line 136
 
                 let new_data = get_slice_using_selectors(
@@ -1561,11 +1555,10 @@ pub fn get_nn_table2_bsp(
                         .filter_map( |x| if x.is_empty() { None } else { Some(x) } )
                         .map(|x| x.id() as usize)
                         .collect::<Array1<_>>().view(),
-                    [new_row.len()],
                 ); // Matlab line 137
 
                 let new_union_data =
-                    get_slice_using_selectors(&data, &new_row_union.view(), [new_row_union_len]); // Matlab line 137
+                    get_slice_using_selectors(&data, &new_row_union.view()); // Matlab line 137
 
                 let new_new_sims: Array2<f32> =
                     matrix_dot_bsp::<2>(&new_union_data.view(), &new_union_data.view(), |a, b| {
@@ -1685,9 +1678,8 @@ pub fn get_nn_table2_bsp(
 fn get_slice_using_selectors<T: Clone>(
     source: &ArrayView1<T>,
     selectors: &ArrayView1<usize>,
-    result_shape: [usize; 1],
 ) -> Array1<T> {
-    let mut sliced = Array1::uninit(result_shape); //
+    let mut sliced = Array1::uninit(selectors.len());
 
     for count in 0..selectors.len() {
         // was result_shape

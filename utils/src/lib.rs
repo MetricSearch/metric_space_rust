@@ -96,12 +96,15 @@ pub fn min_index_and_value(arrai: &ArrayView1<f32>) -> (usize, f32) {
     (pair.0, *pair.1)
 }
 
-pub fn min_index_and_value_neighbourlarities(arrai: &ArrayView1<Nality>) -> Nality {
-    arrai.iter().min_by(|&best_so_far, &to_compare| {
-        best_so_far.sim()
-        .partial_cmp(&to_compare.sim())
+pub fn min_index_and_value_neighbourlarities(arrai: &ArrayView1<Nality>) -> (usize, Nality) {
+    let pair = arrai
+        .iter()
+        .enumerate()
+        .min_by(|&best_so_far, &to_compare| {  best_so_far.1.sim().partial_cmp(&to_compare.1.sim())
         .unwrap()
-    }).unwrap().clone()
+    }).unwrap();
+
+    (pair.0, pair.1.clone())
 }
 
 

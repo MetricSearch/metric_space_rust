@@ -1291,7 +1291,7 @@ pub fn initialise_table_bsp(
         
     });
 
-    println!("First row initialisation: {:#?}", xx.row(0));
+    // println!("First row initialisation: {:#?}", xx.row(0));
 
     xx
 }
@@ -1386,14 +1386,12 @@ pub fn get_nn_table2_bsp(
                 &sampled.view(),
             ); // Matlab line 79
 
-
-            println!("Neighbouralities: {:?} | Selector: {}", &neighbourlarities.row(row), old_indices.view());
-
             fill_selected(
                 &mut old_row_view,
                 &neighbourlarities.row(row),
                 &old_indices.view(),
             );
+
             fill_false(&mut neighbour_row_view, &sampled.view())
         }
 
@@ -1463,20 +1461,23 @@ pub fn get_nn_table2_bsp(
                         reverse[[this_id, reverse_count[this_id]]] =
                             Nality::new(local_sim, row as u32);
                         reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
-                    } else {
+                    } else { // the list is full
                         // but it is, so we will only add it if it's more similar than another one already there
 
-                        let closest_nality =
+                        let (position, value) =
                             min_index_and_value_neighbourlarities(&reverse.row(this_id)); // Matlab line 109
-                        let position = closest_nality.id();
-                        let value = closest_nality.sim();
+                        let value = value.sim();
 
                         if value < local_sim {
                             // Matlab line 110  if the value in reverse_sims is less similar we over write
+                            reverse[[this_id, position as usize]] = Nality::new(local_sim, row as u32);
+                            //reverse_count[this_id] = reverse_count[this_id] + 1;
 
-                            reverse[[this_id, position as usize]] =
-                                Nality::new(local_sim, row as u32);
-                            reverse_count[this_id] = reverse_count[this_id] + 1;
+                            /* was
+                            reverse[[*this_id, position]] = row; // replace the old min with the new sim value
+                            reverse_sims[[*this_id, position]] = local_sim;
+
+                             */
                             // increment the count
                         }
                     }
@@ -1503,7 +1504,7 @@ pub fn get_nn_table2_bsp(
         old.axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()
             .zip(new.axis_iter_mut(Axis(0)))
-            .par_bridge()
+            //.par_bridge()
             .map(|((row, old_row), new_row)| {
                 let binding = reverse
                     .row(row);
@@ -1540,7 +1541,7 @@ pub fn get_nn_table2_bsp(
 
                 let new_row_union_len = new_row_union.len();
 
-                println!("Selecting {:#?} from data", &old_row.map(|x| x.id() as usize).view());
+                println!("*** old_row len {} old row {:?} ", old_row.len(), old_row );
 
                 // index the data using the rows indicated in old_row
                 let old_data = get_slice_using_selectors(
@@ -1549,12 +1550,16 @@ pub fn get_nn_table2_bsp(
                     [old_row.len()],
                 ); // Matlab line 136
 
+                println!("+++");
 
                 let new_data = get_slice_using_selectors(
                     &data,
                     &new_row.map(|x| x.id() as usize).view(),
                     [new_row.len()],
                 ); // Matlab line 137
+
+                println!("===");
+
                 let new_union_data =
                     get_slice_using_selectors(&data, &new_row_union.view(), [new_row_union_len]); // Matlab line 137
 
@@ -1576,7 +1581,7 @@ pub fn get_nn_table2_bsp(
             .collect::<Vec<_>>()
             // Need to collect such that parallelism isn't accessing at the same time.
             // In this for each block, we only write in apply_update which is mutex protected.
-            .into_par_iter()
+            .into_iter() //.into_par_iter()
             .for_each(
                 |(row, new_row, 
                     old_row, 
@@ -1657,7 +1662,7 @@ pub fn get_nn_table2_bsp(
                 },
             );
 
-        println!("");
+        // println!("");
 
         let after = Instant::now();
         log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));

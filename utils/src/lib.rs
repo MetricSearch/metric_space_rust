@@ -41,15 +41,16 @@ impl Nality {
 	
 	pub fn sim(&self) -> f32 {
 		// (self.0.load(Ordering::Relaxed) & LOW_32_BITS) as f32
-        (self.0.load(Ordering::Relaxed) as u32) as f32
+        f32::from_bits(self.0.load(Ordering::Relaxed) as u32)
 	}
 	
 	pub fn id(&self) -> u32 {
 		(self.0.load(Ordering::Relaxed) >> 32) as u32
 	}
-	
+    
     fn combine(sim:f32, id:u32) -> u64 {
-		((id as u64) << 32) | ((sim as u64) & LOW_32_BITS)
+		// ((sim as u32) as u64) 
+        (f32::to_bits(sim) as u64) | ((id as u64) << 32)
 	}
 
     pub fn get(&self) -> &AtomicU64 {

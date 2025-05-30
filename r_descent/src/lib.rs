@@ -247,7 +247,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
             // Remove zeros (which are not encoded as zeros but as maxints)?
             let all_ids = all_ids
                 .into_iter()
-                .filter(|&id| id != usize::MAX)
+                .filter(|&id| id != (u32::MAX as usize))
                 .collect::<Array1<usize>>();
 
             // get a view of the actual data values from the full data set but not the zeros.
@@ -827,7 +827,7 @@ pub fn get_new_reverse_links_not_in_forward(
     let num_neighbours = neighbours.ncols();
     let num_data = neighbours.nrows();
     // the reverse NN table  Matlab line 91
-    let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), usize::MAX);
+    let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), (u32::MAX as usize));
     // all the distances from reverse NN table.
     let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), f32::MIN); // was -1.0f32
                                                                                                     // reverse_ptr - how many reverse pointers for each entry in the dataset
@@ -896,7 +896,7 @@ pub fn get_reverse_links_not_in_forward(
     // the reverse NN table  Matlab line 91
     let num_neighbours = neighbours.ncols();
     let num_data = neighbours.nrows();
-    let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), usize::MAX);
+    let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), (u32::MAX as usize));
     // all the distances from reverse NN table.
     let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), f32::MIN); // was -1.0f32
                                                                                                     // reverse_ptr - how many reverse pointers for each entry in the dataset

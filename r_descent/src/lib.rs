@@ -1310,7 +1310,7 @@ pub fn get_nn_table2_bsp(
 
     let mut iterations = 0;
 
-    let raw_neighbours_new = Array2::from_elem((num_data, num_neighbours), true);
+    let mut raw_neighbours_new = Array2::from_elem((num_data, num_neighbours), true);
     let mut neighbour_is_new = UnsafeState::new(&mut raw_neighbours_new );
 
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
@@ -1341,7 +1341,7 @@ pub fn get_nn_table2_bsp(
 
         for row in 0..num_data {
             // in Matlab line 74
-            let row_flags = unsafe { *neighbour_is_new.neighbours_is_new }.row_mut(row); // Matlab line 74
+            let row_flags = unsafe {&mut *neighbour_is_new.neighbours_is_new }.row_mut(row); // Matlab line 74
 
             // new_indices are the indices in this row whose flag is set to true (columns)
 
@@ -1372,7 +1372,7 @@ pub fn get_nn_table2_bsp(
             let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
             let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
             let mut neighbour_row_view: ArrayViewMut1<bool> =
-                unsafe { *neighbour_is_new.neighbours_is_new }.row_mut(row);
+                unsafe { &mut *neighbour_is_new.neighbours_is_new }.row_mut(row);
 
             fill_selected(
                 &mut new_row_view,

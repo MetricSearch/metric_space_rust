@@ -23,7 +23,7 @@ use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use std::io::Write;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 use std::{io, ptr};
 use utils::non_nan::NonNan;
@@ -729,12 +729,10 @@ pub fn check_apply_update(
     row_id: usize,
     new_val: &Nality,
     this_sim: f32,
-    neighbour_is_new: &UnsafeState,
+    neighbour_is_new: &Array2<AtomicBool>,
     neighbourlarities: &Array2<Nality>,
     work_done: &AtomicUsize,
 ) -> () {
-    let deref_neighbour_is_new = unsafe { &mut *neighbour_is_new.neighbours_is_new }; // TODO fix
-
     loop {
         // We expect the old value to be the same as the new if there is no contention.
         let (col_id, current_min_nality) = minimum_in_nality(&neighbourlarities.row(row_id));
@@ -759,7 +757,7 @@ pub fn check_apply_update(
             ) {
                 Ok(_) => {
                     // we have done the swap and all is good.
-                    deref_neighbour_is_new[[row_id, col_id]] = true;
+                    neighbour_is_new[[row_id, col_id]].store(true, Ordering::Relaxed);
                     work_done.fetch_add(1, Ordering::Relaxed);
                     return;
                 }
@@ -1053,6 +1051,12 @@ fn fill_false(row: &mut ArrayViewMut1<bool>, selector: &ArrayView1<usize>) {
     }
 }
 
+fn fill_false_atomic(row: &mut ArrayViewMut1<AtomicBool>, selector: &ArrayView1<usize>) {
+    for i in 0..selector.len() {
+        row[selector[i]].store(false, Ordering::Relaxed);
+    }
+}
+
 fn fill_selected(
     to_fill: &mut ArrayViewMut1<Nality>,
     fill_from: &ArrayView1<Nality>,
@@ -1316,8 +1320,7 @@ pub fn get_nn_table2_bsp(
 
     let mut iterations = 0;
 
-    let mut raw_neighbours_new = Array2::from_elem((num_data, num_neighbours), true);
-    let mut neighbour_is_new = UnsafeState::new(&mut raw_neighbours_new );
+    let mut neighbour_is_new = Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(true));
 
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
 
@@ -1347,14 +1350,14 @@ pub fn get_nn_table2_bsp(
 
         for row in 0..num_data {
             // in Matlab line 74
-            let row_flags = unsafe {&mut *neighbour_is_new.neighbours_is_new }.row_mut(row); // Matlab line 74
+            let row_flags = neighbour_is_new.row_mut(row); // Matlab line 74
 
             // new_indices are the indices in this row whose flag is set to true (columns)
 
             let new_indices = row_flags // Matlab line 76
                 .iter()
                 .enumerate()
-                .filter_map(|(index, flag)| if *flag { Some(index) } else { None })
+                .filter_map(|(index, flag)| if flag.load(Ordering::Relaxed) { Some(index) } else { None })
                 .collect::<Array1<usize>>();
 
             // old_indices are the indices in this row whose flag is set to false (intially there are none of these).
@@ -1362,7 +1365,7 @@ pub fn get_nn_table2_bsp(
             let old_indices = row_flags // Matlab line 77
                 .iter()
                 .enumerate()
-                .filter_map(|(index, flag)| if !*flag { Some(index) } else { None })
+                .filter_map(|(index, flag)| if !flag.load(Ordering::Relaxed) { Some(index) } else { None })
                 .collect::<Array1<usize>>();
 
             // random data ids from whole data set
@@ -1377,8 +1380,7 @@ pub fn get_nn_table2_bsp(
 
             let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
             let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
-            let mut neighbour_row_view: ArrayViewMut1<bool> =
-            unsafe { &mut *neighbour_is_new.neighbours_is_new }.row_mut(row);
+            let mut neighbour_row_view: ArrayViewMut1<AtomicBool> = neighbour_is_new.row_mut(row);
 
             fill_selected(
                 &mut new_row_view,
@@ -1392,7 +1394,7 @@ pub fn get_nn_table2_bsp(
                 &old_indices.view(),
             );
 
-            fill_false(&mut neighbour_row_view, &sampled.view())
+            fill_false_atomic(&mut neighbour_row_view, &sampled.view())
         }
 
         let after = Instant::now();
@@ -1677,22 +1679,6 @@ pub fn get_nn_table2_bsp(
     );
 }
 
-pub struct UnsafeState {
-    neighbours_is_new: *mut Array2<bool>,
-}
-
-impl UnsafeState {
-    fn new(
-        neighbours_is_new: &mut Array2<bool>,
-    ) -> Self {
-        Self {
-            neighbours_is_new: neighbours_is_new as *mut Array2<bool>,
-        }
-    }
-}
-
-unsafe impl Send for UnsafeState {}
-unsafe impl Sync for UnsafeState {}
 
 //********* Helper functions *********
 

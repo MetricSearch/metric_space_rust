@@ -1495,11 +1495,13 @@ pub fn get_nn_table2_bsp(
             .zip(new.axis_iter_mut(Axis(0)))
             .par_bridge()
             .map(|((row, old_row), new_row)| {
-                let mut reverse_link_row: Array1<Nality> = reverse
-                    .row(row)
+                let binding = reverse
+                    .row(row);
+
+                let reverse_link_row: Array1<&Nality> = binding
                     .iter()
-                    .filter(|&&v| v.id() != 0)
-                    .map(|&x| x)
+                    .filter(|&v| v.id() != 0)
+                    .map(|x| x)
                     .collect::<Array1<_>>();
 
                 // if rho < 1.0 {
@@ -1614,15 +1616,15 @@ pub fn get_nn_table2_bsp(
 
                     for new_ind1 in 0..new_row.len() {
                         // Matlab line 183  // rectangular matrix - need to look at all
-                        let u1 = new_row[new_ind1];
+                        let u1 = &new_row[new_ind1];
                         for new_ind2 in 0..old_row.len() {
-                            let u2 = old_row[new_ind2]; // Matlab line 186
+                            let u2 = &old_row[new_ind2]; // Matlab line 186
                                                         // then get their distance from the matrix
                             let this_sim = new_old_sims[[new_ind1, new_ind2]];
 
                             check_apply_update(
                                 u1.id() as usize,
-                                &u2,
+                                u2,
                                 this_sim,
                                 &neighbour_is_new,
                                 neighbourlarities,
@@ -1630,7 +1632,7 @@ pub fn get_nn_table2_bsp(
                             );
                             check_apply_update(
                                 u2.id() as usize,
-                                &u1,
+                                u1,
                                 this_sim,
                                 &neighbour_is_new,
                                 neighbourlarities,

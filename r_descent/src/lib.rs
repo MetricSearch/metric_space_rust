@@ -724,50 +724,51 @@ pub fn initialise_table_m(
 
 pub fn check_apply_update(
     row_id: usize,
-    new_val: &Nality,
-    this_sim: f32,
+    new_index_to_add: u32,
+    new_similarity: f32,
     neighbour_is_new: &Array2<AtomicBool>,
     neighbourlarities: &Array2<Nality>,
     work_done: &AtomicUsize,
 ) -> () {
     loop {
         // We expect the old value to be the same as the new if there is no contention.
-        let (col_id, current_min_nality) = minimum_in_nality(&neighbourlarities.row(row_id));
-        if this_sim > current_min_nality.sim() {
+        let (min_col_id, current_min_nality) = minimum_in_nality(&neighbourlarities.row(row_id));
+        if new_similarity > current_min_nality.sim() {
             let min_ality_before_check = current_min_nality.get().load(Ordering::SeqCst);
 
             if neighbourlarities
                 .row(row_id)
                 .iter()
-                .any(|x| x.id() == new_val.id())
+                .any(|x| x.id() == new_index_to_add)
             {
                 // If we see the id we're inserting, bomb out
                 return;
             }
 
+            let new_value_to_add = Nality::new(new_similarity,new_index_to_add);
+
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check
-            // works on u44 hence need for current_min_nality.get()
+            // works on u44 hence need for current_min_nality.get() - this get() is thread safe - really only a view.
             match current_min_nality.get().compare_exchange(
                 min_ality_before_check,               // the expected value to be in location
-                new_val.get().load(Ordering::SeqCst), // the new value
+                new_value_to_add.get().load(Ordering::SeqCst), // the new value
                 Ordering::SeqCst,                     // success ordering
                 Ordering::SeqCst,                     // failure ordering
             ) {
                 Ok(_) => {
                     // we have done the swap and all is good.
-                    neighbour_is_new[[row_id, col_id]].store(true, Ordering::Relaxed);
-                    work_done.fetch_add(1, Ordering::Relaxed);
+                    neighbour_is_new[[row_id, min_col_id]].store(true, Ordering::Relaxed); // update the new flag
+                    work_done.fetch_add(1, Ordering::Relaxed);                        // record that we have dome some work
                     return;
                 }
 
-                Err(x) => {
+                Err(updated_value_in_slot) => {
                     // let similarity = x as f32; // Nasty hack to get the similarity <<<<<< ?????????
-                    let sim_nality = Nality::new_from_u64(x);
-                    let similarity = sim_nality.sim();
+                    let updated_slot_similarity = Nality::new_from_u64(updated_value_in_slot).sim();
 
                     // The least similar thing is now something better than the update we are applying... bomb out
-                    if similarity > new_val.sim() {
+                    if updated_slot_similarity >= new_similarity {
                         return;
                     }
                 }
@@ -1607,7 +1608,7 @@ pub fn get_nn_table2_bsp(
 
                             check_apply_update(
                                 u1_id,
-                                &Nality::new(this_sim, u2_id as u32),
+                                u2_id as u32, // &Nality::new(this_sim, ),
                                 this_sim,
                                 &neighbour_is_new,
                                 neighbourlarities,
@@ -1615,7 +1616,7 @@ pub fn get_nn_table2_bsp(
                             );
                             check_apply_update(
                                 u2_id,
-                                &Nality::new(this_sim, u1_id as u32),
+                                u1_id as u32,  // &Nality::new(this_sim, ),
                                 this_sim,
                                 &neighbour_is_new,
                                 neighbourlarities,
@@ -1643,15 +1644,14 @@ pub fn get_nn_table2_bsp(
 
                             let u2 = &old_row[new_ind2]; // Matlab line 186
 
-
                             // then get their distance from the matrix
 
                                 let this_sim = new_old_sims[[new_ind1, new_ind2]];
 
                                 check_apply_update(
-                                    u1.id() as usize,
-                                    u2,    // <<<<<<<<<< the new val
-                                    this_sim,
+                                    u1.id() as usize,   // the new row
+                                    u2.id(),            // <<<<<<<<<< the new index to be added to row
+                                    this_sim,           // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
                                     &work_done,
@@ -1659,7 +1659,7 @@ pub fn get_nn_table2_bsp(
 
                                 check_apply_update(
                                     u2.id() as usize,
-                                    u1,
+                                    u1.id(),
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,

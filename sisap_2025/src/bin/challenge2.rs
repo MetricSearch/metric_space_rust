@@ -18,7 +18,7 @@ use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use dao::Dao;
 use ndarray::{s, ArrayView1};
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
+use r_descent::{IntoRDescent};
 use std::rc::Rc;
 
 
@@ -43,10 +43,10 @@ fn main() -> Result<()>{
 
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 256;
-    const num_queries: usize = 0;
+    const NUM_QUERIES: usize = 0;
 
     let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_pubmed_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
+        hdf5_pubmed_f32_to_bsp_load(&args.path, ALL_RECORDS, NUM_QUERIES, NUM_VERTICES).unwrap(),
     );
 
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();

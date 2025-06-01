@@ -24,7 +24,7 @@ pub struct Nality (AtomicU64);
 
 impl Nality {
     pub fn new_empty() -> Self {
-        Self(AtomicU64::new(Self::combine(-1f32, u32::MAX)))
+        Self(AtomicU64::new(Self::combine(-1f32, 0))) // was u32::MAX
     }
 
     pub fn new(sim: f32, id: u32) -> Self {
@@ -32,7 +32,7 @@ impl Nality {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.id() == u32::MAX && self.sim() == -1f32
+        self.id() == 0 && self.sim() == -1f32 // was u32::MAX
     }
 
 	pub fn update(&self, sim: f32, id: u32) {

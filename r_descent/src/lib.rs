@@ -227,14 +227,14 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
             // TODO what if these_q_nns is bigger than number of neighbours in the table
 
             let forward_nns: Array1<usize> =
-                get_2D_slice_using(&self.rdescent.neighbours.view(), &these_q_nns.view())
+                get_2_d_slice_using(&self.rdescent.neighbours.view(), &these_q_nns.view())
                     .flatten()
                     .into_owned();
 
             // these two lines do the same for the reverse table as above for the forward table
 
             let reverse_nns: Array1<usize> =
-                get_2D_slice_using(&self.reverse_neighbours.view(), &these_q_nns.view())
+                get_2_d_slice_using(&self.reverse_neighbours.view(), &these_q_nns.view())
                     .flatten()
                     .into_owned();
 
@@ -249,7 +249,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentMatrixWithRev {
 
             // get a view of the actual data values from the full data set but not the zeros.
 
-            let nn_data: Array1<EvpBits<X>> = get_1D_slice_using_selected(&data, &all_ids.view());
+            let nn_data: Array1<EvpBits<X>> = get_1_d_slice_using_selected(&data, &all_ids.view());
 
             // and measure the similarity of each to the query
             // allSims is a flat vector is distances
@@ -1080,7 +1080,7 @@ fn get_slice_using_selected(
     unsafe { sliced.assume_init() }
 }
 
-fn get_1D_slice_using_selected<T: Clone>(
+fn get_1_d_slice_using_selected<T: Clone>(
     source: &ArrayView1<T>,
     selectors: &ArrayView1<usize>,
 ) -> Array1<T> {
@@ -1543,8 +1543,8 @@ pub fn get_nn_table2_bsp(
                     &data,
                     &old_row
                         .iter()
-                        .filter_map( |x| if x.is_empty() { None } else { Some(x) } )
-                        .map(|x| x.id() as usize)
+                        //.filter_map( |x| if x.is_empty() { None } else { Some(x) } )
+                        .map(|x| { x.id() as usize } )
                         .collect::<Array1<_>>().view(),
                 ); // Matlab line 136
 
@@ -1552,7 +1552,7 @@ pub fn get_nn_table2_bsp(
                     &data,
                     &new_row
                         .iter()
-                        .filter_map( |x| if x.is_empty() { None } else { Some(x) } )
+                        //.filter_map( |x| if x.is_empty() { None } else { Some(x) } )
                         .map(|x| x.id() as usize)
                         .collect::<Array1<_>>().view(),
                 ); // Matlab line 137
@@ -1563,7 +1563,7 @@ pub fn get_nn_table2_bsp(
                 let new_new_sims: Array2<f32> =
                     matrix_dot_bsp::<2>(&new_union_data.view(), &new_union_data.view(), |a, b| {
                         bsp_similarity_as_f32::<2>(a, b)
-                    }); // <<<<<<<<< TODO CHECK!!
+                    });
 
                 (
                     row,
@@ -1620,46 +1620,51 @@ pub fn get_nn_table2_bsp(
                         } // Matlab line 175
                     }
 
-                    // nnw do the news vs the olds, no reverse links
+                    // now do the news vs the olds, no reverse links
                     // newOldSims = newData * oldData';
 
                     let new_old_sims =
-                        matrix_dot_bsp::<2>(&new_data.view(), &old_data.view(), |a, b| {
-                            bsp_similarity_as_f32::<2>(a, b)
-                        });
+                        matrix_dot_bsp::<2>(&new_data.view(),
+                                            &old_data.view(),
+                                            |a, b| { bsp_similarity_as_f32::<2>(a, b) }
+                        );
 
                     // and do the same for each pair of elements in the new_row/old_row
 
                     for new_ind1 in 0..new_row.len() {
                         // Matlab line 183  // rectangular matrix - need to look at all
+
                         let u1 = &new_row[new_ind1];
                         for new_ind2 in 0..old_row.len() {
-                            let u2 = &old_row[new_ind2]; // Matlab line 186
-                                                        // then get their distance from the matrix
-                            let this_sim = new_old_sims[[new_ind1, new_ind2]];
 
-                            check_apply_update(
-                                u1.id() as usize,
-                                u2,
-                                this_sim,
-                                &neighbour_is_new,
-                                neighbourlarities,
-                                &work_done,
-                            );
-                            check_apply_update(
-                                u2.id() as usize,
-                                u1,
-                                this_sim,
-                                &neighbour_is_new,
-                                neighbourlarities,
-                                &work_done,
-                            );
+                            let u2 = &old_row[new_ind2]; // Matlab line 186
+
+
+                            // then get their distance from the matrix
+
+                                let this_sim = new_old_sims[[new_ind1, new_ind2]];
+
+                                check_apply_update(
+                                    u1.id() as usize,
+                                    u2,    // <<<<<<<<<< the new val
+                                    this_sim,
+                                    &neighbour_is_new,
+                                    neighbourlarities,
+                                    &work_done,
+                                );
+
+                                check_apply_update(
+                                    u2.id() as usize,
+                                    u1,
+                                    this_sim,
+                                    &neighbour_is_new,
+                                    neighbourlarities,
+                                    &work_done,
+                                );
                         }
                     }
                 },
             );
-
-        // println!("");
 
         let after = Instant::now();
         log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));
@@ -1691,7 +1696,7 @@ fn get_slice_using_selectors<T: Clone>(
     unsafe { sliced.assume_init() }
 }
 
-fn get_2D_slice_using<T: Clone>(
+fn get_2_d_slice_using<T: Clone>(
     source: &ArrayView2<T>,
     selectors: &ArrayView1<usize>,
 ) -> Array2<T> {

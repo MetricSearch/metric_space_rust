@@ -734,8 +734,6 @@ pub fn check_apply_update(
         // We expect the old value to be the same as the new if there is no contention.
         let (min_col_id, current_min_nality) = minimum_in_nality(&neighbourlarities.row(row_id));
         if new_similarity > current_min_nality.sim() {
-            let min_ality_before_check = current_min_nality.get().load(Ordering::SeqCst);
-
             if neighbourlarities
                 .row(row_id)
                 .iter()
@@ -745,7 +743,8 @@ pub fn check_apply_update(
                 return;
             }
 
-            let new_value_to_add = Nality::new(new_similarity,new_index_to_add);
+            let min_ality_before_check = current_min_nality.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
+            let new_value_to_add = Nality::new(new_similarity,new_index_to_add);         // this is the new Naility to add to the row
 
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check

@@ -741,16 +741,18 @@ pub fn check_apply_update(
                 .iter()
                 .any(|x| x.id() == new_val.id())
             {
-                // If we see the thing we're inserting, bomb out
+                // If we see the id we're inserting, bomb out
                 return;
             }
 
             // And try to insert the new one if it's not been changed...
+            // only succeeds if the current value if the same as min_ality_before_check
+            // works on u44 hence need for current_min_nality.get()
             match current_min_nality.get().compare_exchange(
-                min_ality_before_check,
-                new_val.get().load(Ordering::SeqCst),
-                Ordering::SeqCst,
-                Ordering::SeqCst,
+                min_ality_before_check,               // the expected value to be in location
+                new_val.get().load(Ordering::SeqCst), // the new value
+                Ordering::SeqCst,                     // success ordering
+                Ordering::SeqCst,                     // failure ordering
             ) {
                 Ok(_) => {
                     // we have done the swap and all is good.
@@ -760,7 +762,9 @@ pub fn check_apply_update(
                 }
 
                 Err(x) => {
-                    let similarity = x as f32; // Nasty hack to get the similarity
+                    // let similarity = x as f32; // Nasty hack to get the similarity <<<<<< ?????????
+                    let sim_nality = Nality::new_from_u64(x);
+                    let similarity = sim_nality.sim();
 
                     // The least similar thing is now something better than the update we are applying... bomb out
                     if similarity > new_val.sim() {
@@ -1509,8 +1513,8 @@ pub fn get_nn_table2_bsp(
                 let reverse_link_row: Array1<&Nality> = binding
                     .iter()
                     .filter(|&v| !v.is_empty())
-                    .map(|x| x)
-                    .collect::<Array1<_>>();
+                    //.map(|x| x)
+                    .collect::<Array1<&Nality>>();
 
                 // if rho < 1.0 {
                 //     // Matlab line 127
@@ -1531,7 +1535,7 @@ pub fn get_nn_table2_bsp(
                 } else {
                     new_row
                         .iter()
-                        .map(|x| x.id() as usize)
+                        .filter_map(|x| { if x.is_empty() {None} else { Some(x.id() as usize) } } ) //<<<<<<<<< only take real values
                         .chain(reverse_link_row.iter().map(|x| x.id() as usize))
                         .collect::<Array1<usize>>()
                 };

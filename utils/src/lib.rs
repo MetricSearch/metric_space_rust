@@ -31,6 +31,10 @@ impl Nality {
         Self(AtomicU64::new(Self::combine(sim, id)))
     }
 
+    pub fn new_from_u64(value: u64) -> Self {
+        Self(AtomicU64::new(value))
+    }
+
     pub fn is_empty(&self) -> bool {
         self.id() == 0 && self.sim() == -1f32 // was u32::MAX
     }

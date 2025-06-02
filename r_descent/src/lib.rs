@@ -732,8 +732,8 @@ pub fn check_apply_update(
 ) -> () {
     loop {
         // We expect the old value to be the same as the new if there is no contention.
-        let (min_col_id, current_min_nality) = minimum_in_nality(&neighbourlarities.row(row_id));
-        if new_similarity > current_min_nality.sim() {
+        let (min_col_id,min_naility) = minimum_in_nality(&neighbourlarities.row(row_id));
+        if new_similarity > min_naility.sim() {
             if neighbourlarities
                 .row(row_id)
                 .iter()
@@ -743,13 +743,13 @@ pub fn check_apply_update(
                 return;
             }
 
-            let min_ality_before_check = current_min_nality.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
+            let min_ality_before_check = min_naility.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
             let new_value_to_add = Nality::new(new_similarity,new_index_to_add);         // this is the new Naility to add to the row
 
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check
-            // works on u44 hence need for current_min_nality.get() - this get() is thread safe - really only a view.
-            match current_min_nality.get().compare_exchange(
+            // works on u44 hence need for neighbourlarities[[row_id,min_col_id]].get() - this get() is thread safe - really only a view.
+            match neighbourlarities[[row_id,min_col_id]].get().compare_exchange(
                 min_ality_before_check,               // the expected value to be in location
                 new_value_to_add.get().load(Ordering::SeqCst), // the new value
                 Ordering::SeqCst,                     // success ordering

@@ -130,13 +130,13 @@ pub fn minimum_in(arrai: &ArrayView1<f32>) -> f32 {
 }
 
 pub fn minimum_in_nality(arrai: &ArrayView1<Nality>) -> (usize, Nality) {
-    let xx = arrai
+    let min_val = arrai
         .iter()
         .enumerate()
         .min_by(|best_so_far, to_compare| best_so_far.1.sim().partial_cmp(&to_compare.1.sim()).unwrap())
         .unwrap();
 
-    (xx.0, xx.1)
+    (min_val.0, min_val.1.clone())
 }
 
 // Vec versions of the functions above.

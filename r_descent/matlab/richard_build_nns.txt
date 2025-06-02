@@ -148,7 +148,7 @@ function [B,phaseTimes,reverseB] = getNNtable2(data, B, nnSims, k, rho, delta, r
 						u2Id = newRowUnion(newInd2);
 						% then get their similarity from the matrix
 						thisSim = newNewSims(newInd1,newInd2);
-						% is the current similarity greater than the biggest distance
+						% is the current similarity greater than the biggest similarity?
 						% in the row for u1Id? if it's not, then do nothing
 						
 						if thisSim > globalMinsInB(u1Id)

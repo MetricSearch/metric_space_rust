@@ -8,7 +8,7 @@ use dao::{Dao, DaoMatrix};
 use deepsize::DeepSizeOf;
 use metrics::euc;
 use ndarray::Array1;
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp};
+use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
@@ -62,23 +62,15 @@ fn main() -> Result<()> {
     let reverse_list_size = 32;
 
     log::info!("Initializing NN table with chunk size {}", chunk_size);
-    let (mut ords, mut dists) = initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
 
-    log::info!("Getting NN table");
-
-    get_nn_table2_bsp(
-        dao_bsp.clone(),
-        &mut ords,
-        &mut dists,
-        num_neighbours,
-        rho,
-        delta,
-        reverse_list_size,
-    );
+    let descent =
+        dao_bsp
+            .clone()
+            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, rho, delta);
 
     log::info!("Line 0 of table:");
     for i in 0..10 {
-        log::info!(" neighbours: {} dists: {}", ords[[0, i]], dists[[0, i]]);
+        log::info!(" neighbours: {} dists: {}", descent.neighbours[0,i], descent.similarities[0,i]);
     }
 
     let end = Instant::now();

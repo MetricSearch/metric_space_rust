@@ -6,7 +6,7 @@ use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
 use dao::Dao;
 use deepsize::DeepSizeOf;
 use ndarray::ArrayView1;
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp};
+use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
 use utils::bytes_fmt;
 use std::rc::Rc;
 use std::time::Instant;
@@ -64,29 +64,20 @@ fn main() -> Result<()> {
     let reverse_list_size = 32;
 
     log::info!("Initializing NN table with chunk size {}", chunk_size);
-    let (mut bsp_nns, mut bsp_dists) =
-        initialise_table_bsp(dao_bsp.clone(), chunk_size, num_neighbours);
-
-    log::info!("Getting NN table");
-
-    get_nn_table2_bsp(
-        dao_bsp.clone(),
-        &mut bsp_nns,
-        &mut bsp_dists,
-        num_neighbours,
-        rho,
-        delta,
-        reverse_list_size,
-    );
 
     let start = Instant::now();
+
+    let descent =
+        dao_bsp
+            .clone()
+            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, rho, delta);
 
     log::info!("Line 0 of table:");
     for i in 0..10 {
         log::info!(
             " neighbours: {} dists: {}",
-            bsp_nns[[0, i]],
-            bsp_dists[[0, i]]
+            descent.neighbours[0,i],
+            descent.similarities[0,i]
         );
     }
 

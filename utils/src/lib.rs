@@ -136,7 +136,7 @@ pub fn minimum_in_nality(arrai: &ArrayView1<Nality>) -> (usize, Nality) {
         .min_by(|best_so_far, to_compare| best_so_far.1.sim().partial_cmp(&to_compare.1.sim()).unwrap())
         .unwrap();
 
-    (xx.0, xx.1.clone())
+    (xx.0, xx.1)
 }
 
 // Vec versions of the functions above.

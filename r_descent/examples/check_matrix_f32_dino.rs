@@ -5,7 +5,7 @@ use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};
 use metrics::euc;
 use ndarray::Array1;
-use r_descent::{get_nn_table2_m, initialise_table_m};
+use r_descent::{initialise_table_m}; // get_nn_table2_m
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
@@ -62,31 +62,33 @@ fn main() -> Result<()> {
 
     println!("Getting NN table");
 
-    get_nn_table2_m(
-        dao_f32.clone(),
-        &mut ords,
-        &mut dists,
-        num_neighbours,
-        rho,
-        delta,
-        reverse_list_size,
-    );
+    todo!();
 
-    println!("Line 0 of table:");
-    for i in 0..10 {
-        println!(" neighbours: {} dists: {}", ords[[0, i]], dists[[0, i]]);
-    }
-
-    let end = Instant::now();
-
-    println!(
-        "Finished (including load time in {} s",
-        (end - start).as_secs()
-    );
-    println!(
-        "Finished (post load time) in {} s",
-        (end - start_post_load).as_secs()
-    );
-
-    Ok(())
+    // get_nn_table2_m(
+    //     dao_f32.clone(),
+    //     &mut ords,
+    //     &mut dists,
+    //     num_neighbours,
+    //     rho,
+    //     delta,
+    //     reverse_list_size,
+    // );
+    //
+    // println!("Line 0 of table:");
+    // for i in 0..10 {
+    //     println!(" neighbours: {} dists: {}", ords[[0, i]], dists[[0, i]]);
+    // }
+    //
+    // let end = Instant::now();
+    //
+    // println!(
+    //     "Finished (including load time in {} s",
+    //     (end - start).as_secs()
+    // );
+    // println!(
+    //     "Finished (post load time) in {} s",
+    //     (end - start_post_load).as_secs()
+    // );
+    //
+    // Ok(())
 }

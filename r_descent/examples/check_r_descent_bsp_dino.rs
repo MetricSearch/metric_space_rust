@@ -68,21 +68,23 @@ fn main() -> Result<()> {
             .clone()
             .into_rdescent(num_neighbours, reverse_list_size, chunk_size, rho, delta);
 
-    log::info!("Line 0 of table:");
-    for i in 0..10 {
-        log::info!(" neighbours: {} dists: {}", descent.neighbours[0,i], descent.similarities[0,i]);
-    }
+    // log::info!("Line 0 of table:");
+    // for i in 0..10 {
+    //     log::info!(" neighbours: {} dists: {}", descent.neighbours[0,i], descent.similarities[0,i]);
+    // }
+    //
+    // let end = Instant::now();
+    //
+    // log::info!(
+    //     "Finished (including load time in {} s",
+    //     (end - start).as_secs()
+    // );
+    // log::info!(
+    //     "Finished (post load time) in {} s",
+    //     (end - start_post_load).as_secs()
+    // );
 
-    let end = Instant::now();
-
-    log::info!(
-        "Finished (including load time in {} s",
-        (end - start).as_secs()
-    );
-    log::info!(
-        "Finished (post load time) in {} s",
-        (end - start_post_load).as_secs()
-    );
+    todo!(); // TODO <<<<<<<<<<<
 
     Ok(())
 }

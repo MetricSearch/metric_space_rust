@@ -72,41 +72,42 @@ fn main() -> Result<()> {
             .clone()
             .into_rdescent(num_neighbours, reverse_list_size, chunk_size, rho, delta);
 
-    log::info!("Line 0 of table:");
-    for i in 0..10 {
-        log::info!(
-            " neighbours: {} dists: {}",
-            descent.neighbours[0,i],
-            descent.similarities[0,i]
-        );
-    }
-
-    let end = Instant::now();
-
-    log::info!(
-        "Finished (including load time in {} s",
-        (end - start).as_secs()
-    );
-    log::info!(
-        "Finished (post load time) in {} s",
-        (end - start_post_load).as_secs()
-    );
-
-    let knns = 30;
-
-    let (gt_nns, gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
-
-    // let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
-
-    // let gt_queries = dao_f32.get_queries();
-
-    // log::info!("Pubmed:");
-    // log::info!("results_size,gt_size,Mean,Max,Min,Std_dev");
-    // for bsp_set_size in (30..101).step_by(5) {
-    //     report_queries(gt_queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
+    todo!();
+    // log::info!("Line 0 of table:");
+    // for i in 0..10 {
+    //     log::info!(
+    //         " neighbours: {} dists: {}",
+    //         descent.neighbours[0,i],
+    //         descent.similarities[0,i]
+    //     );
     // }
-
-    Ok(())
+    //
+    // let end = Instant::now();
+    //
+    // log::info!(
+    //     "Finished (including load time in {} s",
+    //     (end - start).as_secs()
+    // );
+    // log::info!(
+    //     "Finished (post load time) in {} s",
+    //     (end - start_post_load).as_secs()
+    // );
+    //
+    // let knns = 30;
+    //
+    // let (gt_nns, gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
+    //
+    // // let dao_f32: Rc<Dao<Array1<f32>>> = Rc::new(dao_from_csv_dir(&args.path, 0, num_queries)?);
+    //
+    // // let gt_queries = dao_f32.get_queries();
+    //
+    // // log::info!("Pubmed:");
+    // // log::info!("results_size,gt_size,Mean,Max,Min,Std_dev");
+    // // for bsp_set_size in (30..101).step_by(5) {
+    // //     report_queries(gt_queries.len(), &gt_nns, &bsp_nns, bsp_set_size, 30);
+    // // }
+    //
+    // Ok(())
 }
 
 // fn report_queries(

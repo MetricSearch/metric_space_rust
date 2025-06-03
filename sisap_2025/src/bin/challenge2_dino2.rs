@@ -16,7 +16,7 @@ use bits::EvpBits;
 use clap::Parser;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{convert_f32_to_bsp::f32_dao_to_bsp, pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load};
-use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
+use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::{Dao, DaoMatrix};
 use ndarray::{s, ArrayView1};
 use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};

@@ -7,11 +7,6 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use std::cmp::max;
 use std::rc::Rc;
-use tracing_subscriber::prelude::__tracing_subscriber_field_MakeExt;
-// const SEED: [u8; 32] = [
-//     1, 34, 53, 43, 111, 12, 65, 67, 9, 32, 53, 41, 49, 12, 66, 67, 6, 33, 51, 91, 44, 13, 50, 69,
-//     8, 39, 55, 23, 37, 112, 72, 5,
-// ];
 
 /***************************************************************************************************
                                              RPNode
@@ -200,7 +195,7 @@ impl<T> std::fmt::Debug for RpNode<T> {
 }
 
 pub fn make_pivot2<T: Clone>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> T {
-    let index = rng.gen_range(0..dao.num_data);
+    let index = rng.random_range(0..dao.num_data);
     tracing::info!("** PIVOT ** : {}", index);
     dao.get_datum(index).clone()
 }
@@ -293,7 +288,7 @@ impl<T: Clone> RPTree<T> {
 
     /**************  private functions **************/
 
-    fn populate(&mut self, dot_product: fn(&T, &T) -> f32) {
+    pub fn populate(&mut self, dot_product: fn(&T, &T) -> f32) {
         tracing::info!("Data len {}", self.dao.data_len());
         for i in 0..self.dao.data_len() {
             if i % 100_000 == 0 {

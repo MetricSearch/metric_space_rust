@@ -231,7 +231,7 @@ impl<const X: usize> Hasher for EvpBits<X> {
                 .sum::<u64>()
     }
 
-    fn write(&mut self, bytes: &[u8]) {}
+    fn write(&mut self, _bytes: &[u8]) {}
 }
 
 impl<const X: usize> Default for EvpBits<X> {
@@ -430,7 +430,7 @@ pub fn matrix_dot_bsp<const X: usize>(
     let b_len = b.len();
     let b = Arc::new(b.to_owned()); // Arc for shared parallel use
 
-    let result: Array2<f32> = Array2::from_shape_fn((a_len, b_len), |(i, j)| 0.0);
+    let result: Array2<f32> = Array2::from_shape_fn((a_len, b_len), |(_i, _j)| 0.0);
 
     // Parallel over rows of `a`
     let mut result = result;

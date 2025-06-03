@@ -37,7 +37,7 @@ pub fn hdf5_pubmed_gt_load(
 
 // Filter out all entries that are greater than or equal to num_records (rows run from 0..num_records)
 // then only keep the first num_cols of data
-fn filter_knns(knns: Array2<usize>, num_cols: usize) -> anyhow::Result<Array2<usize>> {
+pub fn filter_knns(knns: Array2<usize>, num_cols: usize) -> anyhow::Result<Array2<usize>> {
     // Vector to collect cleaned rows
     let mut filtered_rows: Vec<Array1<usize>> = Vec::new();
 

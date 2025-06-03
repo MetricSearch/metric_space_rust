@@ -1,7 +1,6 @@
 use crate::{DaoMatrix, DaoMetaData, Normed};
 use hdf5::{Dataset, File};
 use ndarray::{s, Array2};
-//use tracing::metadata;
 
 pub fn hdf5_matrix_load(
     data_path: &str,
@@ -73,7 +72,7 @@ pub fn hdf5_matrix_write(
     Ok(())
 }
 
-fn add_attr(ds: &Dataset, key: &str, value: &usize) {
+pub fn add_attr(ds: &Dataset, key: &str, value: &usize) {
     let attr = ds.new_attr::<i32>().create(key).unwrap();
     let _ = attr.write_scalar(value);
 }

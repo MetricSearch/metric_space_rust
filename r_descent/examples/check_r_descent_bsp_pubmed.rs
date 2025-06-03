@@ -2,7 +2,7 @@ use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
-use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
+use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use deepsize::DeepSizeOf;
 use ndarray::ArrayView1;
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 
 
     let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_pubmed_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
+        hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
     );
 
     log::info!(

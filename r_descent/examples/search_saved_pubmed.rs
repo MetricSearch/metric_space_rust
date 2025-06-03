@@ -4,11 +4,11 @@ use bitvec_simd::BitVecSimd;
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
-use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
+use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, Array2, ArrayView1};
-use r_descent::{KnnSearch, RDescentMatrix};
+use r_descent::{KnnSearch, RDescent};
 use serde::__private::de::borrow_cow_bytes;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 
     println!("Serde load of Pubmed data");
     let f = BufReader::new(File::open(descent_file_name).unwrap());
-    let descent: RDescentMatrix = bincode::deserialize_from(f).unwrap();
+    let descent: RDescent = bincode::deserialize_from(f).unwrap();
 
     println!("Loading pubmed data...");
     let num_queries = 10_000;
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     const knns: usize = 30;
 
     let dao_bsp: Rc<Dao<EvpBits<2>>> =
-        Rc::new(hdf5_pubmed_f32_to_bsp_load(f_name, NUM_DATA, num_queries, NUM_VERTICES).unwrap());
+        Rc::new(hdf5_f32_to_bsp_load(f_name, NUM_DATA, num_queries, NUM_VERTICES).unwrap());
 
     println!(
         "Dao: size: {} data shape: {:?} queries shape: {:?} ",
@@ -112,7 +112,7 @@ fn show_gt(qid: usize, gt_pairs: &Vec<Vec<Pair>>) {
 
 fn do_queries(
     queries: Vec<EvpBits<2>>,
-    descent: &RDescentMatrix,
+    descent: &RDescent,
     dao: Rc<Dao<EvpBits<2>>>,
     gt_pairs: &Vec<Vec<Pair>>,
     nn_table: &Array2<usize>,

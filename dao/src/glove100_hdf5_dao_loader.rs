@@ -92,7 +92,7 @@ pub fn hdf5_glove_f32_load(data_path: &str) -> anyhow::Result<Dao<Array1<f32>>> 
 //     Ok(())
 // }
 
-fn add_attr(ds: &Dataset, key: &str, value: &usize) {
+pub fn add_attr(ds: &Dataset, key: &str, value: &usize) {
     let attr = ds.new_attr::<i32>().create(key).unwrap();
     let _ = attr.write_scalar(value);
 }

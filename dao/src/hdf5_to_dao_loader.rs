@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use tracing::error;
 //use tracing::metadata;
 
-pub fn hdf5_pubmed_f32_to_bsp_load(
+pub fn hdf5_f32_to_bsp_load(
     data_path: &str,
     num_records_required: usize, // zero if all the data
     num_queries: usize,

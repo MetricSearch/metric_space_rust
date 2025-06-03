@@ -1,6 +1,5 @@
 use crate::{Dao, DaoMatrix};
 use bits::{f32_embeddings_to_bsp, EvpBits};
-use ndarray::Array1;
 use std::rc::Rc;
 
 pub fn f32_dao_to_bsp<const D: usize>(

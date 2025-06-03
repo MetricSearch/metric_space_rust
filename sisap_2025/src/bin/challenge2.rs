@@ -14,8 +14,7 @@ use std::time::Instant;
 use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
-use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
+use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use ndarray::{s, ArrayView1};
 use r_descent::{IntoRDescent};
@@ -46,7 +45,7 @@ fn main() -> Result<()>{
     const NUM_QUERIES: usize = 0;
 
     let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_pubmed_f32_to_bsp_load(&args.path, ALL_RECORDS, NUM_QUERIES, NUM_VERTICES).unwrap(),
+        hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, NUM_QUERIES, NUM_VERTICES).unwrap(),
     );
 
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
@@ -61,7 +60,6 @@ fn main() -> Result<()>{
 
     let num_neighbours = 18;
     let chunk_size = 1000;
-    let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 64;
 
@@ -70,7 +68,7 @@ fn main() -> Result<()>{
     let descent =
         dao_bsp
             .clone()
-            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, rho, delta);
+            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, delta);
 
     let end = Instant::now();
 

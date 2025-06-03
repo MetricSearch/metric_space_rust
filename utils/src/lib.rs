@@ -1,6 +1,6 @@
 use crate::non_nan::NonNan;
 use crate::pair::Pair;
-use byte_unit::{AdjustedByte, Byte};
+use byte_unit::{Byte};
 use ndarray::{
     parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Ix1,
     ViewRepr,
@@ -10,9 +10,8 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
 use std::{fmt::Debug, sync::{atomic::{AtomicU64, Ordering}, LazyLock, Mutex}, u32};
+use std::fmt::Display;
 use serde::{Deserialize, Serialize};
-
-const LOW_32_BITS: u64 = 0xffff_fffff;
 
 pub mod non_nan;
 pub mod pair;
@@ -73,6 +72,12 @@ impl Clone for Nality {
 }
 
 impl Debug for Nality {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Nality").field(&self.id()).field(&self.sim()).finish()
+    }
+}
+
+impl Display for Nality {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Nality").field(&self.id()).field(&self.sim()).finish()
     }

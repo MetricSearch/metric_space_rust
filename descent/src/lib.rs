@@ -4,10 +4,8 @@
 pub mod heap;
 
 use crate::heap::Heap;
-use bits::EvpBits;
 use dao::Dao;
 use itertools::Itertools;
-use ndarray::Array1;
 use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -116,7 +114,7 @@ impl Descent {
         distance: fn(&T, &T) -> f32,
         // dist_fn: fn(&T, &T) -> NonNan,
     ) -> (usize, Vec<Pair>) {
-        let entry_point_simple = get_entry_point(&nn_table);
+        let entry_point_simple = get_entry_point();
         //println!("getting entry point");
         // let entry_point_good = find_good_entry_point(&query, dao.clone(), 100);
         // println!("doing search with: {entry_point_simple} {entry_point_good}");
@@ -131,7 +129,7 @@ impl Descent {
     }
 }
 
-fn find_good_entry_point<T: Clone>(
+pub fn find_good_entry_point<T: Clone>(
     query: &T,
     dao: Rc<Dao<T>>,
     how_many: usize,
@@ -156,7 +154,7 @@ fn find_good_entry_point<T: Clone>(
 }
 /******* Private below here *******/
 
-fn get_entry_point(nn_table: &Vec<Vec<usize>>) -> usize {
+fn get_entry_point() -> usize { // was nn_table: &Vec<Vec<usize>>) -> usize {
     return 100; // nn_table.len() / 4;
 }
 
@@ -375,10 +373,10 @@ fn init_random<T: Clone>(
     for row in 0..num_data {
         for _ in 0..num_neighbours {
             // Stops duplicate entries in row or row containing itself in nn table
-            let mut index = rng.gen_range(0..num_data);
+            let mut index = rng.random_range(0..num_data);
 
             while index == row || current_graph.nns[row].iter().contains(&(index as i32)) {
-                index = rng.gen_range(0..num_data);
+                index = rng.random_range(0..num_data);
             }
 
             let dist = distance(dao.get_datum(index), dao.get_datum(row));
@@ -574,7 +572,7 @@ fn new_build_candidates(
 
             let friend_index = friend_index as usize; // we have now checked it is not -1 can make it usize
 
-            let priority = rng.gen_range(0.0..f32::MAX); // a random number - used to sort the data when pushed
+            let priority = rng.random_range(0.0..f32::MAX); // a random number - used to sort the data when pushed
 
             let is_new = current_flags[row_index][column_index];
 

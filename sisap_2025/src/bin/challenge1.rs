@@ -75,7 +75,7 @@ fn main() -> Result<()> {
     let descent =
         dao_bsp
             .clone()
-            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, rho, delta);
+            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, delta);
 
     let end = Instant::now();
 

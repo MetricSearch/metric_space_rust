@@ -45,6 +45,8 @@ use crate::functions::{fill_false_atomic, fill_selected, get_1_d_slice_using_sel
 
 use crate::table_initialisation::*;
 
+pub use table_initialisation::{initialise_table_m,initialise_table_bsp}; // used in some examples - clean up later
+
 #[derive(Serialize, Deserialize)]
 pub struct RDescent {
     pub neighbours: Array2<usize>,

@@ -16,8 +16,8 @@ use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
 use clap::Parser;
 use dao::csv_dao_loader::dao_from_csv_dir;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
 use ndarray::{Array1, Array2, ArrayView1};
 use r_descent::{IntoRDescent, KnnSearch, RDescent};
@@ -48,9 +48,8 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 256;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
-    );
+    let dao_bsp: Rc<Dao<EvpBits<2>>> =
+        Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
 
     let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();

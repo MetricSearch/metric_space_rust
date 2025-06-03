@@ -9,7 +9,6 @@
 // Teams are provided with a public set of 11,000 query objects for development purposes.
 // A private set of 10,000 new queries will be used for the final evaluation.
 //  */
-
 // // Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
 
 // use anyhow::Result;
@@ -176,8 +175,5 @@
 //     (length, adjusted_results)
 // }
 
-
 // TODO put back
-pub fn main() -> () {
-
-}
+pub fn main() -> () {}

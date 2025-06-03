@@ -154,7 +154,8 @@ pub fn find_good_entry_point<T: Clone>(
 }
 /******* Private below here *******/
 
-fn get_entry_point() -> usize { // was nn_table: &Vec<Vec<usize>>) -> usize {
+fn get_entry_point() -> usize {
+    // was nn_table: &Vec<Vec<usize>>) -> usize {
     return 100; // nn_table.len() / 4;
 }
 

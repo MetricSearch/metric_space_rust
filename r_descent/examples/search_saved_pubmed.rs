@@ -3,8 +3,8 @@ use bits::{bsp_distance_as_f32, f32_data_to_cubic_bitrep, whamming_distance, Evp
 use bitvec_simd::BitVecSimd;
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, Array2, ArrayView1};

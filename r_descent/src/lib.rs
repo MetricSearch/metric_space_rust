@@ -1,24 +1,17 @@
-//! This is an implementation of Richard's NN table builder
-//! It includes:
-//!     + RDescent an implementation which creates 2D matrices of similarities (f32) and neighbours (usize)
-//!        A trait IntoRDescent with a function into_rdescent is provided to create one of these.
-//!        A trait KnnSearch is provided over RDescent
-//!     + RDescentWithRev which also supports reverse NNs
-//!        A trait IntoRDescentWithRevNNs withg a function into_rdescent_with_rev_nn to create one of these.
-//!        A trait RevSearch is provided over RDescentWithRev
+//! This implementation of Richard's NN table builder
 
-mod updates;
 mod functions;
 mod table_initialisation;
+mod updates;
 
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
+use ndarray::parallel::prelude::IntoParallelIterator;
 use ndarray::parallel::prelude::*;
-use ndarray::parallel::prelude::{IntoParallelIterator};
 use ndarray::{
-    concatenate, s, Array1, Array2, ArrayBase, ArrayViewMut1, Axis,
-    Dim, Ix1, OwnedRepr, Zip,
+    concatenate, s, Array1, Array2, ArrayBase, ArrayViewMut1, Axis, Dim, Ix1, OwnedRepr, Zip,
 };
+use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -29,7 +22,6 @@ use std::io::Write;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
-use rand::Rng;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 use utils::{
@@ -38,14 +30,16 @@ use utils::{
 };
 use utils::{arg_sort_big_to_small_2d, min_index_and_value, rand_perm};
 
-pub use functions::{get_selectors_from_flags,get_slice_using_selectors};
-use crate::functions::{fill_false_atomic, fill_selected, get_1_d_slice_using_selected,
-                       get_2_d_slice_using, get_reverse_nality_links_not_in_forward,
-                       get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace};
+use crate::functions::{
+    fill_false_atomic, fill_selected, get_1_d_slice_using_selected, get_2_d_slice_using,
+    get_reverse_nality_links_not_in_forward, get_slice_using_selected, insert_column_inplace,
+    insert_index_at_position_1_inplace,
+};
+pub use functions::{get_selectors_from_flags, get_slice_using_selectors};
 
 use crate::table_initialisation::*;
 
-pub use table_initialisation::{initialise_table_m,initialise_table_bsp}; // used in some examples - clean up later
+pub use table_initialisation::{initialise_table_bsp, initialise_table_m}; // used in some examples - clean up later
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescent {
@@ -110,7 +104,7 @@ impl<T: Clone + Default + Hasher> KnnSearch<T> for RDescent {
         distance: fn(&T, &T) -> f32,
     ) -> (usize, Vec<Pair>) {
         let mut visited_set: HashSet<usize, BuildHasherDefault<T>> = HashSet::default();
-        let entry_point = 0;                                                         // <<<<<<<<<<<<<< TODO ENTRY POINT OF ZERO FOR NOW
+        let entry_point = 0; // <<<<<<<<<<<<<< TODO ENTRY POINT OF ZERO FOR NOW
         let ep_q_dist = NonNan::new(distance(&query, dao.get_datum(0)));
         let mut results_list: BinaryHeap<Pair> = BinaryHeap::new(); // biggest first - a max-heap
         let mut candidates_list: BinaryHeap<Reverse<Pair>> = BinaryHeap::new(); // in reverse order - smallest first
@@ -186,7 +180,6 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         num_neighbours: usize,
         distance: fn(&EvpBits<X>, &EvpBits<X>) -> f32,
     ) -> (usize, Vec<Pair>) {
-
         let data = dao.get_data();
 
         // First, cheaply find some reasonably good solutions
@@ -224,10 +217,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
             let selectors = get_selectors_from_flags(&new_flags);
 
-            let these_q_nns: Array1<usize> = get_slice_using_selectors(
-                &q_nns.view(),
-                &selectors.view(),
-            );
+            let these_q_nns: Array1<usize> =
+                get_slice_using_selectors(&q_nns.view(), &selectors.view());
 
             // set all to false; will be reset to true when overwritten with new values
             new_flags.fill(false);
@@ -357,7 +348,8 @@ impl IntoRDescent for Dao<EvpBits<2>> {
         delta: f64,
     ) -> RDescent {
         let rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
-        let neighbourlarities = initialise_table_bsp_randomly(self.clone().num_data, num_neighbours);
+        let neighbourlarities =
+            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours);
 
         get_nn_table2_bsp(
             self.clone(),
@@ -406,18 +398,17 @@ impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
 
         let neighbours = neighbourlarities.mapv(|x| x.id() as usize);
         let similarities = neighbourlarities.mapv(|x| x.sim());
-        let reverse_sims = reverse.mapv(|x| x.id() as usize);
+        let reverse_ids = reverse.mapv(|x| x.id() as usize);
 
         RDescentWithRev {
             rdescent: RDescent {
                 neighbours,
                 similarities,
             },
-            reverse_neighbours: reverse_sims,
+            reverse_neighbours: reverse_ids,
         }
     }
 }
-
 
 pub fn check_apply_update(
     row_id: usize,
@@ -429,7 +420,7 @@ pub fn check_apply_update(
 ) -> () {
     loop {
         // We expect the old value to be the same as the new if there is no contention.
-        let (min_col_id,min_naility) = minimum_in_nality(&neighbourlarities.row(row_id));
+        let (min_col_id, min_naility) = minimum_in_nality(&neighbourlarities.row(row_id));
         if new_similarity > min_naility.sim() {
             if neighbourlarities
                 .row(row_id)
@@ -441,21 +432,23 @@ pub fn check_apply_update(
             }
 
             let min_ality_before_check = min_naility.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
-            let new_value_to_add = Nality::new(new_similarity,new_index_to_add);         // this is the new Naility to add to the row
+            let new_value_to_add = Nality::new(new_similarity, new_index_to_add); // this is the new Naility to add to the row
 
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check
             // works on u44 hence need for neighbourlarities[[row_id,min_col_id]].get() - this get() is thread safe - really only a view.
-            match neighbourlarities[[row_id,min_col_id]].get().compare_exchange(
-                min_ality_before_check,               // the expected value to be in location
-                new_value_to_add.get().load(Ordering::SeqCst), // the new value
-                Ordering::SeqCst,                     // success ordering
-                Ordering::SeqCst,                     // failure ordering
-            ) {
+            match neighbourlarities[[row_id, min_col_id]]
+                .get()
+                .compare_exchange(
+                    min_ality_before_check, // the expected value to be in location
+                    new_value_to_add.get().load(Ordering::SeqCst), // the new value
+                    Ordering::SeqCst,       // success ordering
+                    Ordering::SeqCst,       // failure ordering
+                ) {
                 Ok(_) => {
                     // we have done the swap and all is good.
                     neighbour_is_new[[row_id, min_col_id]].store(true, Ordering::Relaxed); // update the new flag
-                    work_done.fetch_add(1, Ordering::Relaxed);                        // record that we have dome some work
+                    work_done.fetch_add(1, Ordering::Relaxed); // record that we have dome some work
                     return;
                 }
 
@@ -474,7 +467,6 @@ pub fn check_apply_update(
         }
     }
 }
-
 
 pub fn get_nn_table2_bsp(
     dao: Rc<Dao<EvpBits<2>>>,
@@ -495,7 +487,8 @@ pub fn get_nn_table2_bsp(
 
     let mut iterations = 0;
 
-    let mut neighbour_is_new = Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(true));
+    let mut neighbour_is_new =
+        Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(true));
 
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
 
@@ -532,7 +525,13 @@ pub fn get_nn_table2_bsp(
             let new_indices = row_flags // Matlab line 76
                 .iter()
                 .enumerate()
-                .filter_map(|(index, flag)| if flag.load(Ordering::Relaxed) { Some(index) } else { None })
+                .filter_map(|(index, flag)| {
+                    if flag.load(Ordering::Relaxed) {
+                        Some(index)
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Array1<usize>>();
 
             // old_indices are the indices in this row whose flag is set to false (intially there are none of these).
@@ -540,7 +539,13 @@ pub fn get_nn_table2_bsp(
             let old_indices = row_flags // Matlab line 77
                 .iter()
                 .enumerate()
-                .filter_map(|(index, flag)| if !flag.load(Ordering::Relaxed) { Some(index) } else { None })
+                .filter_map(|(index, flag)| {
+                    if !flag.load(Ordering::Relaxed) {
+                        Some(index)
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Array1<usize>>();
 
             // random data ids from whole data set
@@ -601,7 +606,7 @@ pub fn get_nn_table2_bsp(
             // Matlab line 97
             // all_ids are the forward links in the current id's row
             let this_row_neighbourlarities = &neighbourlarities.row(row); // Matlab line 98
-            // so for each one of these (there are k...):
+                                                                          // so for each one of these (there are k...):
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
@@ -638,7 +643,8 @@ pub fn get_nn_table2_bsp(
                         reverse[[this_id, reverse_count[this_id]]] =
                             Nality::new(local_sim, row as u32);
                         reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
-                    } else { // the list is full - so no need to do anything with counts
+                    } else {
+                        // the list is full - so no need to do anything with counts
                         // but it is, so we will only add it if it's more similar than another one already there
 
                         let (position, value) =
@@ -647,7 +653,8 @@ pub fn get_nn_table2_bsp(
 
                         if value < local_sim {
                             // Matlab line 110  if the value in reverse_sims is less similar we over write
-                            reverse[[this_id, position as usize]] = Nality::new(local_sim, row as u32);
+                            reverse[[this_id, position as usize]] =
+                                Nality::new(local_sim, row as u32);
                         }
                     }
                 }
@@ -832,4 +839,3 @@ pub fn get_nn_table2_bsp(
         ((final_time - start_time).as_millis() as f64)
     );
 }
-

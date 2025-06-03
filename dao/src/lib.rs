@@ -25,10 +25,10 @@ mod csv_nn_table_loader;
 pub mod glove100_hdf5_dao_loader;
 pub mod hdf5_dao_loader;
 mod hdf5_dao_matrix_loader;
+pub mod hdf5_to_dao_loader;
 pub mod laion_10_m_hdf5_dao_loader;
 pub mod laion_10_m_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
-pub mod hdf5_to_dao_loader;
 
 #[derive(Debug, Serialize, Deserialize, Clone, DeepSizeOf)]
 pub enum Normed {

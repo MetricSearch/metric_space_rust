@@ -1,15 +1,15 @@
 use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
 use deepsize::DeepSizeOf;
 use ndarray::ArrayView1;
 use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
-use utils::bytes_fmt;
 use std::rc::Rc;
 use std::time::Instant;
+use utils::bytes_fmt;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -33,17 +33,10 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 200;
 
+    let dao_bsp: Rc<Dao<EvpBits<2>>> =
+        Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
 
-
-
-    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
-    );
-
-    log::info!(
-        "DAO BSP size {}",
-        bytes_fmt(dao_bsp.deep_size_of())
-    );
+    log::info!("DAO BSP size {}", bytes_fmt(dao_bsp.deep_size_of()));
 
     let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();

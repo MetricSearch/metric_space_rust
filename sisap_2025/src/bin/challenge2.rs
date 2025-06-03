@@ -17,10 +17,8 @@ use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use ndarray::{s, ArrayView1};
-use r_descent::{IntoRDescent};
+use r_descent::IntoRDescent;
 use std::rc::Rc;
-
-
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -30,7 +28,7 @@ struct Args {
     path: String,
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Trace)
         .init();
@@ -44,9 +42,8 @@ fn main() -> Result<()>{
     const NUM_VERTICES: usize = 256;
     const NUM_QUERIES: usize = 0;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, NUM_QUERIES, NUM_VERTICES).unwrap(),
-    );
+    let dao_bsp: Rc<Dao<EvpBits<2>>> =
+        Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, NUM_QUERIES, NUM_VERTICES).unwrap());
 
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
@@ -84,7 +81,16 @@ fn main() -> Result<()>{
     println!("***** Remember to add 1 to all results when returning for challenge!!");
     println!("====== Printing First 100 Rows ======");
     for i in 0..100 {
-        println!("{:?}", descent.neighbours.row(i).slice(s![0..]).iter().map(|x| x + 1).collect::<Vec<usize>>());
+        println!(
+            "{:?}",
+            descent
+                .neighbours
+                .row(i)
+                .slice(s![0..])
+                .iter()
+                .map(|x| x + 1)
+                .collect::<Vec<usize>>()
+        );
     }
 
     Ok(())

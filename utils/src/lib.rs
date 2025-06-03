@@ -1,6 +1,6 @@
 use crate::non_nan::NonNan;
 use crate::pair::Pair;
-use byte_unit::{Byte};
+use byte_unit::Byte;
 use ndarray::{
     parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Ix1,
     ViewRepr,
@@ -9,9 +9,16 @@ use rand::seq::index::sample;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
-use std::{fmt::Debug, sync::{atomic::{AtomicU64, Ordering}, LazyLock, Mutex}, u32};
-use std::fmt::Display;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::{
+    fmt::Debug,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        LazyLock, Mutex,
+    },
+    u32,
+};
 
 pub mod non_nan;
 pub mod pair;
@@ -19,7 +26,7 @@ pub mod pair;
 const SEED: u64 = 323 * 162;
 
 #[derive(Serialize, Deserialize)]
-pub struct Nality (AtomicU64);
+pub struct Nality(AtomicU64);
 
 impl Nality {
     pub fn new_empty() -> Self {
@@ -42,23 +49,23 @@ impl Nality {
         self.id() == 0 && self.sim() == -1f32 // was u32::MAX
     }
 
-	pub fn update(&self, sim: f32, id: u32) {
-		self.0.store(Self::combine(sim, id), Ordering::Relaxed)
-	}
-	
-	pub fn sim(&self) -> f32 {
-		// (self.0.load(Ordering::Relaxed) & LOW_32_BITS) as f32
+    pub fn update(&self, sim: f32, id: u32) {
+        self.0.store(Self::combine(sim, id), Ordering::Relaxed)
+    }
+
+    pub fn sim(&self) -> f32 {
+        // (self.0.load(Ordering::Relaxed) & LOW_32_BITS) as f32
         f32::from_bits(self.0.load(Ordering::Relaxed) as u32)
-	}
-	
-	pub fn id(&self) -> u32 {
-		(self.0.load(Ordering::Relaxed) >> 32) as u32
-	}
-    
-    fn combine(sim:f32, id:u32) -> u64 {
-		// ((sim as u32) as u64) 
+    }
+
+    pub fn id(&self) -> u32 {
+        (self.0.load(Ordering::Relaxed) >> 32) as u32
+    }
+
+    fn combine(sim: f32, id: u32) -> u64 {
+        // ((sim as u32) as u64)
         (f32::to_bits(sim) as u64) | ((id as u64) << 32)
-	}
+    }
 
     pub fn get(&self) -> &AtomicU64 {
         &self.0
@@ -73,16 +80,21 @@ impl Clone for Nality {
 
 impl Debug for Nality {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Nality").field(&self.id()).field(&self.sim()).finish()
+        f.debug_tuple("Nality")
+            .field(&self.id())
+            .field(&self.sim())
+            .finish()
     }
 }
 
 impl Display for Nality {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Nality").field(&self.id()).field(&self.sim()).finish()
+        f.debug_tuple("Nality")
+            .field(&self.id())
+            .field(&self.sim())
+            .finish()
     }
 }
-
 
 static RNG: LazyLock<Mutex<ChaCha8Rng>> =
     LazyLock::new(|| Mutex::new(ChaCha8Rng::seed_from_u64(SEED))); // random number
@@ -114,13 +126,17 @@ pub fn min_index_and_value_neighbourlarities(arrai: &ArrayView1<Nality>) -> (usi
     let pair = arrai
         .iter()
         .enumerate()
-        .min_by(|&best_so_far, &to_compare| {  best_so_far.1.sim().partial_cmp(&to_compare.1.sim())
-        .unwrap()
-    }).unwrap();
+        .min_by(|&best_so_far, &to_compare| {
+            best_so_far
+                .1
+                .sim()
+                .partial_cmp(&to_compare.1.sim())
+                .unwrap()
+        })
+        .unwrap();
 
     (pair.0, pair.1.clone())
 }
-
 
 pub fn index_of_min(arrai: &ArrayView1<f32>) -> usize {
     arrai
@@ -142,7 +158,13 @@ pub fn minimum_in_nality(arrai: &ArrayView1<Nality>) -> (usize, Nality) {
     let min_val = arrai
         .iter()
         .enumerate()
-        .min_by(|best_so_far, to_compare| best_so_far.1.sim().partial_cmp(&to_compare.1.sim()).unwrap())
+        .min_by(|best_so_far, to_compare| {
+            best_so_far
+                .1
+                .sim()
+                .partial_cmp(&to_compare.1.sim())
+                .unwrap()
+        })
         .unwrap();
 
     (min_val.0, min_val.1.clone())

@@ -1,16 +1,17 @@
-
 //! Table initialisation code
 
-use std::rc::Rc;
-use std::time::Instant;
-use ndarray::{concatenate, s, Array1, Array2, Axis, Dim, Zip};
-use rand::Rng;
+use crate::functions::{
+    get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace,
+};
+use crate::get_slice_using_selectors;
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
+use ndarray::{concatenate, s, Array1, Array2, Axis, Dim, Zip};
+use rand::Rng;
 use rayon::prelude::*;
+use std::rc::Rc;
+use std::time::Instant;
 use utils::{arg_sort_big_to_small_1d, arg_sort_big_to_small_2d, bytes_fmt, rand_perm, Nality};
-use crate::functions::{get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace};
-use crate::get_slice_using_selectors;
 
 pub fn initialise_table_m(
     dao: Rc<DaoMatrix<f32>>,
@@ -41,14 +42,11 @@ pub fn initialise_table_m(
             let chunk = data.slice(s![start_pos..end_pos, 0..]);
 
             let original_row_ids = rand_perm(num_data, real_chunk_size); // random data ids from whole data set
-            let rand_data = get_slice_using_selected(
-                &data,
-                &original_row_ids.view(),
-            ); // a view of the original data points as a matrix
+            let rand_data = get_slice_using_selected(&data, &original_row_ids.view()); // a view of the original data points as a matrix
             let chunk_dists: Array2<f32> = chunk.dot(&rand_data.t()); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists) = arg_sort_big_to_small_2d(&chunk_dists.view()); // sorted ords are row relative indices.
-            // these ords are row relative all range from 0..real_chunk_size
+                                                                                             // these ords are row relative all range from 0..real_chunk_size
 
             // get the num_neighbours closest original data indices
             let mut closest_dao_indices: Array2<usize> =
@@ -75,7 +73,6 @@ pub fn initialise_table_m(
         insert_column_inplace(result_sims, 1.0),
     )
 }
-
 
 //
 // pub fn get_nn_table2_m(
@@ -373,7 +370,7 @@ pub fn initialise_table_ben(
                 .collect::<Array1<f32>>();
 
             let (sorted_ords, sorted_dists) = arg_sort_big_to_small_1d(chunk_dists.view()); // sorted ords are row relative indices.
-            // these ords are row relative all range from 0..real_chunk_size
+                                                                                            // these ords are row relative all range from 0..real_chunk_size
 
             let final_row = sorted_ords
                 .iter()
@@ -397,19 +394,13 @@ pub fn initialise_table_ben(
 
     // max bits is 64 * 4 * bits * 2 = 1024 + 200 =  1224 hardwire for now TODO parameterise
     (
-
         insert_index_at_position_1_inplace(result_indices),
         insert_column_inplace(result_sims, 1224.0),
     )
 }
 
-pub fn initialise_table_bsp_randomly(
-    rows: usize,
-    columns: usize,
-) -> Array2<Nality> {
-    log::info!(
-        "Randomly initializing table bsp, rows: {rows} neighbours: {columns}"
-    );
+pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nality> {
+    log::info!("Randomly initializing table bsp, rows: {rows} neighbours: {columns}");
     let start_time = Instant::now();
 
     let mut rng = rand::rng();
@@ -420,7 +411,8 @@ pub fn initialise_table_bsp_randomly(
         })
         .collect();
 
-    let nalities = Array2::from_shape_vec((rows, columns), nalities).expect("Shape mismatch during initialisation");
+    let nalities = Array2::from_shape_vec((rows, columns), nalities)
+        .expect("Shape mismatch during initialisation");
 
     let end_time = Instant::now();
     log::debug!(
@@ -430,7 +422,6 @@ pub fn initialise_table_bsp_randomly(
 
     nalities
 }
-
 
 pub fn initialise_table_bsp(
     dao: Rc<Dao<EvpBits<2>>>,
@@ -477,10 +468,7 @@ pub fn initialise_table_bsp(
             let chunk = data.slice(s![start_pos..end_pos]);
 
             let original_row_ids = rand_perm(num_data, real_chunk_size); // random data ids from whole data set
-            let rand_data = get_slice_using_selectors(
-                &data,
-                &original_row_ids.view(),
-            ); // a view of the original data points as a matrix
+            let rand_data = get_slice_using_selectors(&data, &original_row_ids.view()); // a view of the original data points as a matrix
 
             let chunk_dists: Array2<f32> =
                 matrix_dot_bsp::<2>(&chunk, &rand_data.view(), |a, b| {
@@ -488,7 +476,7 @@ pub fn initialise_table_bsp(
                 }); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists) = arg_sort_big_to_small_2d(&chunk_dists.view()); // sorted ords are row relative indices.
-            // these ords are row relative all range from 0..real_chunk_size
+                                                                                             // these ords are row relative all range from 0..real_chunk_size
 
             // get the num_neighbours closest original data indices
             let mut closest_dao_indices: Array2<usize> =
@@ -518,13 +506,9 @@ pub fn initialise_table_bsp(
     // Makes neighbourlarities from similarities and ids
     let xx = Zip::from(&indices)
         .and(&sims)
-        .map_collect(|&id, &sim| {
-            Nality::new(sim, id as u32)
-
-        });
+        .map_collect(|&id, &sim| Nality::new(sim, id as u32));
 
     // println!("First row initialisation: {:#?}", xx.row(0)); // TODO fix this
 
     xx
 }
-

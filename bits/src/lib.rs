@@ -239,7 +239,7 @@ impl<const X: usize> Default for EvpBits<X> {
         Self {
             ones: BitVecSimd::from_slice(&[0]),
             negative_ones: BitVecSimd::from_slice(&[0]),
-            max_index: 0
+            max_index: 0,
         }
     }
 }

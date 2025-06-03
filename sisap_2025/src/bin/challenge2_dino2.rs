@@ -15,15 +15,13 @@ use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
-use dao::{convert_f32_to_bsp::f32_dao_to_bsp, pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load};
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::{convert_f32_to_bsp::f32_dao_to_bsp, pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load};
 use dao::{Dao, DaoMatrix};
 use ndarray::{s, ArrayView1};
 use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
-use utils::bytes_fmt;
 use std::rc::Rc;
-
-
+use utils::bytes_fmt;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -33,7 +31,7 @@ struct Args {
     path: String,
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Trace)
         .init();
@@ -47,9 +45,8 @@ fn main() -> Result<()>{
     const NUM_VERTICES: usize = 256;
     const num_queries: usize = 0;
 
-let dao_f32: Rc<DaoMatrix<f32>> =
+    let dao_f32: Rc<DaoMatrix<f32>> =
         Rc::new(dao_matrix_from_csv_dir(&args.path, 1_000_000, num_queries)?);
-
 
     let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(), 200);
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
@@ -89,7 +86,16 @@ let dao_f32: Rc<DaoMatrix<f32>> =
     println!("***** Remember to add 1 to all results when returning for challenge!!");
     println!("====== Printing First 1000 Rows ======");
     for i in 0..100 {
-        println!("{:?},", descent.neighbours.row(i).slice(s![0..]).iter().map(|x| x + 1).collect::<Vec<usize>>());
+        println!(
+            "{:?},",
+            descent
+                .neighbours
+                .row(i)
+                .slice(s![0..])
+                .iter()
+                .map(|x| x + 1)
+                .collect::<Vec<usize>>()
+        );
     }
 
     Ok(())

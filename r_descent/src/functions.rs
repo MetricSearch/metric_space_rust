@@ -1,11 +1,11 @@
 //! Utility functions for lib.rs
 
+use dao::Dao;
+use ndarray::{s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Ix1};
 use std::ptr;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
-use ndarray::{s, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Ix1};
-use dao::Dao;
 use utils::{min_index_and_value, min_index_and_value_neighbourlarities, Nality};
 
 pub fn get_new_reverse_links_not_in_forward(
@@ -19,10 +19,11 @@ pub fn get_new_reverse_links_not_in_forward(
     let num_neighbours = neighbours.ncols();
     let num_data = neighbours.nrows();
     // the reverse NN table  Matlab line 91
-    let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), u32::MAX as usize);
+    let mut reverse: Array2<usize> =
+        Array2::from_elem((num_data, reverse_list_size), u32::MAX as usize);
     // all the distances from reverse NN table.
     let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), f32::MIN); // was -1.0f32
-    // reverse_ptr - how many reverse pointers for each entry in the dataset
+                                                                                                    // reverse_ptr - how many reverse pointers for each entry in the dataset
     let mut reverse_count = Array1::from_elem(num_data, 0);
 
     // loop over all current entries in neighbours; add that entry to each row in the
@@ -34,7 +35,7 @@ pub fn get_new_reverse_links_not_in_forward(
         // Matlab line 97
         // all_ids are the forward links in the current id's row
         let all_ids = &neighbours.row(row); // Matlab line 98
-        // so for each one of these (there are k...):
+                                            // so for each one of these (there are k...):
         for id in 0..num_neighbours {
             // Matlab line 99 (updated)
             // get the id
@@ -88,10 +89,11 @@ pub fn get_reverse_links_not_in_forward(
     // the reverse NN table  Matlab line 91
     let num_neighbours = neighbours.ncols();
     let num_data = neighbours.nrows();
-    let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), u32::MAX as usize);
+    let mut reverse: Array2<usize> =
+        Array2::from_elem((num_data, reverse_list_size), u32::MAX as usize);
     // all the distances from reverse NN table.
     let mut reverse_sims: Array2<f32> = Array2::from_elem((num_data, reverse_list_size), f32::MIN); // was -1.0f32
-    // reverse_ptr - how many reverse pointers for each entry in the dataset
+                                                                                                    // reverse_ptr - how many reverse pointers for each entry in the dataset
     let mut reverse_count = Array1::from_elem(num_data, 0);
 
     // loop over all current entries in neighbours; add that entry to each row in the
@@ -103,7 +105,7 @@ pub fn get_reverse_links_not_in_forward(
         // Matlab line 97
         // all_ids are the forward links in the current id's row
         let neighbour_ids_current_row = &neighbours.row(row); // Matlab line 98
-        // so for each one of these (there are k...):
+                                                              // so for each one of these (there are k...):
         for col in 0..num_neighbours {
             // Matlab line 99 (updated)
             // get the id
@@ -183,7 +185,10 @@ pub fn get_reverse_nality_links_not_in_forward(
     // the reverse NN table  Matlab line 91
     let num_neighbours = neighbours.ncols();
     let num_data = neighbours.nrows();
-    let mut reverse: Array2<Nality> = Array2::from_elem((num_data, reverse_list_size), Nality::new(f32::MIN, u32::MAX));
+    let mut reverse: Array2<Nality> = Array2::from_elem(
+        (num_data, reverse_list_size),
+        Nality::new(f32::MIN, u32::MAX),
+    );
 
     // reverse_count - how many reverse pointers for each entry in the dataset
     let mut reverse_count = Array1::from_elem(num_data, 0);
@@ -197,7 +202,7 @@ pub fn get_reverse_nality_links_not_in_forward(
         // Matlab line 97
         // all_ids are the forward links in the current id's row
         let current_row = &neighbours.row(row); // Matlab line 98
-        // so for each one of these (there are k...):
+                                                // so for each one of these (there are k...):
         for col in 0..num_neighbours {
             // Matlab line 99 (updated)
             // get the id
@@ -207,8 +212,9 @@ pub fn get_reverse_nality_links_not_in_forward(
 
             let neighbours_of_next_id_in_row = neighbours.row(next_id_in_row as usize);
 
-            let neighbours_of_next_dont_contain_current_row =
-                !neighbours_of_next_id_in_row.iter().any(|x| x.id() == row as u32);
+            let neighbours_of_next_dont_contain_current_row = !neighbours_of_next_id_in_row
+                .iter()
+                .any(|x| x.id() == row as u32);
 
             log::debug!(
                 "Row {} col {} next_id {} sim {} neighbours of next {}",
@@ -237,17 +243,24 @@ pub fn get_reverse_nality_links_not_in_forward(
                         reverse_count[next_id_in_row as usize]
                     );
 
-                    reverse[[next_id_in_row as usize, reverse_count[next_id_in_row as usize]]] = Nality::new(next_sim_in_row,row as u32);
-                    reverse_count[next_id_in_row as usize] = reverse_count[next_id_in_row as usize] + 1;
+                    reverse[[
+                        next_id_in_row as usize,
+                        reverse_count[next_id_in_row as usize],
+                    ]] = Nality::new(next_sim_in_row, row as u32);
+                    reverse_count[next_id_in_row as usize] =
+                        reverse_count[next_id_in_row as usize] + 1;
                 // increment the count
                 } else {
                     // it is full, so we will only add it if it's more similar than another one already there
-                    let (index,nality) = min_index_and_value_neighbourlarities(&reverse.row(next_id_in_row as usize)); // Matlab line 109
+                    let (index, nality) = min_index_and_value_neighbourlarities(
+                        &reverse.row(next_id_in_row as usize),
+                    ); // Matlab line 109
 
                     if nality.sim() < next_sim_in_row {
                         // Matlab line 110  if the value in reverse_sims is less similar we over write
                         log::debug!("overwriting");
-                        reverse[[next_id_in_row as usize, index]] = Nality::new(next_sim_in_row,row as u32); // replace the old min with the new sim value
+                        reverse[[next_id_in_row as usize, index]] =
+                            Nality::new(next_sim_in_row, row as u32); // replace the old min with the new sim value
                     }
                 }
             }
@@ -310,7 +323,11 @@ mod tests {
     }
 }
 
-pub fn get_selected_data(dao: Rc<Dao<Array1<f32>>>, dims: usize, old_row: &Vec<usize>) -> Array2<f32> {
+pub fn get_selected_data(
+    dao: Rc<Dao<Array1<f32>>>,
+    dims: usize,
+    old_row: &Vec<usize>,
+) -> Array2<f32> {
     // let old_data =
     old_row
         .iter()
@@ -349,7 +366,7 @@ pub fn get_slice_using_selected(
     source: &ArrayView2<f32>,
     selectors: &ArrayView1<usize>,
 ) -> Array2<f32> {
-    let mut sliced = Array2::uninit([selectors.len(),source.ncols()]);
+    let mut sliced = Array2::uninit([selectors.len(), source.ncols()]);
 
     for count in 0..selectors.len() {
         // was result_shape

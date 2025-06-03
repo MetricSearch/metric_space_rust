@@ -15,11 +15,8 @@ fn main() -> () {
 
     let n3 = Nality::new(0.6, 14);
 
-
     println!("{:?}", n3);
-
 
     println!("Should not be 60129542144");
     println!("{:?}", n3.get().load(std::sync::atomic::Ordering::Relaxed));
-
 }

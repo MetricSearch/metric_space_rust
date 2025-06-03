@@ -27,6 +27,10 @@ impl Nality {
         Self(AtomicU64::new(Self::combine(-1f32, 0))) // was u32::MAX
     }
 
+    pub fn new_empty_index(id: u32) -> Self {
+        Self(AtomicU64::new(Self::combine(-1f32, id))) // was u32::MAX
+    }
+
     pub fn new(sim: f32, id: u32) -> Self {
         Self(AtomicU64::new(Self::combine(sim, id)))
     }

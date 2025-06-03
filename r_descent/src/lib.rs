@@ -8,6 +8,7 @@
 //!        A trait RevSearch is provided over RDescentMatrixWithRev
 
 mod updates;
+mod functions;
 
 use crate::updates::Updates;
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
@@ -32,6 +33,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 use std::{io, ptr};
+use rand::Rng;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
 use utils::{
@@ -356,7 +358,7 @@ impl IntoRDescent for Dao<EvpBits<2>> {
         delta: f64,
     ) -> RDescentMatrix {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
-        let neighbourlarities = initialise_table_bsp(self.clone(), chunk_size, num_neighbours);
+        let neighbourlarities = initialise_table_bsp_randomly(self.clone().num_data, num_neighbours);
 
         get_nn_table2_bsp(
             self.clone(),
@@ -913,6 +915,35 @@ pub fn initialise_table_ben(
         insert_column_inplace(result_sims, 1224.0),
     )
 }
+
+pub fn initialise_table_bsp_randomly(
+    rows: usize,
+    columns: usize,
+) -> Array2<Nality> {
+    log::info!(
+        "Randomly initializing table bsp, rows: {rows} neighbours: {columns}"
+    );
+    let start_time = Instant::now();
+
+    let mut rng = rand::rng();
+    let nalities: Vec<Nality> = (0..rows * columns)
+        .map(|_| {
+            let rand_index = rng.random_range(0..rows); // pick random row index
+            Nality::new_empty_index(rand_index as u32)
+        })
+        .collect();
+
+    let nalities = Array2::from_shape_vec((rows, columns), nalities).expect("Shape mismatch during initialisation");
+
+    let end_time = Instant::now();
+    log::debug!(
+        "Initialistion in {:?}ms",
+        ((end_time - start_time).as_millis() as f64)
+    );
+
+    nalities
+}
+
 
 pub fn initialise_table_bsp(
     dao: Rc<Dao<EvpBits<2>>>,

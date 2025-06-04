@@ -7,7 +7,7 @@ name: CI
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: MetricSearch/sisap2025
+  IMAGE_NAME: metricsearch/sisap2025
 
 jobs:
   check:
@@ -30,7 +30,7 @@ jobs:
           args: --all -- --check
 
   build:
-    name: Build
+    name: SISAP Container
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,6 +58,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: MetricSearch/sisap2025:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

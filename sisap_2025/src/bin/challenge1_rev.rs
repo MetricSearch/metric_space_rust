@@ -53,6 +53,9 @@ fn main() -> Result<()> {
         Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
 
     let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
+
+    let queries = queries.slice(s!(0..1000));
+
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
     log::info!(
@@ -66,7 +69,6 @@ fn main() -> Result<()> {
 
     let num_neighbours = 7;
     let chunk_size = 200;
-    let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 32;
     let num_reverse_neighbours: usize = 16;
@@ -86,31 +88,31 @@ fn main() -> Result<()> {
     let neighbours = &descent.rdescent.neighbours;
     let rev_neighbours = &descent.reverse_neighbours;
 
-    println!("====== Printing First 10 Rows of neighbours ======");
-    for i in 0..10 {
-        println!(
-            "{:?}",
-            neighbours
-                .row(i)
-                .slice(s![0..])
-                .iter()
-                .map(|x| x + 1)
-                .collect::<Vec<usize>>()
-        );
-    }
-
-    println!("====== Printing First 10 Rows of rev_neighbours ======");
-    for i in 0..10 {
-        println!(
-            "{:?}",
-            rev_neighbours
-                .row(i)
-                .slice(s![0..])
-                .iter()
-                .map(|x| x + 1)
-                .collect::<Vec<usize>>()
-        );
-    }
+    // println!("====== Printing First 10 Rows of neighbours ======");
+    // for i in 0..10 {
+    //     println!(
+    //         "{:?}",
+    //         neighbours
+    //             .row(i)
+    //             .slice(s![0..])
+    //             .iter()
+    //             .map(|x| x + 1)
+    //             .collect::<Vec<usize>>()
+    //     );
+    // }
+    //
+    // println!("====== Printing First 10 Rows of rev_neighbours ======");
+    // for i in 0..10 {
+    //     println!(
+    //         "{:?}",
+    //         rev_neighbours
+    //             .row(i)
+    //             .slice(s![0..])
+    //             .iter()
+    //             .map(|x| x + 1)
+    //             .collect::<Vec<usize>>()
+    //     );
+    // }
 
     log::info!(
         "Finished (including load time in {} s",
@@ -119,9 +121,8 @@ fn main() -> Result<()> {
 
     let knns = 30;
 
-    let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
-
-    let gt_queries = dao_bsp.get_queries();
+    // let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap(); // NO POINT WITH GOOAK
+    // let gt_queries = dao_bsp.get_queries();
 
     log::info!("Pubmed Results:");
 
@@ -131,7 +132,7 @@ fn main() -> Result<()> {
         queries.to_vec(),
         &descent,
         dao_bsp.clone(),
-        &gt_nns,
+        //&gt_nns,
         bsp_distance_as_f32,
     );
 
@@ -142,7 +143,7 @@ fn do_queries(
     queries: Vec<EvpBits<2>>,
     descent: &RDescentWithRev,
     dao: Rc<Dao<EvpBits<2>>>,
-    gt_nns: &Array2<usize>,
+    //gt_nns: &Array2<usize>,
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
@@ -155,12 +156,12 @@ fn do_queries(
         println!("Number of results = {} ", qresults.len());
         println!("Dists: {:?}", dists);
         show_results(qid, &qresults);
-        show_gt(qid, gt_nns.row(qid));
-        println!("Number of GT results = {} ", gt_nns.row(qid).len());
-        println!(
-            "Intersection size: {}",
-            intersection_size(&qresults, gt_nns.row(qid))
-        );
+        //show_gt(qid, gt_nns.row(qid));
+        //println!("Number of GT results = {} ", gt_nns.row(qid).len());
+        // println!(
+        //     "Intersection size: {}",
+        //     intersection_size(&qresults, gt_nns.row(qid))
+        //);
     });
 }
 

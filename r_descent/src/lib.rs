@@ -185,7 +185,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         // First, cheaply find some reasonably good solutions
         let query_as_array: ArrayBase<OwnedRepr<EvpBits<{ X }>>, Ix1> = Array1::from_elem(1, query);
 
-        let data_subset = data.slice(s![0..1000]);
+        let number_of_samples = 1000;
+        let data_subset = data.slice(s![0..number_of_samples]);
         let sims: Array2<f32> =
             matrix_dot_bsp::<X>(&data_subset, &query_as_array.view(), |a, b| {
                 bsp_similarity_as_f32::<X>(a, b)
@@ -193,18 +194,18 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
         let (ords, sims) = arg_sort_big_to_small_2d(&sims.view()); // ords are row relative indices - these are is 1 X 1000
 
-        // // these ords are row relative all range from 0..1000 in data - so therefore real dao indices
+        // // these ords are row relative all range from 0..number_of_samples in data - so therefore real dao indices
 
-        // // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algoritm terminates
+        // // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algorithm terminates
 
-        let mut binding = ords.into_shape_with_order(1000).unwrap();
+        let mut binding = ords.into_shape_with_order(number_of_samples).unwrap();
         let mut q_nns: ArrayViewMut1<usize> = binding.slice_mut(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
-        let mut binding = sims.into_shape_with_order(1000).unwrap();
+        let mut binding = sims.into_shape_with_order(number_of_samples).unwrap();
         let mut q_sims: ArrayViewMut1<f32> = binding.slice_mut(s![..num_neighbours]); // get these into a 1D array and take num_neighbours
 
         // same as in nnTableBuild, the new flags
         let mut new_flags: Array1<bool> = Array1::from_elem(q_nns.len(), true);
-        let mut current_min_sim = -1.0;
+        let mut current_min_sim = *q_sims.last().unwrap(); // least good sim from q_sims
 
         // The amount of work done in the iteration
         let mut work_done = 1;
@@ -263,10 +264,10 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
             let all_sims = all_sims.flatten();
 
-            for i in 0..all_ids.len() {
+            for neighbour_index in 0..all_ids.len() {
                 // this code is the same as just one of the four bits of phase 3 in the nn table build algorithm
-                let this_id = all_ids[i];
-                let this_sim = all_sims[i];
+                let this_id = all_ids[neighbour_index];
+                let this_sim = all_sims[neighbour_index];
                 // is the similarity of the query and thisId greater than the smallest similarity in the result set?
                 // if it's not, then do nothing and carry on
 
@@ -282,7 +283,11 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
                         q_sims[position] = this_sim;
                         new_flags[position] = true;
 
-                        current_min_sim = current_min_sim.min(this_sim);
+                        let( pos,min) = min_index_and_value(&q_sims.view());
+                        current_min_sim = min;
+
+                        //println!("Min sim is now {} @ pos {}", current_min_sim, pos );
+
                         // and log that we've done some work so we don't want to stop yet
                         work_done += 1;
                     }

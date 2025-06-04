@@ -2,8 +2,8 @@ use crate::non_nan::NonNan;
 use crate::pair::Pair;
 use byte_unit::Byte;
 use ndarray::{
-    parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Ix1,
-    ViewRepr,
+    array, parallel::prelude::*, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2,
+    Axis, Ix1, ViewRepr,
 };
 use rand::seq::index::sample;
 use rand::SeedableRng;

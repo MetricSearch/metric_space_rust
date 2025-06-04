@@ -10,8 +10,6 @@ Teams are provided with a public set of 11,000 query objects for development pur
 A private set of 10,000 new queries will be used for the final evaluation.
  */
 
-// Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
-
 use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
 use clap::Parser;
@@ -114,7 +112,7 @@ fn do_queries(
     queries.iter().enumerate().for_each(|(qid, query)| {
         let now = Instant::now();
         let (dists, qresults) = descent.knn_search(query.clone(), dao.clone(), 100, distance);
-        let (dists, qresults) = ADD_ONE_TO_RESULTS(dists, qresults);
+        let (dists, qresults) = add_one_to_query_results(dists, qresults);
         let after = Instant::now();
         println!("Results for Q{}....", qid);
         println!("Time per query: {} ns", (after - now).as_nanos());
@@ -163,7 +161,7 @@ fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usiz
         .count()
 }
 
-fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
+fn add_one_to_query_results(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
     let adjusted_results = results
         .into_iter()
         .map(|pair| Pair::new(pair.distance, pair.index + 1))

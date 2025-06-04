@@ -11,169 +11,197 @@
 //  */
 // // Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
 
-// use anyhow::Result;
-// use bits::{bsp_distance_as_f32, EvpBits};
-// use clap::Parser;
-// use dao::csv_dao_loader::dao_from_csv_dir;
-// use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
-// use dao::pubmed_hdf5_to_dao_loader::hdf5_pubmed_f32_to_bsp_load;
-// use dao::Dao;
-// use ndarray::{Array1, Array2, ArrayView1};
-// use r_descent::{IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescentMatrix, RDescentMatrixWithRev, RevSearch};
-// use std::rc::Rc;
-// use std::time::Instant;
-// use utils::ndcg;
-// use utils::pair::Pair;
+use anyhow::Result;
+use bits::{bsp_distance_as_f32, EvpBits};
+use clap::Parser;
+use dao::csv_dao_loader::dao_from_csv_dir;
+use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
+use dao::Dao;
+use ndarray::{s, Array1, Array2, ArrayView1};
+use r_descent::{
+    IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescent, RDescentWithRev, RevSearch,
+};
+use std::rc::Rc;
+use std::time::Instant;
+use utils::ndcg;
+use utils::pair::Pair;
 
-// /// clap parser
-// #[derive(Parser, Debug)]
-// #[command(version, about, long_about = None)]
-// struct Args {
-//     /// Path to HDF5
-//     path: String,
-// }
+/// clap parser
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Path to HDF5
+    path: String,
+}
 
-// fn main() -> Result<()> {
-//     todo!();
+fn main() -> Result<()> {
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(log::LevelFilter::Trace)
+        .init();
 
-//     pretty_env_logger::formatted_timed_builder()
-//         .filter_level(log::LevelFilter::Trace)
-//         .init();
+    let args = Args::parse();
 
-//     let args = Args::parse();
+    log::info!("Loading Pubmed data...");
+    let start = Instant::now();
 
-//     log::info!("Loading Pubmed data...");
-//     let start = Instant::now();
+    let num_queries = 10_000;
+    const ALL_RECORDS: usize = 0;
+    const NUM_VERTICES: usize = 256;
 
-//     let num_queries = 10_000;
-//     const ALL_RECORDS: usize = 0;
-//     const NUM_VERTICES: usize = 256;
+    let dao_bsp: Rc<Dao<EvpBits<2>>> =
+        Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
 
-//     let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-//         hdf5_pubmed_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
-//     );
+    let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
+    let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
 
-//     let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
-//     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
+    log::info!(
+        "Pubmed data size: {} queries size: {}, num data: {}",
+        data.len(),
+        queries.len(),
+        dao_bsp.num_data,
+    );
 
-//     log::info!(
-//         "Pubmed data size: {} queries size: {}, num data: {}",
-//         data.len(),
-//         queries.len(),
-//         dao_bsp.num_data,
-//     );
+    let start_post_load = Instant::now();
 
-//     let start_post_load = Instant::now();
+    let num_neighbours = 7;
+    let chunk_size = 200;
+    let rho = 1.0;
+    let delta = 0.01;
+    let reverse_list_size = 32;
+    let num_reverse_neighbours: usize = 16;
 
-//     let num_neighbours = 7;
-//     let chunk_size = 200;
-//     let rho = 1.0;
-//     let delta = 0.01;
-//     let reverse_list_size = 32;
-//     let num_reverse_neighbours: usize = 16;
+    log::info!("Getting NN table");
 
-//     log::info!("Getting NN table");
+    let descent = dao_bsp.clone().into_rdescent_with_rev_nn(
+        num_neighbours,
+        reverse_list_size,
+        chunk_size,
+        delta,
+        num_reverse_neighbours,
+    );
 
-//     let descent =
-//         dao_bsp
-//             .clone()
-//             .into_rdescent_with_rev_nn(num_neighbours, reverse_list_size, chunk_size, rho, delta, num_reverse_neighbours);
+    let end = Instant::now();
 
-//     let end = Instant::now();
+    let neighbours = &descent.rdescent.neighbours;
+    let rev_neighbours = &descent.reverse_neighbours;
 
-//     log::info!(
-//         "Finished (including load time in {} s",
-//         (end - start).as_secs()
-//     );
+    println!("====== Printing First 10 Rows of neighbours ======");
+    for i in 0..10 {
+        println!(
+            "{:?}",
+            neighbours
+                .row(i)
+                .slice(s![0..])
+                .iter()
+                .map(|x| x + 1)
+                .collect::<Vec<usize>>()
+        );
+    }
 
-//     let knns = 30;
+    println!("====== Printing First 10 Rows of rev_neighbours ======");
+    for i in 0..10 {
+        println!(
+            "{:?}",
+            rev_neighbours
+                .row(i)
+                .slice(s![0..])
+                .iter()
+                .map(|x| x + 1)
+                .collect::<Vec<usize>>()
+        );
+    }
 
-//     let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
+    log::info!(
+        "Finished (including load time in {} s",
+        (end - start).as_secs()
+    );
 
-//     let gt_queries = dao_bsp.get_queries();
+    let knns = 30;
 
-//     log::info!("Pubmed Results:");
+    let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
 
-//     println!("Doing {:?} queries", queries.len());
+    let gt_queries = dao_bsp.get_queries();
 
-//     do_queries(
-//         queries.to_vec(),
-//         &descent,
-//         dao_bsp.clone(),
-//         &gt_nns,
-//         bsp_distance_as_f32,
-//     );
+    log::info!("Pubmed Results:");
 
-//     Ok(())
-// }
+    println!("Doing {:?} queries", queries.len());
 
-// fn do_queries(
-//     queries: Vec<EvpBits<2>>,
-//     descent: &RDescentMatrixWithRev,
-//     dao: Rc<Dao<EvpBits<2>>>,
-//     gt_nns: &Array2<usize>,
-//     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
-// ) {
-//     queries.iter().enumerate().for_each(|(qid, query)| {
-//         let now = Instant::now();
-//         let (dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
-//         let (dists, qresults) = ADD_ONE_TO_RESULTS(dists, qresults);
-//         let after = Instant::now();
-//         println!("Results for Q{}....", qid);
-//         println!("Time per query: {} ns", (after - now).as_nanos());
-//         println!("Number of results = {} ", qresults.len());
-//         println!("Dists: {:?}", dists);
-//         show_results(qid, &qresults);
-//         show_gt(qid, gt_nns.row(qid));
-//         println!("Number of GT results = {} ", gt_nns.row(qid).len());
-//         println!(
-//             "Intersection size: {}",
-//             intersection_size(&qresults, gt_nns.row(qid))
-//         );
-//     });
-// }
+    do_queries(
+        queries.to_vec(),
+        &descent,
+        dao_bsp.clone(),
+        &gt_nns,
+        bsp_distance_as_f32,
+    );
 
-// fn show_results(qid: usize, results: &Vec<Pair>) {
-//     print!("first few results for q{}:\t", qid);
-//     results.iter().by_ref().take(5).for_each(|pair| {
-//         print!("{} d: {} ", pair.index, pair.distance.as_f32());
-//     });
-//     println!();
-// }
+    Ok(())
+}
 
-// fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
-//     print!(
-//         "GT pairs size {} first few GT results for q{}:\t",
-//         gt_data.len(),
-//         qid
-//     );
-//     gt_data.iter().take(5).for_each(|index| {
-//         print!("{}", index);
-//     });
-//     println!();
-// }
+fn do_queries(
+    queries: Vec<EvpBits<2>>,
+    descent: &RDescentWithRev,
+    dao: Rc<Dao<EvpBits<2>>>,
+    gt_nns: &Array2<usize>,
+    distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
+) {
+    queries.iter().enumerate().for_each(|(qid, query)| {
+        let now = Instant::now();
+        let (dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
+        let (dists, qresults) = ADD_ONE_TO_RESULTS(dists, qresults);
+        let after = Instant::now();
+        println!("Results for Q{}....", qid);
+        println!("Time per query: {} ns", (after - now).as_nanos());
+        println!("Number of results = {} ", qresults.len());
+        println!("Dists: {:?}", dists);
+        show_results(qid, &qresults);
+        show_gt(qid, gt_nns.row(qid));
+        println!("Number of GT results = {} ", gt_nns.row(qid).len());
+        println!(
+            "Intersection size: {}",
+            intersection_size(&qresults, gt_nns.row(qid))
+        );
+    });
+}
 
-// fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usize {
-//     results
-//         .iter()
-//         .filter_map(|pair| {
-//             if gt_indices.as_slice().unwrap().contains(&pair.index) {
-//                 Some(1)
-//             } else {
-//                 None
-//             }
-//         })
-//         .count()
-// }
+fn show_results(qid: usize, results: &Vec<Pair>) {
+    print!("first few results for q{}:\t", qid);
+    results.iter().by_ref().take(5).for_each(|pair| {
+        print!("{} d: {} ", pair.index, pair.distance.as_f32());
+    });
+    println!();
+}
 
-// fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
-//     let adjusted_results = results
-//         .into_iter()
-//         .map(|pair| Pair::new(pair.distance, pair.index + 1))
-//         .collect();
+fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
+    print!(
+        "GT pairs size {} first few GT results for q{}:\t",
+        gt_data.len(),
+        qid
+    );
+    gt_data.iter().take(5).for_each(|index| {
+        print!("{}", index);
+    });
+    println!();
+}
 
-//     (length, adjusted_results)
-// }
+fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usize {
+    results
+        .iter()
+        .filter_map(|pair| {
+            if gt_indices.as_slice().unwrap().contains(&pair.index) {
+                Some(1)
+            } else {
+                None
+            }
+        })
+        .count()
+}
 
-// TODO put back
-pub fn main() -> () {}
+fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
+    let adjusted_results = results
+        .into_iter()
+        .map(|pair| Pair::new(pair.distance, pair.index + 1))
+        .collect();
+
+    (length, adjusted_results)
+}

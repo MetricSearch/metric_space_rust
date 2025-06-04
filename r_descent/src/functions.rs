@@ -118,16 +118,16 @@ pub fn get_reverse_links_not_in_forward(
             let neighbours_of_next_dont_contain_current_row =
                 !neighbours_of_next_id_in_row.iter().any(|x| *x == row);
 
-            log::debug!(
-                "Row {} col {} next_id {} sim {} neighbours of next {} don't contain {} row {}",
-                row,
-                col,
-                next_id_in_row,
-                next_sim_in_row,
-                neighbours_of_next_id_in_row,
-                row,
-                neighbours_of_next_dont_contain_current_row
-            );
+            // log::debug!(
+            //     "Row {} col {} next_id {} sim {} neighbours of next {} don't contain {} row {}",
+            //     row,
+            //     col,
+            //     next_id_in_row,
+            //     next_sim_in_row,
+            //     neighbours_of_next_id_in_row,
+            //     row,
+            //     neighbours_of_next_dont_contain_current_row
+            // );
 
             // if the reverse list isn't full, we will just add this one
             // this adds to a priority queue and keeps track of max
@@ -136,16 +136,16 @@ pub fn get_reverse_links_not_in_forward(
             // first find all the forward links containing the row
 
             if neighbours_of_next_dont_contain_current_row {
-                log::debug!("count is {} ", reverse_count[*next_id_in_row]);
+                //log::debug!("count is {} ", reverse_count[*next_id_in_row]);
                 if reverse_count[*next_id_in_row] < reverse_list_size {
                     // if the list is not full
                     // update the reverse pointer list and the similarities
-                    log::debug!(
-                        "Adding row {} refers to {} insert position {}",
-                        row,
-                        *next_id_in_row,
-                        reverse_count[*next_id_in_row]
-                    );
+                    // log::debug!(
+                    //     "Adding row {} refers to {} insert position {}",
+                    //     row,
+                    //     *next_id_in_row,
+                    //     reverse_count[*next_id_in_row]
+                    // );
 
                     reverse[[*next_id_in_row, reverse_count[*next_id_in_row]]] = row;
                     reverse_sims[[*next_id_in_row, reverse_count[*next_id_in_row]]] =
@@ -155,16 +155,16 @@ pub fn get_reverse_links_not_in_forward(
                 } else {
                     // it is full, so we will only add it if it's more similar than another one already there
                     let (position, value) = min_index_and_value(&reverse_sims.row(*next_id_in_row)); // Matlab line 109
-                    log::debug!(
-                        "full min index in {} and value of row {} are {} {}",
-                        &reverse_sims.row(*next_id_in_row),
-                        row,
-                        position,
-                        value
-                    );
+                                                                                                     // log::debug!(
+                                                                                                     //     "full min index in {} and value of row {} are {} {}",
+                                                                                                     //     &reverse_sims.row(*next_id_in_row),
+                                                                                                     //     row,
+                                                                                                     //     position,
+                                                                                                     //     value
+                                                                                                     // );
                     if value < next_sim_in_row {
                         // Matlab line 110  if the value in reverse_sims is less similar we over write
-                        log::debug!("overwriting");
+                        //log::debug!("overwriting");
                         reverse[[*next_id_in_row, position]] = row; // replace the old min with the new sim value
                         reverse_sims[[*next_id_in_row, position]] = next_sim_in_row;
                     }
@@ -216,14 +216,14 @@ pub fn get_reverse_nality_links_not_in_forward(
                 .iter()
                 .any(|x| x.id() == row as u32);
 
-            log::debug!(
-                "Row {} col {} next_id {} sim {} neighbours of next {}",
-                row,
-                col,
-                next_id_in_row,
-                next_sim_in_row,
-                neighbours_of_next_dont_contain_current_row
-            );
+            // log::debug!(
+            //     "Row {} col {} next_id {} sim {} neighbours of next {}",
+            //     row,
+            //     col,
+            //     next_id_in_row,
+            //     next_sim_in_row,
+            //     neighbours_of_next_dont_contain_current_row
+            // );
 
             // if the reverse list isn't full, we will just add this one
             // this adds to a priority queue and keeps track of max
@@ -232,16 +232,16 @@ pub fn get_reverse_nality_links_not_in_forward(
             // first find all the forward links containing the row
 
             if neighbours_of_next_dont_contain_current_row {
-                log::debug!("count is {} ", reverse_count[next_id_in_row as usize]);
+                //log::debug!("count is {} ", reverse_count[next_id_in_row as usize]);
                 if reverse_count[next_id_in_row as usize] < reverse_list_size {
                     // if the list is not full
                     // update the reverse pointer list and the similarities
-                    log::debug!(
-                        "Adding row {} refers to {} insert position {}",
-                        row,
-                        next_id_in_row,
-                        reverse_count[next_id_in_row as usize]
-                    );
+                    // log::debug!(
+                    //     "Adding row {} refers to {} insert position {}",
+                    //     row,
+                    //     next_id_in_row,
+                    //     reverse_count[next_id_in_row as usize]
+                    // );
 
                     reverse[[
                         next_id_in_row as usize,
@@ -258,7 +258,7 @@ pub fn get_reverse_nality_links_not_in_forward(
 
                     if nality.sim() < next_sim_in_row {
                         // Matlab line 110  if the value in reverse_sims is less similar we over write
-                        log::debug!("overwriting");
+                        // debug!("overwriting");
                         reverse[[next_id_in_row as usize, index]] =
                             Nality::new(next_sim_in_row, row as u32); // replace the old min with the new sim value
                     }
@@ -313,11 +313,11 @@ mod tests {
         let reverse_links =
             get_reverse_links_not_in_forward(&&mut forward_links, &&mut forward_sims, 2);
 
-        log::debug!(
-            "Reverse links: {:?} reverse sims: {:?}",
-            reverse_links.0,
-            reverse_links.1
-        );
+        // log::debug!(
+        //     "Reverse links: {:?} reverse sims: {:?}",
+        //     reverse_links.0,
+        //     reverse_links.1
+        // );
 
         assert_eq!(reverse_links.0, gt_links);
     }

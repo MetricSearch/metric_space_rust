@@ -1308,6 +1308,7 @@ dependencies = [
  "clap",
  "dao",
  "descent",
+ "hdf5-metno",
  "log",
  "metrics",
  "ndarray",

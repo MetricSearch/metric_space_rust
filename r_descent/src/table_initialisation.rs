@@ -411,8 +411,13 @@ pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nali
         })
         .collect();
 
-    let nalities = Array2::from_shape_vec((rows, columns), nalities)
+    let mut nalities = Array2::from_shape_vec((rows, columns), nalities)
         .expect("Shape mismatch during initialisation");
+
+    // overwrite first entry with a new nality of itself and 0
+    for row in 0..nalities.nrows() {
+        nalities[[row, 0]] = Nality::new(f32::MAX, row as u32);
+    }
 
     let end_time = Instant::now();
     log::debug!(

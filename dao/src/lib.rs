@@ -195,24 +195,6 @@ impl<T> DaoMatrix<T> {
     }
 }
 
-// TODO FIX AND MOVE THESE
-// pub fn dao_from_h5(data_path: &str, num_data: usize, num_queries: usize) -> std::result::Result<DaoMatrix> {
-//     hdf5_f32_load(data_path, num_data, num_queries)
-// }
-//
-// pub fn dao_from_csv_dir(dir_name: &str, num_data: usize, num_queries: usize) -> std::result::Result<DaoMatrix> {
-//     let meta_data = dao_metadata_from_dir(dir_name).unwrap();
-//     let mut data_file_path = dir_name.to_string();
-//     data_file_path.push_str("/");
-//     data_file_path.push_str(meta_data.path_to_data.as_str());
-//
-//     // Put loader selection here.
-//
-//     let data_and_queries: Array2<f32> = csv_f32_load(&data_file_path).or_else(|e| Err(anyhow!("Error loading data: {}", e)))?;
-//
-//     Ok(Self::new(meta_data, data_and_queries, num_data, num_queries))
-// }
-
 pub fn f32_embeddings_to_evp<const D: usize>(
     embeddings: &Array1<Array1<f32>>,
     non_zeros: usize,

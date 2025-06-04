@@ -243,7 +243,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             // TODO eliminate duplicates from reverse_nns - but leave for now - expensive and tricky
             let all_ids = concatenate(Axis(0), &[forward_nns.view(), reverse_nns.view()]).unwrap();
 
-            // Remove zeros (which are not encoded as zeros but as maxints)?
+            // Remove zeros (which are not encoded as zeros but as maxints)
             let all_ids = all_ids
                 .into_iter()
                 .filter(|&id| id != (u32::MAX as usize))

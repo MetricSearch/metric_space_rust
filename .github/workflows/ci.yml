@@ -10,8 +10,8 @@ env:
   IMAGE_NAME: metricsearch/sisap2025
 
 jobs:
-  check:
-    name: Check
+  formatting:
+    name: Formatting Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -29,8 +29,9 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  build:
-    name: SISAP Container
+  publish:
+    name: SISAP Container Publish
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read

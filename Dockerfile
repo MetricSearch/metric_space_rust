@@ -1,7 +1,6 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
-
 # prepare toolchain
 RUN rustup target add x86_64-unknown-linux-musl
 
@@ -29,5 +28,5 @@ RUN touch Cargo.toml
 RUN cargo build $RUST_ARGS
 
 FROM scratch
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/sisap .
-ENTRYPOINT ["./sisap"]
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge1 .
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge2 .

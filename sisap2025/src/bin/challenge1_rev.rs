@@ -88,31 +88,31 @@ fn main() -> Result<()> {
     let neighbours = &descent.rdescent.neighbours;
     let rev_neighbours = &descent.reverse_neighbours;
 
-    println!("====== Printing First 10 Rows of neighbours ======");
-    for i in 0..1000 {
-        println!(
-            "{:?}",
-            neighbours
-                .row(i)
-                .slice(s![0..])
-                .iter()
-                .map(|x| x + 1)
-                .collect::<Vec<usize>>()
-        );
-    }
+    // println!("====== Printing First 10 Rows of neighbours ======");
+    // for i in 0..1000 {
+    //     println!(
+    //         "{:?}",
+    //         neighbours
+    //             .row(i)
+    //             .slice(s![0..])
+    //             .iter()
+    //             .map(|x| x + 1)
+    //             .collect::<Vec<usize>>()
+    //     );
+    // }
 
-    println!("====== Printing First 1000 Rows of rev_neighbours ======");
-    for i in 0..10 {
-        println!(
-            "{:?}",
-            rev_neighbours
-                .row(i)
-                .slice(s![0..])
-                .iter()
-                .map(|x| x + 1)
-                .collect::<Vec<usize>>()
-        );
-    }
+    // println!("====== Printing First 1000 Rows of rev_neighbours ======");
+    // for i in 0..10 {
+    //     println!(
+    //         "{:?}",
+    //         rev_neighbours
+    //             .row(i)
+    //             .slice(s![0..])
+    //             .iter()
+    //             .map(|x| x + 1)
+    //             .collect::<Vec<usize>>()
+    //     );
+    // }
 
     log::info!(
         "Finished (including load time in {} s",
@@ -148,7 +148,7 @@ fn do_queries(
 ) {
     queries.iter().enumerate().for_each(|(qid, query)| {
         let now = Instant::now();
-        let (dists, qresults) = descent.rev_search(qid, query.clone(), dao.clone(), 100, distance);
+        let (dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
         let (dists, qresults) = ADD_ONE_TO_RESULTS(dists, qresults);
         let after = Instant::now();
         print!(

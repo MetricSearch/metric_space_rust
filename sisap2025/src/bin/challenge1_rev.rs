@@ -11,8 +11,8 @@
 //  */
 // // Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
 
-// #[global_allocator]
-// static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};

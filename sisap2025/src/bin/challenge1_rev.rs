@@ -70,10 +70,10 @@ fn main() -> Result<()> {
 
     let start_post_load = Instant::now();
 
-    let num_neighbours = 6;
+    let num_neighbours = 8;
     let chunk_size = 200;
     let delta = 0.01;
-    let reverse_list_size = 10;
+    let reverse_list_size = 20;
     let num_reverse_neighbours: usize = 16;
 
     log::info!("Getting NN table");

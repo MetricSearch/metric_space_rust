@@ -183,8 +183,11 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
     ) -> (usize, Vec<Pair>) {
         let data = dao.get_data();
 
-        let mut q_nns: Array1<usize> = Array1::from_shape_fn( (num_neighbours,), |_| { rng().random_range(0..dao.num_data) } );
-        let mut q_sims: Array1<f32> = Array1::from_shape_fn( (num_neighbours,),|i| bsp_similarity_as_f32::<X>(&data[q_nns[i as usize]],&query ) );
+        let mut q_nns: Array1<usize> =
+            Array1::from_shape_fn((num_neighbours,), |_| rng().random_range(0..dao.num_data));
+        let mut q_sims: Array1<f32> = Array1::from_shape_fn((num_neighbours,), |i| {
+            bsp_similarity_as_f32::<X>(&data[q_nns[i as usize]], &query)
+        });
 
         let query_as_array: ArrayBase<OwnedRepr<EvpBits<{ X }>>, Ix1> = Array1::from_elem(1, query);
 

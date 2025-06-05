@@ -176,7 +176,6 @@ pub fn get_reverse_links_not_in_forward(
     (reverse, reverse_sims)
 }
 
-// Same as function above without new parameter.
 pub fn get_reverse_nality_links_not_in_forward(
     neighbours: &Array2<Nality>,
     reverse_list_size: usize,
@@ -185,82 +184,58 @@ pub fn get_reverse_nality_links_not_in_forward(
     // the reverse NN table  Matlab line 91
     let num_neighbours = neighbours.ncols();
     let num_data = neighbours.nrows();
-    let mut reverse: Array2<Nality> = Array2::from_elem(
-        (num_data, reverse_list_size),
-        Nality::new(f32::MIN, u32::MAX),
-    );
+
+    let mut reverse: Array2<Nality> =
+        Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
 
     // reverse_count - how many reverse pointers for each entry in the dataset
     let mut reverse_count = Array1::from_elem(num_data, 0);
 
     // loop over all current entries in neighbours; add that entry to each row in the
-    // reverse list if that id is in the forward NNs
-    // there is a limit to the number of reverse ids we will store, as these
-    // are in a zipf distribution, so we will add the most similar only
+    // reverse list if that id is not in the forward NNs
+    // there is a limit to the number of reverse ids we will store.
 
     for row in 0..num_data {
-        // Matlab line 97
-        // all_ids are the forward links in the current id's row
         let current_row = &neighbours.row(row); // Matlab line 98
                                                 // so for each one of these (there are k...):
         for col in 0..num_neighbours {
-            // Matlab line 99 (updated)
             // get the id
-            let next_id_in_row = current_row[col].id();
-            // and how similar it is to the current id
-            let next_sim_in_row = current_row[col].sim();
 
-            let neighbours_of_next_id_in_row = neighbours.row(next_id_in_row as usize);
+            let next_nality = &neighbours[[row, col]];
+            let next_id = next_nality.id();
+            let next_sim = next_nality.sim();
 
-            let neighbours_of_next_dont_contain_current_row = !neighbours_of_next_id_in_row
+            // 1) If ‘row’ is not already a forward‐neighbour of next_id..
+            if !neighbours
+                .row(next_id as usize) // if it is not in the neighbours of the row
                 .iter()
-                .any(|x| x.id() == row as u32);
+                .any(|x| x.id() == row as u32)
+            {
+                let bind_reverse = reverse.row(next_id as usize);
 
-            // log::debug!(
-            //     "Row {} col {} next_id {} sim {} neighbours of next {}",
-            //     row,
-            //     col,
-            //     next_id_in_row,
-            //     next_sim_in_row,
-            //     neighbours_of_next_dont_contain_current_row
-            // );
+                let already_in_reverse = &bind_reverse // and if it isn't in the reverse neighbours already
+                    .iter()
+                    .any(|x| x.id() == row as u32);
 
-            // if the reverse list isn't full, we will just add this one
-            // this adds to a priority queue and keeps track of max
-            // We are trying to find a set of reverse near neighbours with the
-            // biggest similarity of size reverse_list_size.
-            // first find all the forward links containing the row
+                // 2) check if we’ve already added ‘row’ into reverse[next_id]:
+                if !already_in_reverse {
+                    // 3) At this point, we know “row” should be inserted into reverse[next_id].
+                    // See if there’s still room:
+                    if reverse_count[next_id as usize] < reverse_list_size {
+                        let mut reverse_row = reverse.row_mut(next_id as usize);
+                        reverse_row[reverse_count[next_id as usize]] =
+                            Nality::new(next_sim, row as u32);
+                        reverse_count[next_id as usize] += 1;
+                    } else {
+                        // No room, so find the lowest‐similarity entry in reverse[next_id] and
+                        // overwrite it if next_sim is higher.
+                        let (min_index, min_nality) =
+                            min_index_and_value_neighbourlarities(&bind_reverse);
 
-            if neighbours_of_next_dont_contain_current_row {
-                //log::debug!("count is {} ", reverse_count[next_id_in_row as usize]);
-                if reverse_count[next_id_in_row as usize] < reverse_list_size {
-                    // if the list is not full
-                    // update the reverse pointer list and the similarities
-                    // log::debug!(
-                    //     "Adding row {} refers to {} insert position {}",
-                    //     row,
-                    //     next_id_in_row,
-                    //     reverse_count[next_id_in_row as usize]
-                    // );
-
-                    reverse[[
-                        next_id_in_row as usize,
-                        reverse_count[next_id_in_row as usize],
-                    ]] = Nality::new(next_sim_in_row, row as u32);
-                    reverse_count[next_id_in_row as usize] =
-                        reverse_count[next_id_in_row as usize] + 1;
-                // increment the count
-                } else {
-                    // it is full, so we will only add it if it's more similar than another one already there
-                    let (index, nality) = min_index_and_value_neighbourlarities(
-                        &reverse.row(next_id_in_row as usize),
-                    ); // Matlab line 109
-
-                    if nality.sim() < next_sim_in_row {
-                        // Matlab line 110  if the value in reverse_sims is less similar we over write
-                        // debug!("overwriting");
-                        reverse[[next_id_in_row as usize, index]] =
-                            Nality::new(next_sim_in_row, row as u32); // replace the old min with the new sim value
+                        if min_nality.sim() < next_sim {
+                            let mut reverse_row = reverse.row_mut(next_id as usize);
+                            reverse_row[min_index] = Nality::new(next_sim, row as u32);
+                        }
                     }
                 }
             }

@@ -810,7 +810,7 @@ pub fn get_nn_table2_bsp(
                     });
 
                 (
-                    row,
+
                     new_row,
                     old_row,
                     new_row_union,
@@ -819,12 +819,8 @@ pub fn get_nn_table2_bsp(
                     old_data,
                 )
             })
-            .collect::<Vec<_>>()
-            // Need to collect such that parallelism isn't accessing at the same time.   // TODO do we still need to to this collect? Ferdia
-            // In this for each block, we only write in check_apply_update.
-            .into_par_iter() // .into_iter() //
             .for_each(
-                |(row, new_row,
+                |(new_row,
                      old_row,
                      new_row_union,
                      new_new_sims,

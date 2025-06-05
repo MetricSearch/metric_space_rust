@@ -54,10 +54,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            metricsearch/sisap2025
             ghcr.io/metricsearch/sisap2025
           tags: |
-             type=sha
+            type=sha
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

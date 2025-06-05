@@ -602,6 +602,7 @@ pub fn get_nn_table2_bsp(
         let mut reverse: Array2<Nality> =
             Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
         // reverse_ptr - how many reverse pointers for each entry in the dataset
+        // FERDIA: brings us to 18GB here
         let mut reverse_count = Array1::from_elem(num_data, 0);
 
         // loop over all current entries in neighbours; add that entry to each row in the

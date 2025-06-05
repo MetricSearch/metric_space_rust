@@ -246,10 +246,8 @@ impl<const X: usize> Default for EvpBits<X> {
 
 impl<const X: usize> DeepSizeOf for EvpBits<X> {
     fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
-        self.ones.storage_capacity() * size_of::<[u64x4; X]>()
-            + size_of::<usize>()
-            + self.negative_ones.storage_capacity() * size_of::<[u64x4; X]>()
-            + size_of::<usize>()
+        // assumes no smallvec allocations
+        size_of::<Self>()
     }
 }
 

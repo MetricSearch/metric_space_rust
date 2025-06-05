@@ -20,3 +20,4 @@ hdf5.workspace = true
 bitvec_simd.workspace = true
 wide.workspace = true
 deepsize.workspace = true
+log.workspace = true

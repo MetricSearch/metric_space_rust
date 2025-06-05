@@ -372,6 +372,7 @@ dependencies = [
  "csv",
  "deepsize",
  "hdf5-metno",
+ "log",
  "metrics",
  "ndarray",
  "rayon",

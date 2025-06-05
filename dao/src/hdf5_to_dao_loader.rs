@@ -1,9 +1,11 @@
 use crate::{Dao, DaoMetaData, Normed};
 use bits::{f32_embedding_to_bsp, EvpBits};
+use deepsize::DeepSizeOf;
 use hdf5::File;
 use ndarray::{s, Array1, Array2};
 use rayon::prelude::*;
 use tracing::error;
+use utils::bytes_fmt;
 //use tracing::metadata;
 
 pub fn hdf5_f32_to_bsp_load(
@@ -61,6 +63,8 @@ pub fn hdf5_f32_to_bsp_load(
         })
         .collect();
 
+    log::error!("{}", bytes_fmt(bsp_data.deep_size_of()));
+
     // Don't bother doing this in parallel
     // Queries not big enough
 
@@ -81,23 +85,27 @@ pub fn hdf5_f32_to_bsp_load(
 
     let o_queries = o_queries_group.dataset("queries").unwrap();
 
-    let o_queries_slice: Array2<f32> = o_queries.read_slice(s![0..num_queries, ..]).unwrap();
+    (0..num_queries).step_by(rows_at_a_time).for_each(|i| {
+        let o_queries_slice: Array2<f32> =
+            o_queries.read_slice(s![i..i + rows_at_a_time, ..]).unwrap();
 
-    let bsp_o_test = o_queries_slice
-        .rows()
-        .into_iter()
-        .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices));
+        bsp_data.extend(
+            o_queries_slice
+                .rows()
+                .into_iter()
+                .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices)),
+        );
+    });
 
-    let name = "Pubmed";
-    let description = "PubmedHDF5Dataset";
-
-    bsp_data.extend(bsp_o_test);
+    log::error!("{}", bytes_fmt(bsp_data.deep_size_of()));
 
     let all_combined: Array1<EvpBits<2>> = Array1::from_vec(bsp_data);
 
+    log::error!("{}", bytes_fmt(all_combined.deep_size_of()));
+
     let dao_meta = DaoMetaData {
-        name: name.to_string(),
-        description: description.to_string(),
+        name: "Pubmed".to_string(),
+        description: "PubmedHDF5Dataset".to_string(),
         data_disk_format: "".to_string(),
         path_to_data: "".to_string(),
         normed: Normed::L2,

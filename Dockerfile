@@ -16,7 +16,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
-ENV RUSTFLAGS='-C target-cpu=native'
+# E5-2690 v4
+ENV RUSTFLAGS='-C target-cpu=broadwell'
 ARG RUST_ARGS='--release --package sisap2025 --target x86_64-unknown-linux-musl'
 
 # build dependencies

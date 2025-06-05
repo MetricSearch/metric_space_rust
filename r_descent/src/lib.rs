@@ -31,7 +31,11 @@ use utils::{
 };
 use utils::{arg_sort_big_to_small_2d, min_index_and_value, rand_perm};
 
-use crate::functions::{fill_false_atomic, fill_selected, get_1_d_slice_using_selected, get_1_d_slice_using_selected_u32, get_2_d_slice_using, get_reverse_nality_links_not_in_forward, get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace};
+use crate::functions::{
+    fill_false_atomic, fill_selected, get_1_d_slice_using_selected,
+    get_1_d_slice_using_selected_u32, get_2_d_slice_using, get_reverse_nality_links_not_in_forward,
+    get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace,
+};
 pub use functions::{get_selectors_from_flags, get_slice_using_selectors};
 
 use crate::table_initialisation::*;
@@ -216,8 +220,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             let forward_nns: Array1<u32> =
                 get_2_d_slice_using(&self.rdescent.neighbours.view(), &these_q_nns.view())
                     .flatten()
-                    .map( |x| { *x as u32 } );
-                    // .into_owned();
+                    .map(|x| *x as u32);
+            // .into_owned();
 
             // these two lines do the same for the reverse table as above for the forward table
 
@@ -245,7 +249,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
             // get a view of the actual data values from the full data set but not the zeros.
 
-            let nn_data: Array1<EvpBits<X>> = get_1_d_slice_using_selected_u32(&data, &all_ids.view());
+            let nn_data: Array1<EvpBits<X>> =
+                get_1_d_slice_using_selected_u32(&data, &all_ids.view());
 
             // and measure the similarity of each to the query
             // allSims is a flat vector is distances

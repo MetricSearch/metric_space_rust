@@ -91,7 +91,7 @@ pub trait RevSearch<T: Clone> {
         dao: Rc<Dao<T>>,
         num_neighbours: usize,
         distance: fn(&T, &T) -> f32,
-    ) -> (usize, Vec<Pair>);
+    ) -> Vec<usize>;
 }
 
 //********** Implementations of RDescent and RDescentRev **********
@@ -180,7 +180,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         dao: Rc<Dao<EvpBits<X>>>,
         num_neighbours: usize,
         distance: fn(&EvpBits<X>, &EvpBits<X>) -> f32,
-    ) -> (usize, Vec<Pair>) {
+    ) -> Vec<usize> {
         let data = dao.get_data();
 
         let mut q_nns: Array1<usize> =
@@ -291,13 +291,9 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             }
         }
 
-        let (sorted_ords, sorted_sims) = arg_sort_big_to_small_1d(q_sims.view());
+        let (sorted_ords, _sorted_sims) = arg_sort_big_to_small_1d(q_sims.view());
 
-        let sorted_pairs = (0..sorted_ords.len())
-            .map(|index| Pair::new(NonNan::new(sorted_sims[index]), q_nns[sorted_ords[index]]))
-            .collect();
-
-        (sorted_ords.len(), sorted_pairs) /* distances plus Vec<Pair> */
+        sorted_ords.iter().map(|i| q_nns[*i]).collect()
     }
 }
 

@@ -79,6 +79,7 @@ fn main() -> Result<()> {
     let delta = 0.01;
     let reverse_list_size = 8;
     let num_neighbours_in_reverse_table: usize = 10;
+    let num_results = 30;
 
     log::info!("Getting NN table");
 
@@ -115,6 +116,7 @@ fn main() -> Result<()> {
         dao_bsp.clone(),
         bsp_distance_as_f32,
         args.output_path,
+        num_results,
     );
 
     Ok(())
@@ -126,19 +128,15 @@ fn do_queries(
     dao: Rc<Dao<EvpBits<2>>>,
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
     output_path: String,
+    num_results: usize,
 ) {
     let start = Instant::now();
 
     let mut results = vec![];
 
-    queries.iter().enumerate().for_each(|(qid, query)| {
-        let (_dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
-
-        // NEED TO SORT THEM
-
-        let qresults = add_one_to_all_results(qresults);
-
-        results.push(qresults);
+    queries.iter().enumerate().for_each(|(_qid, query)| {
+        let qresults = descent.rev_search(query.clone(), dao.clone(), 100, distance);
+        results.push(qresults.iter().map(|i| *i + 1).take(num_results).collect());
     });
 
     let end = Instant::now();
@@ -195,17 +193,4 @@ fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usiz
             }
         })
         .count()
-}
-
-fn add_one_to_all_result_pairs(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
-    let adjusted_results = results
-        .into_iter()
-        .map(|pair| Pair::new(pair.distance, pair.index + 1))
-        .collect();
-
-    (length, adjusted_results)
-}
-
-fn add_one_to_all_results(results: Vec<Pair>) -> Vec<usize> {
-    results.into_iter().map(|pair| pair.index + 1).collect()
 }

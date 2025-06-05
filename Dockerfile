@@ -4,8 +4,8 @@ WORKDIR /app
 # prepare toolchain
 RUN rustup target add x86_64-unknown-linux-gnu
 
-# add musl tools
-RUN apt-get update && apt-get install musl-tools clang llvm cmake -y
+# add dependencies
+RUN apt-get update && apt-get install cmake -y
 
 # prepare recipe
 FROM chef AS planner

@@ -21,6 +21,7 @@ use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
+use hdf5::{Dataset, File as Hdf5File};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use r_descent::{
     IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescent, RDescentWithRev, RevSearch,
@@ -29,7 +30,6 @@ use std::rc::Rc;
 use std::time::Instant;
 use utils::ndcg;
 use utils::pair::Pair;
-use hdf5::{Dataset, File as Hdf5File};
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -55,8 +55,9 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 256;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> =
-        Rc::new(hdf5_f32_to_bsp_load(&args.source_path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
+    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
+        hdf5_f32_to_bsp_load(&args.source_path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
+    );
 
     let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
 
@@ -128,30 +129,25 @@ fn do_queries(
 ) {
     let start = Instant::now();
 
-    let mut results = vec!();
+    let mut results = vec![];
 
     queries.iter().enumerate().for_each(|(qid, query)| {
         let (_dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
-        let qresults= add_one_to_all_results(qresults);
+        let qresults = add_one_to_all_results(qresults);
 
         results.push(qresults);
     });
 
     let end = Instant::now();
 
-    log::info!(
-        "Queries run in {} s",
-        (end - start).as_secs()
-    );
+    log::info!("Queries run in {} s", (end - start).as_secs());
 
     log::info!("Writing to h5 file {}", output_path);
     save_results(results, output_path);
     println!("Data saved to h5 file");
 }
 
-
 fn save_results(results: Vec<Vec<usize>>, output_path: String) {
-
     log::info!("Writing to h5 file {}", output_path);
 
     // Get the results into an Array2
@@ -159,7 +155,7 @@ fn save_results(results: Vec<Vec<usize>>, output_path: String) {
     let cols = results.first().map_or(0, |row| row.len());
 
     let results: Vec<usize> = results.into_iter().flatten().collect();
-    let results= Array2::from_shape_vec((rows, cols), results).expect("Shape mismatch");
+    let results = Array2::from_shape_vec((rows, cols), results).expect("Shape mismatch");
 
     let _ = save_to_h5(&output_path, results);
 }
@@ -208,8 +204,5 @@ fn add_one_to_all_result_pairs(length: usize, results: Vec<Pair>) -> (usize, Vec
 }
 
 fn add_one_to_all_results(results: Vec<Pair>) -> Vec<usize> {
-    results
-        .into_iter()
-        .map(|pair| pair.index + 1)
-        .collect()
+    results.into_iter().map(|pair| pair.index + 1).collect()
 }

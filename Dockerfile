@@ -2,7 +2,7 @@ FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
 # prepare toolchain
-RUN rustup target add x86_64-unknown-linux-musl
+RUN rustup target add x86_64-unknown-linux-gnu
 
 # add musl tools
 RUN apt-get update && apt-get install musl-tools clang llvm cmake -y
@@ -18,7 +18,7 @@ COPY --from=planner /app/recipe.json recipe.json
 
 # E5-2690 v4
 ENV RUSTFLAGS='-C target-cpu=broadwell'
-ARG RUST_ARGS='--release --package sisap2025 --target x86_64-unknown-linux-musl'
+ARG RUST_ARGS='--release --package sisap2025 --target x86_64-unknown-linux-gnu'
 
 # build dependencies
 RUN cargo chef cook $RUST_ARGS --recipe-path recipe.json
@@ -28,8 +28,8 @@ COPY . .
 RUN touch Cargo.toml
 RUN cargo build $RUST_ARGS
 
-FROM scratch
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge1_old_dont_use .
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge2 .
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge1_rev .
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge2_dino2 .
+FROM ubuntu
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge1_old_dont_use .
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge2 .
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge1_rev .
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge2_dino2 .

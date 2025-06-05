@@ -9,6 +9,9 @@ We will measure graph’s quality as the recall against a provided gold standard
 We provide a development dataset; the evaluation phase will use an undisclosed dataset of similar size computed with the same neural model.
 */
 
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use std::time::Instant;
 
 use anyhow::Result;

@@ -8,6 +8,10 @@ The goal is to compute the k-nearest neighbor graph (without self-references), i
 We will measure graph’s quality as the recall against a provided gold standard and the full computation time (i.e., including preprocessing, indexing, and search, and postprocessing)
 We provide a development dataset; the evaluation phase will use an undisclosed dataset of similar size computed with the same neural model.
 */
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;

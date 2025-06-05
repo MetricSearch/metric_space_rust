@@ -10,6 +10,9 @@ Teams are provided with a public set of 11,000 query objects for development pur
 A private set of 10,000 new queries will be used for the final evaluation.
  */
 
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
 use clap::Parser;

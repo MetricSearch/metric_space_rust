@@ -116,22 +116,21 @@ fn main() -> Result<()> {
 
     let selected_neighbours = selected_neighbours.slice(s![.., 1..16]); // get the first 15 columns.
 
-    println!("====== Printing First 10 Rows ======");
-    for i in 0..10 {
-        println!(
-            "{:?}",
-            selected_neighbours
-                .row(i)
-                .slice(s![0..])
-                .iter()
-                .map(|x| *x)
-                .collect::<Vec<usize>>()
-        );
-    }
+    // println!("====== Printing First 10 Rows ======");
+    // for i in 0..10 {
+    //     println!(
+    //         "{:?}",
+    //         selected_neighbours
+    //             .row(i)
+    //             .slice(s![0..])
+    //             .iter()
+    //             .map(|x| *x)
+    //             .collect::<Vec<usize>>()
+    //     );
+    // }
 
-    let f_name = "./_scratch/challenge2_results.h5";
     log::info!("Writing to h5 file {}", &args.output_path);
-    save_to_h5(f_name, selected_neighbours)?;
+    save_to_h5(&args.output_path, selected_neighbours)?;
 
     println!("Data saved to h5 file");
 

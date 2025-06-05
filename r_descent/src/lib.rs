@@ -767,11 +767,6 @@ pub fn get_nn_table2_bsp(
                 let binding = reverse
                     .row(row);
 
-                let reverse_link_row: Array1<&Nality> = binding
-                    .iter()
-                    .filter(|&v| !v.is_empty())
-                    //.map(|x| x)
-                    .collect::<Array1<&Nality>>();
 
                 let new_row_union: Array1<usize> = if new_row.len() == 0 {
                     // Matlab line 130
@@ -780,7 +775,10 @@ pub fn get_nn_table2_bsp(
                     new_row
                         .iter()
                         .filter_map(|x| { if x.is_empty() {None} else { Some(x.id() as usize) } } ) //<<<<<<<<< only take real values
-                        .chain(reverse_link_row.iter().map(|x| x.id() as usize))
+                        .chain(binding
+                                .iter()
+                                .filter(|&x| !x.is_empty())
+                                .map(|x| x.id() as usize))
                         .collect::<Array1<usize>>()
                 };
 

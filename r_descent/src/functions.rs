@@ -368,6 +368,21 @@ pub fn get_1_d_slice_using_selected<T: Clone>(
     unsafe { sliced.assume_init() }
 }
 
+pub fn get_1_d_slice_using_selected_u32<T: Clone>(
+    source: &ArrayView1<T>,
+    selectors: &ArrayView1<u32>,
+) -> Array1<T> {
+    let mut sliced = Array1::uninit(selectors.len());
+
+    for count in 0..selectors.len() {
+        source
+            .slice(s![selectors[count] as usize])
+            .assign_to(sliced.slice_mut(s![count]));
+    }
+
+    unsafe { sliced.assume_init() }
+}
+
 pub fn get_selectors_from_flags(selectors: &Array1<bool>) -> Array1<usize> {
     let vec = selectors
         .into_iter()

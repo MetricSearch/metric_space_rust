@@ -31,11 +31,7 @@ use utils::{
 };
 use utils::{arg_sort_big_to_small_2d, min_index_and_value, rand_perm};
 
-use crate::functions::{
-    fill_false_atomic, fill_selected, get_1_d_slice_using_selected, get_2_d_slice_using,
-    get_reverse_nality_links_not_in_forward, get_slice_using_selected, insert_column_inplace,
-    insert_index_at_position_1_inplace,
-};
+use crate::functions::{fill_false_atomic, fill_selected, get_1_d_slice_using_selected, get_1_d_slice_using_selected_u32, get_2_d_slice_using, get_reverse_nality_links_not_in_forward, get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace};
 pub use functions::{get_selectors_from_flags, get_slice_using_selectors};
 
 use crate::table_initialisation::*;
@@ -217,14 +213,15 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
             // TODO what if these_q_nns is bigger than number of neighbours in the table
 
-            let forward_nns: Array1<usize> =
+            let forward_nns: Array1<u32> =
                 get_2_d_slice_using(&self.rdescent.neighbours.view(), &these_q_nns.view())
                     .flatten()
-                    .into_owned();
+                    .map( |x| { *x as u32 } );
+                    // .into_owned();
 
             // these two lines do the same for the reverse table as above for the forward table
 
-            let reverse_nns: Array1<usize> =
+            let reverse_nns: Array1<u32> =
                 get_2_d_slice_using(&self.reverse_neighbours.view(), &these_q_nns.view())
                     .flatten()
                     .into_iter()
@@ -232,7 +229,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
                         if x == u32::MAX as usize {
                             None
                         } else {
-                            Some(x)
+                            Some(x as u32)
                         }
                     })
                     .collect();
@@ -243,12 +240,12 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             // Remove zeros (which are not encoded as zeros but as maxints)
             let all_ids = all_ids
                 .into_iter()
-                .filter(|&id| id != (u32::MAX as usize))
-                .collect::<Array1<usize>>();
+                .filter(|&id| id != u32::MAX)
+                .collect::<Array1<u32>>();
 
             // get a view of the actual data values from the full data set but not the zeros.
 
-            let nn_data: Array1<EvpBits<X>> = get_1_d_slice_using_selected(&data, &all_ids.view());
+            let nn_data: Array1<EvpBits<X>> = get_1_d_slice_using_selected_u32(&data, &all_ids.view());
 
             // and measure the similarity of each to the query
             // allSims is a flat vector is distances
@@ -269,13 +266,13 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
                 if this_sim > current_min_sim {
                     // more similar than what we have so far
-                    if !q_nns.iter().any(|x| *x == this_id) {
+                    if !q_nns.iter().any(|x| *x == this_id as usize) {
                         // check if this_id is in the result set already
                         // and it's not, so we're doing a replacement
                         // first find where the current smallest similarity is
                         let (position, _) = min_index_and_value(&q_sims.view());
                         // then replace the id in the result list with the new id, also maintaining the global q_sims list
-                        q_nns[position] = this_id;
+                        q_nns[position] = this_id as usize;
                         q_sims[position] = this_sim;
                         new_flags[position] = true;
 

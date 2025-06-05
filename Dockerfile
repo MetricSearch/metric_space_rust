@@ -17,7 +17,7 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
 ENV RUSTFLAGS='-C target-cpu=native'
-ARG RUST_ARGS='--release --bin challenge1 --bin challenge2 --target x86_64-unknown-linux-musl'
+ARG RUST_ARGS='--release --bin challenge1 --bin challenge2 --bin challenge1_rev --bin challenge2_dino2 --target x86_64-unknown-linux-musl'
 
 # build dependencies
 RUN cargo chef cook $RUST_ARGS --recipe-path recipe.json
@@ -30,3 +30,5 @@ RUN cargo build $RUST_ARGS
 FROM scratch
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge1 .
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge2 .
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge1_rev .
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/challenge2_dino2 .

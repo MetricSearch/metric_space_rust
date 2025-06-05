@@ -9,7 +9,7 @@ members = [
     "rp_forest",
     "utils",
     "r_descent",
-    "sisap_2025",
+    "sisap2025",
 ]
 
 [workspace.dependencies]

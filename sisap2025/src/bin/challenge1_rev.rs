@@ -28,8 +28,8 @@ use r_descent::{
 };
 use std::rc::Rc;
 use std::time::Instant;
-use utils::ndcg;
 use utils::pair::Pair;
+use utils::{arg_sort_big_to_small_1d, ndcg};
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -74,20 +74,20 @@ fn main() -> Result<()> {
 
     let start_post_load = Instant::now();
 
-    let num_neighbours = 8;
+    let num_neighbours_in_table = 8;
     let chunk_size = 200;
     let delta = 0.01;
-    let reverse_list_size = 24;
-    let num_reverse_neighbours: usize = 16;
+    let reverse_list_size = 8;
+    let num_neighbours_in_reverse_table: usize = 10;
 
     log::info!("Getting NN table");
 
     let descent = dao_bsp.clone().into_rdescent_with_rev_nn(
-        num_neighbours,
+        num_neighbours_in_table,
         reverse_list_size,
         chunk_size,
         delta,
-        num_reverse_neighbours,
+        num_neighbours_in_reverse_table,
     );
 
     let end = Instant::now();

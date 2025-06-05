@@ -29,7 +29,7 @@ pub fn hdf5_f32_to_bsp_load(
     };
 
     let dim = 384;
-    let mut rows_at_a_time = 10000;
+    let mut rows_at_a_time = 5000;
 
     if rows_at_a_time > num_records {
         rows_at_a_time = num_records;

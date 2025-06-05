@@ -11,8 +11,8 @@
 //  */
 // // Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
 
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+// #[global_allocator]
+// static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
@@ -133,6 +133,9 @@ fn do_queries(
 
     queries.iter().enumerate().for_each(|(qid, query)| {
         let (_dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
+
+        // NEED TO SORT THEM
+
         let qresults = add_one_to_all_results(qresults);
 
         results.push(qresults);

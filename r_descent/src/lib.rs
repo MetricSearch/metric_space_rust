@@ -8,7 +8,10 @@ use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::parallel::prelude::IntoParallelIterator;
 use ndarray::parallel::prelude::*;
-use ndarray::{concatenate, s, Array1, Array2, ArrayBase, ArrayView1, ArrayViewMut1, Axis, Dim, Ix1, OwnedRepr, Zip};
+use ndarray::{
+    concatenate, s, Array1, Array2, ArrayBase, ArrayView1, ArrayViewMut1, Axis, Dim, Ix1,
+    OwnedRepr, Zip,
+};
 use rand::Rng;
 use rand_chacha::rand_core::SeedableRng;
 use rayon::prelude::*;
@@ -183,15 +186,19 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         let data = dao.get_data();
 
         if qid == 30 {
-            println!( "Query {:?} " , query );
-            println!( "*****" );
+            println!("Query {:?} ", query);
+            println!("*****");
         }
 
         // First, cheaply find some reasonably good solutions
         let query_as_array: ArrayBase<OwnedRepr<EvpBits<{ X }>>, Ix1> = Array1::from_elem(1, query);
 
         if qid == 30 {
-            println!( "Query as array {:?} shape {:?} " , query_as_array, query_as_array.shape() );
+            println!(
+                "Query as array {:?} shape {:?} ",
+                query_as_array,
+                query_as_array.shape()
+            );
         }
 
         let number_of_samples = 1000;
@@ -202,16 +209,15 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
                 bsp_similarity_as_f32::<X>(a, b)
             }); // matrix mult all the sample distances - all relative to the original_rows
 
-
         let (ords, sims) = arg_sort_big_to_small_1d(sims.row(0).view()); // ords are row relative indices - these are is 1 X number_of_samples
 
         // These ords are row relative all range from 0..number_of_samples in data - so therefore real dao indices
         // We need to initialise qNNs and qSims to start with, these will incrementally get better until the algorithm terminates
 
         if qid == 30 {
-            println!( "Init" );
-            println!( "{:?}", ords );
-            println!( "{:?}", sims );
+            println!("Init");
+            println!("{:?}", ords);
+            println!("{:?}", sims);
         }
 
         let mut ords_owned = Array1::from(ords); // own the data
@@ -223,8 +229,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         let mut q_sims: ArrayViewMut1<f32> = binding.slice_mut(s![..num_neighbours]);
 
         if qid == 30 {
-            println!( ">> Q_NNS {:?}", q_nns );
-            println!( ">> Q_`sims` {:?}", q_sims );
+            println!(">> Q_NNS {:?}", q_nns);
+            println!(">> Q_`sims` {:?}", q_sims);
         }
 
         // same as in nnTableBuild, the new flags
@@ -232,7 +238,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         let mut current_min_sim = *q_sims.last().unwrap(); // least good sim from q_sims
 
         if qid == 30 {
-            println!( "min sim {}", current_min_sim );
+            println!("min sim {}", current_min_sim);
         }
 
         // The amount of work done in the iteration
@@ -247,14 +253,14 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             let selectors = get_selectors_from_flags(&new_flags);
 
             if qid == 30 {
-                println!( "selectors {:?}", selectors );
+                println!("selectors {:?}", selectors);
             }
 
             let these_q_nns: Array1<usize> =
                 get_slice_using_selectors(&q_nns.view(), &selectors.view());
 
             if qid == 30 {
-                println!( "these_qnns {:?}", these_q_nns );
+                println!("these_qnns {:?}", these_q_nns);
             }
 
             // set all to false; will be reset to true when overwritten with new values
@@ -271,9 +277,8 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
                     .into_owned();
 
             if qid == 30 {
-                println!( "forward_nns {:?}", forward_nns );
+                println!("forward_nns {:?}", forward_nns);
             }
-
 
             // these two lines do the same for the reverse table as above for the forward table
 
@@ -281,18 +286,24 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
                 get_2_d_slice_using(&self.reverse_neighbours.view(), &these_q_nns.view())
                     .flatten()
                     .into_iter()
-                    .filter_map( |x| if x == u32::MAX as usize { None } else { Some(x) } )
+                    .filter_map(|x| {
+                        if x == u32::MAX as usize {
+                            None
+                        } else {
+                            Some(x)
+                        }
+                    })
                     .collect();
 
             if qid == 30 {
-                println!( "reverse_nns {:?}", reverse_nns );
+                println!("reverse_nns {:?}", reverse_nns);
             }
 
             // TODO eliminate duplicates from reverse_nns - but leave for now - expensive and tricky
             let all_ids = concatenate(Axis(0), &[forward_nns.view(), reverse_nns.view()]).unwrap();
 
             if qid == 30 {
-                println!( "all ids {:?}", all_ids );
+                println!("all ids {:?}", all_ids);
             }
 
             // Remove zeros (which are not encoded as zeros but as maxints)
@@ -316,7 +327,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             let all_sims = all_sims.flatten();
 
             if qid == 30 {
-                println!( "ALLSIMS {:?}", all_sims );
+                println!("ALLSIMS {:?}", all_sims);
             }
 
             for neighbour_index in 0..all_ids.len() {
@@ -338,12 +349,14 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
                         q_sims[position] = this_sim;
                         new_flags[position] = true;
 
-
                         let (pos, min) = min_index_and_value(&q_sims.view());
                         current_min_sim = min;
 
                         if qid == 30 {
-                            println!( "position {:?} this_id {:?} this_sim  {:?} min_sim {} ", position, this_id, this_sim, current_min_sim );
+                            println!(
+                                "position {:?} this_id {:?} this_sim  {:?} min_sim {} ",
+                                position, this_id, this_sim, current_min_sim
+                            );
                         }
 
                         // and log that we've done some work so we don't want to stop yet
@@ -467,7 +480,7 @@ impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
             } else {
                 x.id() as usize
             }
-        } );
+        });
 
         RDescentWithRev {
             rdescent: RDescent {

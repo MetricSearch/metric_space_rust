@@ -21,7 +21,7 @@ use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
-use ndarray::{s, Array1, Array2, ArrayView1};
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use r_descent::{
     IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescent, RDescentWithRev, RevSearch,
 };
@@ -29,13 +29,16 @@ use std::rc::Rc;
 use std::time::Instant;
 use utils::ndcg;
 use utils::pair::Pair;
+use hdf5::{Dataset, File as Hdf5File};
 
 /// clap parser
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
     /// Path to HDF5
-    path: String,
+    source_path: String,
+    /// Path to results file
+    output_path: String,
 }
 
 fn main() -> Result<()> {
@@ -53,7 +56,7 @@ fn main() -> Result<()> {
     const NUM_VERTICES: usize = 256;
 
     let dao_bsp: Rc<Dao<EvpBits<2>>> =
-        Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
+        Rc::new(hdf5_f32_to_bsp_load(&args.source_path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
 
     let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
 
@@ -73,7 +76,7 @@ fn main() -> Result<()> {
     let num_neighbours = 8;
     let chunk_size = 200;
     let delta = 0.01;
-    let reverse_list_size = 20;
+    let reverse_list_size = 24;
     let num_reverse_neighbours: usize = 16;
 
     log::info!("Getting NN table");
@@ -91,32 +94,6 @@ fn main() -> Result<()> {
     let neighbours = &descent.rdescent.neighbours;
     let rev_neighbours = &descent.reverse_neighbours;
 
-    // println!("====== Printing First 10 Rows of neighbours ======");
-    // for i in 0..1000 {
-    //     println!(
-    //         "{:?}",
-    //         neighbours
-    //             .row(i)
-    //             .slice(s![0..])
-    //             .iter()
-    //             .map(|x| x + 1)
-    //             .collect::<Vec<usize>>()
-    //     );
-    // }
-
-    // println!("====== Printing First 1000 Rows of rev_neighbours ======");
-    // for i in 0..10 {
-    //     println!(
-    //         "{:?}",
-    //         rev_neighbours
-    //             .row(i)
-    //             .slice(s![0..])
-    //             .iter()
-    //             .map(|x| x + 1)
-    //             .collect::<Vec<usize>>()
-    //     );
-    // }
-
     log::info!(
         "Finished (including load time in {} s",
         (end - start).as_secs()
@@ -124,19 +101,19 @@ fn main() -> Result<()> {
 
     let knns = 30;
 
-    // let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap(); // NO POINT WITH GOOAK
+    // let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
     // let gt_queries = dao_bsp.get_queries();
 
     log::info!("Pubmed Results:");
 
     println!("Doing {:?} queries", queries.len());
 
-    do_queries(
+    let results = do_queries(
         queries.to_vec(),
         &descent,
         dao_bsp.clone(),
-        //&gt_nns,
         bsp_distance_as_f32,
+        args.output_path,
     );
 
     Ok(())
@@ -146,34 +123,54 @@ fn do_queries(
     queries: Vec<EvpBits<2>>,
     descent: &RDescentWithRev,
     dao: Rc<Dao<EvpBits<2>>>,
-    //gt_nns: &Array2<usize>,
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
+    output_path: String,
 ) {
+    let start = Instant::now();
+
+    let mut results = vec!();
+
     queries.iter().enumerate().for_each(|(qid, query)| {
-        let now = Instant::now();
-        let (dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
-        let (dists, qresults) = ADD_ONE_TO_RESULTS(dists, qresults);
-        let after = Instant::now();
-        print!(
-            "Results for Q{}\tTime per query\t{} ns\tFirst 10\t",
-            qid,
-            (after - now).as_nanos()
-        );
-        show_results(qid, &qresults);
-        //show_gt(qid, gt_nns.row(qid));
-        //println!("Number of GT results = {} ", gt_nns.row(qid).len());
-        // println!(
-        //     "Intersection size: {}",
-        //     intersection_size(&qresults, gt_nns.row(qid))
-        //);
+        let (_dists, qresults) = descent.rev_search(query.clone(), dao.clone(), 100, distance);
+        let qresults= add_one_to_all_results(qresults);
+
+        results.push(qresults);
     });
+
+    let end = Instant::now();
+
+    log::info!(
+        "Queries run in {} s",
+        (end - start).as_secs()
+    );
+
+    log::info!("Writing to h5 file {}", output_path);
+    save_results(results, output_path);
+    println!("Data saved to h5 file");
 }
 
-fn show_results(qid: usize, results: &Vec<Pair>) {
-    results.iter().by_ref().take(10).for_each(|pair| {
-        print!("{}\td\t{}\t", pair.index, pair.distance.as_f32());
-    });
-    println!();
+
+fn save_results(results: Vec<Vec<usize>>, output_path: String) {
+
+    log::info!("Writing to h5 file {}", output_path);
+
+    // Get the results into an Array2
+    let rows = results.len();
+    let cols = results.first().map_or(0, |row| row.len());
+
+    let results: Vec<usize> = results.into_iter().flatten().collect();
+    let results= Array2::from_shape_vec((rows, cols), results).expect("Shape mismatch");
+
+    let _ = save_to_h5(&output_path, results);
+}
+
+pub fn save_to_h5(f_name: &str, results: Array2<usize>) -> Result<()> {
+    let file = Hdf5File::create(f_name)?; // open for writing
+    let group = file.create_group("/results")?; // create a group
+    let builder = group.new_dataset_builder();
+    let ds = builder.with_data(&results.to_owned()).create("results")?;
+    file.flush()?;
+    Ok(())
 }
 
 fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
@@ -201,11 +198,18 @@ fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usiz
         .count()
 }
 
-fn ADD_ONE_TO_RESULTS(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
+fn add_one_to_all_result_pairs(length: usize, results: Vec<Pair>) -> (usize, Vec<Pair>) {
     let adjusted_results = results
         .into_iter()
         .map(|pair| Pair::new(pair.distance, pair.index + 1))
         .collect();
 
     (length, adjusted_results)
+}
+
+fn add_one_to_all_results(results: Vec<Pair>) -> Vec<usize> {
+    results
+        .into_iter()
+        .map(|pair| pair.index + 1)
+        .collect()
 }

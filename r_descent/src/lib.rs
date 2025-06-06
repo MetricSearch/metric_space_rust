@@ -68,7 +68,6 @@ pub trait IntoRDescentWithRevNNs {
         self: Rc<Self>,
         num_neighbours: usize,
         reverse_list_size: usize,
-        chunk_size: usize,
         delta: f64,
         nns_in_search_structure: usize,
     ) -> RDescentWithRev;
@@ -302,7 +301,6 @@ impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
         self: Rc<Self>,
         num_neighbours: usize,
         reverse_list_size: usize,
-        chunk_size: usize,
         delta: f64,
         nns_in_search_structure: usize,
     ) -> RDescentWithRev {
@@ -371,7 +369,6 @@ impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
         self: Rc<Self>,
         num_neighbours_in_nn_table: usize,
         build_reverse_list_size: usize,
-        chunk_size: usize,
         delta: f64,
         nns_in_search_structure: usize,
     ) -> RDescentWithRev {

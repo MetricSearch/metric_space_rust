@@ -29,6 +29,5 @@ RUN touch Cargo.toml
 RUN cargo build $RUST_ARGS
 
 FROM ubuntu
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge1 .
 COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge2 .
-COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge1_rev .
-COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/challenge2_dino2 .

@@ -13,13 +13,13 @@ docker run \
     --memory-swap=16g \
     --volume <PATH_TO_HOST_DIR>:<PATH_TO_CONTAINER_DIR>:z \
     ghcr.io/metricsearch/sisap2025:latest \
-    /challenge1_rev <PATH_TO_CONTAINER_DIR>/<INPUT>.h5 <PATH_TO_CONTAINER_DIR>/<OUTPUT>.h5
+    /challenge1 <PATH_TO_CONTAINER_DIR>/<INPUT>.h5 <PATH_TO_CONTAINER_DIR>/<OUTPUT>.h5
 ```
 
 For example
 
 ```bash
-docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets:/data:z ghcr.io/metricsearch/sisap2025:latest /challenge1_rev /data/pubmed/benchmark-dev-pubmed23.h5 /data/benchmark-dev-pubmed23.h5
+docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets:/data:z ghcr.io/metricsearch/sisap2025:latest /challenge1 /data/pubmed/benchmark-dev-pubmed23.h5 /data/benchmark-dev-pubmed23.h5
 ```
 
 ### Challenge 2

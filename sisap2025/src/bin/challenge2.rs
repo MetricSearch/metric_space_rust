@@ -9,24 +9,21 @@ We will measure graph’s quality as the recall against a provided gold standard
 We provide a development dataset; the evaluation phase will use an undisclosed dataset of similar size computed with the same neural model.
 */
 
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
 use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
-use dao::hdf5_dao_loader::add_str_attr;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
-use hdf5::{Dataset, File as Hdf5File};
-use ndarray::{s, Array1, Array2, ArrayView, ArrayView1, ArrayView2, Axis, Ix1};
+use hdf5::File as Hdf5File;
+use ndarray::{s, Array2, ArrayView1, ArrayView2};
 use r_descent::IntoRDescent;
-use std::fs::File;
-use std::io::Write;
+
 use std::rc::Rc;
 use std::time::Instant;
-use utils::pair::Pair;
-use utils::{arg_sort_big_to_small_1d, arg_sort_big_to_small_2d};
+use utils::arg_sort_big_to_small_2d;
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -134,7 +131,7 @@ pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> Result<()> {
                                              // TODO do they need the dists too?
     let builder = group.new_dataset_builder();
 
-    let ds = builder.with_data(&data.to_owned()).create("results")?;
+    let _ds = builder.with_data(&data.to_owned()).create("results")?;
 
     file.flush()?;
 

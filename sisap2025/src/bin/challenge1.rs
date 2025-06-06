@@ -11,27 +11,26 @@
 //  */
 // // Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
 
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
 use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
-use bitvec_simd::BitVecSimd;
 use clap::Parser;
-use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
-use hdf5::{Dataset, File as Hdf5File};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use r_descent::{
-    IntoRDescent, IntoRDescentWithRevNNs, KnnSearch, RDescent, RDescentWithRev, RevSearch,
-};
+use hdf5::File as Hdf5File;
+use ndarray::{s, Array2, ArrayView1};
+use r_descent::{IntoRDescentWithRevNNs, RDescentWithRev, RevSearch};
 use std::rc::Rc;
 use std::time::Instant;
 use utils::pair::Pair;
-use utils::{arg_sort_big_to_small_1d, ndcg};
-use wide::u64x4;
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
+const NUM_NEIGHBOURS_IN_NN_TABLE: usize = 8;
+const DELTA: f64 = 0.01;
+const BUILD_REVERSE_LIST_SIZE: usize = 32;
+const NUM_NEIGHBOURS_IN_REVERSE_TABLE: usize = 16;
+const NUM_RESULTS_REQUIRED: usize = 30;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -76,36 +75,21 @@ fn main() -> Result<()> {
         dao_bsp.num_data,
     );
 
-    let start_post_load = Instant::now();
-
-    let num_neighbours_in_nn_table = 8;
-    let chunk_size = 200;
-    let delta = 0.01;
-    let build_reverse_list_size = 16;
-    let num_neighbours_in_reverse_table: usize = 10;
-    let num_results_required = 30;
-
     log::info!("Getting NN table");
 
     let descent = dao_bsp.clone().into_rdescent_with_rev_nn(
-        num_neighbours_in_nn_table,
-        build_reverse_list_size,
-        chunk_size,
-        delta,
-        num_neighbours_in_reverse_table,
+        NUM_NEIGHBOURS_IN_NN_TABLE,
+        BUILD_REVERSE_LIST_SIZE,
+        DELTA,
+        NUM_NEIGHBOURS_IN_REVERSE_TABLE,
     );
 
     let end = Instant::now();
-
-    let neighbours = &descent.rdescent.neighbours;
-    let rev_neighbours = &descent.reverse_neighbours;
 
     log::info!(
         "Finished (including load time in {} s",
         (end - start).as_secs()
     );
-
-    let knns = 30;
 
     // let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(&args.path, knns).unwrap();
     // let gt_queries = dao_bsp.get_queries();
@@ -114,13 +98,13 @@ fn main() -> Result<()> {
 
     println!("Doing {:?} queries", queries.len());
 
-    let results = do_queries(
+    do_queries(
         queries.to_vec(),
         &descent,
         dao_bsp.clone(),
         bsp_distance_as_f32,
         args.output_path,
-        num_results_required,
+        NUM_RESULTS_REQUIRED,
     );
 
     Ok(())
@@ -169,7 +153,7 @@ pub fn save_to_h5(f_name: &str, results: Array2<usize>) -> Result<()> {
     let file = Hdf5File::create(f_name)?; // open for writing
     let group = file.create_group("/results")?; // create a group
     let builder = group.new_dataset_builder();
-    let ds = builder.with_data(&results.to_owned()).create("results")?;
+    let _ds = builder.with_data(&results.to_owned()).create("results")?;
     file.flush()?;
     Ok(())
 }

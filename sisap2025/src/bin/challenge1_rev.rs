@@ -16,6 +16,7 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
+use bitvec_simd::BitVecSimd;
 use clap::Parser;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
@@ -30,6 +31,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use utils::pair::Pair;
 use utils::{arg_sort_big_to_small_1d, ndcg};
+use wide::u64x4;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -45,6 +47,8 @@ fn main() -> Result<()> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Trace)
         .init();
+
+    log::error!("{}", size_of::<EvpBits<2>>());
 
     let args = Args::parse();
 
@@ -77,7 +81,7 @@ fn main() -> Result<()> {
     let num_neighbours_in_nn_table = 8;
     let chunk_size = 200;
     let delta = 0.01;
-    let build_reverse_list_size = 12;
+    let build_reverse_list_size = 16;
     let num_neighbours_in_reverse_table: usize = 10;
     let num_results_required = 30;
 

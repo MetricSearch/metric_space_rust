@@ -1,10 +1,11 @@
-use bitvec_simd::BitVecSimd;
+use bitvec_simd::{BitBlock, BitVecSimd};
 use deepsize::DeepSizeOf;
 use ndarray::parallel::prelude::*;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use rayon::iter::ParallelBridge;
+use std::hash::Hash;
 use std::hash::Hasher;
-use std::ops::BitXor;
+use std::ops::{BitXor, Rem};
 use std::sync::Arc;
 use utils::arg_sort;
 use wide::u64x4;
@@ -205,48 +206,97 @@ pub fn whamming_distance<const D: usize>(
         .sum()
 }
 
-// Bit Scalar Product
-
-#[derive(Debug, Clone)]
-pub struct EvpBits<const X: usize> {
-    pub ones: BitVecSimd<[u64x4; X], 4>,
-    pub negative_ones: BitVecSimd<[u64x4; X], 4>,
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct BitSimd<C, const L: usize> {
+    container: C,
 }
 
-impl<const X: usize> Hasher for EvpBits<X> {
-    fn finish(&self) -> u64 {
-        self.ones
-            .clone()
-            .into_usizes()
-            .iter()
-            .map(|&x| x as u64)
-            .sum::<u64>()
-            + self
-                .negative_ones
-                .clone()
-                .into_usizes()
-                .iter()
-                .map(|&x| x as u64)
-                .sum::<u64>()
+impl<C, const L: usize> BitSimd<C, L> {
+    pub fn new(container: C) -> Self {
+        Self { container }
+    }
+}
+
+impl<const L: usize> BitSimd<[u64x4; 2], L> {
+    // convert total bit to length
+    // input: Number of bits
+    // output:
+    //
+    // 1. the number of Vector used
+    // 2. after filling 1, the remaining bytes should be filled
+    // 3. after filling 2, the remaining bits should be filled
+    //
+    // notice that this result represents the length of vector
+    // so if 3. is 0, it means no extra bits after filling bytes
+    // return (length of storage, u64 of last block, bit of last elem)
+    // any bits > length of last elem should be set to 0
+    #[inline]
+    fn bit_to_len(nbits: usize) -> (usize, usize, usize) {
+        (
+            nbits / (u64x4::BIT_WIDTH as usize),
+            (nbits % (u64x4::BIT_WIDTH as usize)) / u64x4::ELEMENT_BIT_WIDTH,
+            nbits % u64x4::ELEMENT_BIT_WIDTH,
+        )
     }
 
-    fn write(&mut self, _bytes: &[u8]) {}
-}
+    fn set(&mut self, index: usize, value: bool) {
+        if index >= L {
+            panic!("cannot set bit {index} in BitSimd of length {L}");
+        }
 
-impl<const X: usize> Default for EvpBits<X> {
-    fn default() -> Self {
-        Self {
-            ones: BitVecSimd::from_slice(&[0]),
-            negative_ones: BitVecSimd::from_slice(&[0]),
+        let (element_index, inner_index, bit_index) = Self::bit_to_len(index);
+
+        let element = &mut self.container[element_index];
+        let inner = &mut element.as_array_mut()[inner_index];
+
+        if value {
+            *inner |= 1 << bit_index;
+        } else {
+            *inner &= !(1 << bit_index);
         }
     }
+
+    fn and_cloned(&self, other: &Self) -> Self {
+        Self {
+            container: [
+                self.container[0] & other.container[0],
+                self.container[1] & other.container[1],
+            ],
+        }
+    }
+
+    fn count_ones(&self) -> usize {
+        self.container
+            .iter()
+            .flat_map(|a| a.as_array_ref())
+            .map(|e| e.count_ones() as usize)
+            .sum()
+    }
 }
 
-impl<const X: usize> DeepSizeOf for EvpBits<X> {
+impl<C, const L: usize> DeepSizeOf for BitSimd<C, L> {
     fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
-        // assumes no smallvec allocations
-        size_of::<Self>()
+        size_of::<C>()
     }
+}
+
+impl<const L: usize> Hash for BitSimd<[u64x4; 2], L> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.container
+            .iter()
+            .flat_map(|e| e.to_array())
+            .for_each(|e| e.hash(state));
+
+        // ferdia todo: only hash first L bits
+    }
+}
+
+// Bit Scalar Product
+
+#[derive(Debug, Clone, Hash, Default, DeepSizeOf)]
+pub struct EvpBits<const X: usize> {
+    ones: BitSimd<[u64x4; 2], 384>,
+    negative_ones: BitSimd<[u64x4; 2], 384>,
 }
 
 pub fn f32_embeddings_to_bsp<const D: usize>(
@@ -266,35 +316,45 @@ pub fn f32_embedding_to_bsp<const D: usize>(
     embedding: &ArrayView1<f32>,
     non_zeros: usize,
 ) -> EvpBits<D> {
-    let mut ones = vec![];
-    let mut negative_ones = vec![];
+    let mut ones = BitSimd::default();
+    let mut negative_ones = BitSimd::default();
     let embedding_len = embedding.len();
 
     let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| x.abs()).collect());
 
     let (_smallest_indices, biggest_indices) = indices.split_at(embedding_len - non_zeros);
 
+    let mut one_index = 0;
+    let mut negative_ones_index = 0;
+
     (0..embedding.len()).for_each(|index| {
         if biggest_indices.contains(&index) {
             if embedding[index] > 0.0 {
-                ones.push(true);
+                ones.set(one_index, true);
+                one_index += 1;
             } else {
-                ones.push(false);
+                ones.set(one_index, false);
+                one_index += 1;
             }
             if embedding[index] < 0.0 {
-                negative_ones.push(true);
+                negative_ones.set(negative_ones_index, true);
+                negative_ones_index += 1;
             } else {
-                negative_ones.push(false);
+                negative_ones.set(negative_ones_index, false);
+                negative_ones_index += 1;
             }
         } else {
-            ones.push(false);
-            negative_ones.push(false);
+            ones.set(one_index, false);
+            one_index += 1;
+
+            negative_ones.set(negative_ones_index, false);
+            negative_ones_index += 1;
         }
     });
 
     EvpBits::<D> {
-        ones: BitVecSimd::from_bool_iterator(ones.into_iter()),
-        negative_ones: BitVecSimd::from_bool_iterator(negative_ones.into_iter()),
+        ones,
+        negative_ones,
     }
 }
 
@@ -441,4 +501,117 @@ pub fn matrix_dot_bsp<const X: usize>(
         });
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::BitSimd;
+    use wide::u64x4;
+
+    #[test]
+    fn bits_default() {
+        let bits = BitSimd::<[u64x4; 2], 384>::default();
+
+        assert_eq!(
+            &bits
+                .container
+                .iter()
+                .flat_map(|a| a.as_array_ref())
+                .copied()
+                .collect::<Vec<_>>(),
+            &[0, 0, 0, 0, 0, 0, 0, 0]
+        );
+    }
+
+    #[test]
+    fn bits_set_zero() {
+        let mut bits = BitSimd::<[u64x4; 2], 384>::default();
+
+        bits.set(0, true);
+        assert_eq!(
+            &bits
+                .container
+                .iter()
+                .flat_map(|a| a.as_array_ref())
+                .copied()
+                .collect::<Vec<_>>(),
+            &[1, 0, 0, 0, 0, 0, 0, 0]
+        );
+
+        bits.set(0, false);
+        assert_eq!(bits, BitSimd::default());
+    }
+
+    #[test]
+    fn bits_all() {
+        let mut bits = BitSimd::<[u64x4; 2], 384>::default();
+
+        for i in 0..384 {
+            bits.set(i, true);
+        }
+
+        assert_eq!(
+            &bits
+                .container
+                .iter()
+                .flat_map(|a| a.as_array_ref())
+                .copied()
+                .collect::<Vec<_>>(),
+            &[
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                0,
+                0
+            ]
+        );
+    }
+
+    #[test]
+    fn bits_all_then_unset() {
+        let mut bits = BitSimd::<[u64x4; 2], 384>::default();
+
+        for i in 0..384 {
+            bits.set(i, true);
+        }
+
+        bits.set(123, false);
+
+        assert_eq!(
+            &bits
+                .container
+                .iter()
+                .flat_map(|a| a.as_array_ref())
+                .copied()
+                .collect::<Vec<_>>(),
+            &[
+                u64::MAX,
+                0b1111011111111111111111111111111111111111111111111111111111111111,
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                u64::MAX,
+                0,
+                0
+            ]
+        );
+    }
+
+    #[test]
+    fn bits_65() {
+        let mut bits = BitSimd::<[u64x4; 2], 384>::default();
+        bits.set(65, true);
+        assert_eq!(
+            &bits
+                .container
+                .iter()
+                .flat_map(|a| a.as_array_ref())
+                .copied()
+                .collect::<Vec<_>>(),
+            &[0, 2, 0, 0, 0, 0, 0, 0]
+        );
+    }
 }

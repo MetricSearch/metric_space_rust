@@ -95,7 +95,7 @@ pub trait RevSearch<T: Clone> {
 }
 
 //********** Implementations of RDescent and RDescentRev **********
-
+// todo: FERDIA SAYS THIS SHOULD BE HASH NOT HASHER, LET YE BE WARNED
 impl<T: Clone + Default + Hasher> KnnSearch<T> for RDescent {
     fn knn_search(
         &self,

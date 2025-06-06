@@ -1,7 +1,6 @@
 use anyhow::Result;
 use bits::f32_data_to_evp;
 use bitvec_simd::BitVecSimd;
-use dao::convert_f32_to_evp::f32_dao_to_evp;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use metrics::euc;

@@ -1,21 +1,9 @@
 use anyhow::Result;
-use bits::{
-    bsp_distance, bsp_similarity, f32_data_to_bsp, f32_data_to_cubeoct_bitrep, whamming_distance,
-    EvpBits,
-};
-use bitvec_simd::BitVecSimd;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_dao_loader::hdf5_f32_write;
 use dao::Dao;
-use metrics::euc;
-use ndarray::{Array1, ArrayView1, Axis};
-use rayon::prelude::*;
-use std::collections::HashSet;
+use ndarray::Array1;
 use std::rc::Rc;
-use std::time::Instant;
-use utils::arg_sort_2d;
-use wide::u64x4;
-//use divan::Bencher;
 
 fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");

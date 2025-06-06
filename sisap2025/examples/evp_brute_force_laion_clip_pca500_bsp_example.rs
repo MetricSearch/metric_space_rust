@@ -1,6 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance, EvpBits};
-use bitvec_simd::BitVecSimd;
+use bits::{bsp_similarity, f32_data_to_bsp, EvpBits};
 use dao::laion_10_m_pca500_hdf5_dao_loader::hdf5_laion_pca_500_f32_load;
 use dao::Dao;
 use metrics::euc;
@@ -10,7 +9,6 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use utils::arg_sort_2d;
-use wide::u64x4;
 
 fn main() -> Result<()> {
     tracing::info!("Loading Laion/clip PCA data...");

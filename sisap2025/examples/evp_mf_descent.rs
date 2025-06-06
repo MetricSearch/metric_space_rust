@@ -64,6 +64,6 @@ pub fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
         .collect()
 }
 
-fn distance_adapter(a: &EvpBits<2>, b: &EvpBits<2>) -> f32 {
+fn _distance_adapter(a: &EvpBits<2>, b: &EvpBits<2>) -> f32 {
     bsp_distance::<2>(a, b) as f32
 }

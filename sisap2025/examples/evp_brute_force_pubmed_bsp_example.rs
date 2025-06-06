@@ -3,7 +3,6 @@ use bits::{bsp_similarity, EvpBits};
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
-use metrics::euc;
 use ndarray::{s, Array2, ArrayView1};
 use std::collections::HashSet;
 use std::time::Instant;
@@ -51,7 +50,7 @@ fn main() -> Result<()> {
 
     let knns = 100;
 
-    let (gt_nns, gt_dists) = hdf5_pubmed_gt_load(f_name, knns).unwrap();
+    let (gt_nns, _gt_dists) = hdf5_pubmed_gt_load(f_name, knns).unwrap();
 
     // println!( "First row of gt dists: {:?}", &gt_dists.row(0).slice(s![0..20]) );
     // println!( "First row of gt ords: {:?}", &gt_nns.row(0).slice(s![0..20]) );

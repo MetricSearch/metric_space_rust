@@ -1,6 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance, EvpBits};
-use bitvec_simd::BitVecSimd;
+use bits::{bsp_similarity, f32_data_to_bsp, EvpBits};
 use dao::laion_10_m_hdf5_dao_loader::hdf5_laion_f32_load;
 use dao::Dao;
 use metrics::euc;
@@ -10,7 +9,6 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use utils::arg_sort_2d;
-use wide::u64x4;
 
 fn main() -> Result<()> {
     tracing::info!("Loading Laion/clip data...");
@@ -102,7 +100,7 @@ fn report_queries(
         // println!("Intersection of q{} {} hamming sists in {} gt_nns, intersection size: {}", qi, hamming_set_size, nns_size, intersection_size);
     });
 
-    let mean = (sum as f64 / num_queries as f64);
+    let mean = sum as f64 / num_queries as f64;
     println!(
         "{},{},{},{},{},{} ",
         bsp_set_size,

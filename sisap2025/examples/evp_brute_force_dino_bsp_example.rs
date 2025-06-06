@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_distance, bsp_similarity, f32_data_to_bsp, EvpBits};
+use bits::{bsp_distance, f32_data_to_bsp, EvpBits};
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use metrics::euc;
@@ -68,13 +68,13 @@ fn main() -> Result<()> {
 
     let (bsp_nns, bsp_dists) = arg_sort_2d(bsp_distances); // reverse arg sort since similarities not distances
 
-    let gt_nns_0 = &gt_nns[0];
-    let gt_dists_0 = &gt_dists[0];
+    let _gt_nns_0 = &gt_nns[0];
+    let _gt_dists_0 = &gt_dists[0];
 
-    let bsp_nns_0 = &bsp_nns[0];
-    let bsp_dists_0 = &bsp_dists[0];
+    let _bsp_nns_0 = &bsp_nns[0];
+    let _bsp_dists_0 = &bsp_dists[0];
 
-    let num_neighbours = 10;
+    let _num_neighbours = 10;
 
     // println!( "gt_nns gt_dists: {:?} {:?}", &gt_nns_0[0..num_neighbours], &gt_dists_0[0..num_neighbours] );
     // println!( "bsp_nns bsp_dists: {:?} {:?}", &bsp_nns_0[0..num_neighbours], &bsp_dists_0[0..num_neighbours] );
@@ -118,7 +118,7 @@ fn report_queries(
         // println!("Intersection of q{} {} hamming sists in {} gt_nns, intersection size: {}", qi, hamming_set_size, nns_size, intersection_size);
     });
 
-    let mean = (sum as f64 / num_queries as f64);
+    let mean = sum as f64 / num_queries as f64;
     println!(
         "{},{},{},{},{},{} ",
         bsp_set_size,

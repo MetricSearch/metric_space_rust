@@ -158,7 +158,7 @@ pub fn save_to_h5(f_name: &str, results: Array2<usize>) -> Result<()> {
     Ok(())
 }
 
-fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
+fn _show_gt(qid: usize, gt_data: ArrayView1<usize>) {
     print!(
         "GT pairs size {} first few GT results for q{}:\t",
         gt_data.len(),
@@ -170,7 +170,7 @@ fn show_gt(qid: usize, gt_data: ArrayView1<usize>) {
     println!();
 }
 
-fn intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usize {
+fn _intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usize {
     results
         .iter()
         .filter_map(|pair| {

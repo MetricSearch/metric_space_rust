@@ -8,22 +8,28 @@ We will measure graph’s quality as the recall against a provided gold standard
 We provide a development dataset; the evaluation phase will use an undisclosed dataset of similar size computed with the same neural model.
 */
 
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
-use std::time::Instant;
-
 use anyhow::Result;
 use bits::EvpBits;
 use clap::Parser;
+use dao::convert_f32_to_bsp::f32_dao_to_bsp;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
-use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
-use dao::{convert_f32_to_bsp::f32_dao_to_bsp, pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load};
-use dao::{Dao, DaoMatrix};
+use dao::DaoMatrix;
 use ndarray::{s, ArrayView1};
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
+use r_descent::IntoRDescent;
 use std::rc::Rc;
-use utils::bytes_fmt;
+use std::time::Instant;
+
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
+const NUM_NEIGHBOURS: usize = 18;
+const CHUNK_SIZE: usize = 200;
+const DELTA: f64 = 0.01;
+const REVERSE_LIST_SIZE: usize = 32;
+
+const _ALL_RECORDS: usize = 0;
+const _NUM_VERTICES: usize = 256;
+const NUM_QUERIES: usize = 0;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -43,12 +49,8 @@ fn main() -> Result<()> {
     log::info!("Loading DINO2 data...");
     let start = Instant::now();
 
-    const ALL_RECORDS: usize = 0;
-    const NUM_VERTICES: usize = 256;
-    const num_queries: usize = 0;
-
     let dao_f32: Rc<DaoMatrix<f32>> =
-        Rc::new(dao_matrix_from_csv_dir(&args.path, 1_000_000, num_queries)?);
+        Rc::new(dao_matrix_from_csv_dir(&args.path, 1_000_000, NUM_QUERIES)?);
 
     let dao_bsp = f32_dao_to_bsp::<2>(dao_f32.clone(), 200);
     let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
@@ -61,18 +63,12 @@ fn main() -> Result<()> {
 
     let start_post_load = Instant::now();
 
-    let num_neighbours = 18;
-    let chunk_size = 200;
-    let rho = 1.0;
-    let delta = 0.01;
-    let reverse_list_size = 32;
-
     log::info!("Getting NN table");
 
     let descent =
         dao_bsp
             .clone()
-            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, delta);
+            .into_rdescent(NUM_NEIGHBOURS, REVERSE_LIST_SIZE, CHUNK_SIZE, DELTA);
 
     let end = Instant::now();
 

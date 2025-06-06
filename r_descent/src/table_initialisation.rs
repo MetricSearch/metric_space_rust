@@ -6,12 +6,12 @@ use crate::functions::{
 use crate::get_slice_using_selectors;
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
-use ndarray::{concatenate, s, Array1, Array2, Axis, Dim, Zip};
+use ndarray::{s, Array2, Axis, Zip};
 use rand::Rng;
 use rayon::prelude::*;
 use std::rc::Rc;
 use std::time::Instant;
-use utils::{arg_sort_big_to_small_1d, arg_sort_big_to_small_2d, bytes_fmt, rand_perm, Nality};
+use utils::{arg_sort_big_to_small_2d, bytes_fmt, rand_perm, Nality};
 
 pub fn initialise_table_m(
     dao: Rc<DaoMatrix<f32>>,

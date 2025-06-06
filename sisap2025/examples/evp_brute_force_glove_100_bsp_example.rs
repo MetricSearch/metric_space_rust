@@ -1,6 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_similarity, f32_data_to_bsp, f32_data_to_hamming5bit, hamming_distance, EvpBits};
-use bitvec_simd::BitVecSimd;
+use bits::{bsp_similarity, f32_data_to_bsp, EvpBits};
 use dao::glove100_hdf5_dao_loader::hdf5_glove_f32_load;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};
@@ -8,7 +7,6 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::time::Instant;
 use utils::arg_sort_2d;
-use wide::u64x4;
 
 fn main() -> Result<()> {
     tracing::info!("Loading Glove data...");
@@ -33,7 +31,7 @@ fn main() -> Result<()> {
     // This is a 5 bit encoding => need hamming distance
 
     let data_bsp_reps = f32_data_to_bsp::<1>(data, 67); // 67 bits selected
-    let queries__bsp_reps = f32_data_to_bsp::<1>(queries, 67);
+    let queries_bsp_reps = f32_data_to_bsp::<1>(queries, 67);
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();
@@ -51,7 +49,7 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let hamming_distances = generate_bsp_dists::<1>(queries__bsp_reps, data_bsp_reps);
+    let hamming_distances = generate_bsp_dists::<1>(queries_bsp_reps, data_bsp_reps);
     let after = Instant::now();
 
     println!(
@@ -100,7 +98,7 @@ fn report_queries(
         // println!("Intersection of q{} {} hamming sists in {} gt_nns, intersection size: {}", qi, hamming_set_size, nns_size, intersection_size);
     });
 
-    let mean = (sum as f64 / num_queries as f64);
+    let mean = sum as f64 / num_queries as f64;
     println!(
         "{},{},{},{},{},{} ",
         bsp_set_size,

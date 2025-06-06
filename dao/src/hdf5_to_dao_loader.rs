@@ -4,6 +4,7 @@ use deepsize::DeepSizeOf;
 use hdf5::File;
 use ndarray::{s, Array1, Array2};
 use rayon::prelude::*;
+use std::cmp::min;
 use tracing::error;
 use utils::bytes_fmt;
 //use tracing::metadata;
@@ -86,8 +87,10 @@ pub fn hdf5_f32_to_bsp_load(
     let o_queries = o_queries_group.dataset("queries").unwrap();
 
     (0..num_queries).step_by(rows_at_a_time).for_each(|i| {
-        let o_queries_slice: Array2<f32> =
-            o_queries.read_slice(s![i..i + rows_at_a_time, ..]).unwrap();
+        let start = i;
+        let end = min(i + rows_at_a_time, num_queries);
+
+        let o_queries_slice: Array2<f32> = o_queries.read_slice(s![start..end, ..]).unwrap();
 
         bsp_data.extend(
             o_queries_slice

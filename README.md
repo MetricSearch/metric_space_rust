@@ -2,32 +2,44 @@
 
 ## Usage
 
-### Cargo
-
-Install the Rust toolchain using `rustup`.
+### Challenge 1
 
 ```bash
-RUSTFLAGS='-C target-cpu=native' cargo run --release --bin challenge1 -- <PATH_TO_H5_DATASET> <PATH_TO_OUTPUT>
-```
-
-and
-
-```bash
-RUSTFLAGS='-C target-cpu=native' cargo run --release --bin challenge2 -- <PATH_TO_H5_DATASET> <PATH_TO_OUTPUT>
-```
-
-to build and run the `challenge1` and `challenge2` binaries, respectively.
-
-### Docker
-
-```bash
-docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume <PATH_TO_HOST_DIR>:<PATH_TO_CONTAINER_DIR>:z ghcr.io/metricsearch/sisap2025:latest /challenge1 <PATH_TO_CONTAINER_DIR>/<FILENAME>>.h5
+docker run \
+    --pull=always \
+    -it \
+    --cpus=8 \
+    --memory=16g \
+    --memory-swap=16g \
+    --volume <PATH_TO_HOST_DIR>:<PATH_TO_CONTAINER_DIR>:z \
+    ghcr.io/metricsearch/sisap2025:latest \
+    /challenge1_rev <PATH_TO_CONTAINER_DIR>/<INPUT>.h5 <PATH_TO_CONTAINER_DIR>/<OUTPUT>.h5
 ```
 
 For example
 
 ```bash
-docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets/pubmed:/data:z ghcr.io/metricsearch/sisap2025:latest /challenge1 /data/benchmark-dev-pubmed23.h5
+docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets:/data:z ghcr.io/metricsearch/sisap2025:latest /challenge1_rev /data/pubmed/benchmark-dev-pubmed23.h5 /data/benchmark-dev-pubmed23.h5
+```
+
+### Challenge 2
+
+```bash
+docker run \
+    --pull=always \
+    -it \
+    --cpus=8 \
+    --memory=16g \
+    --memory-swap=16g \
+    --volume <PATH_TO_HOST_DIR>:<PATH_TO_CONTAINER_DIR>:z \
+    ghcr.io/metricsearch/sisap2025:latest \
+    /challenge2 <PATH_TO_CONTAINER_DIR>/<INPUT>.h5 <PATH_TO_CONTAINER_DIR>/<OUTPUT>.h5
+```
+
+For example
+
+```bash
+docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets:/data:z ghcr.io/metricsearch/sisap2025:latest /challenge2 /data/pubmed/benchmark-dev-pubmed23.h5 /data/benchmark-dev-pubmed23.h5
 ```
 
 `podman` required the `:z`, this was not necessary with standard Docker.

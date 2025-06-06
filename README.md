@@ -39,7 +39,7 @@ docker run \
 For example
 
 ```bash
-docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets:/data:z ghcr.io/metricsearch/sisap2025:submission /challenge2 /data/pubmed/benchmark-dev-pubmed23.h5 /data/challenge2_results.h5
+docker run --pull=always -it --cpus=8 --memory=16g --memory-swap=16g --volume /home/fm208/datasets:/data:z ghcr.io/metricsearch/sisap2025:submission /challenge2 /data/gooaq/benchmark-dev-gooaq.h5 /data/challenge2_results.h5
 ```
 
 `podman` required the `:z`, this was not necessary with standard Docker.

@@ -26,7 +26,7 @@ use utils::pair::Pair;
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-const NUM_NEIGHBOURS_IN_NN_TABLE: usize = 8;
+const NUM_NEIGHBOURS_IN_NN_TABLE: usize = 10;
 const DELTA: f64 = 0.01;
 const BUILD_REVERSE_LIST_SIZE: usize = 32;
 const NUM_NEIGHBOURS_IN_REVERSE_TABLE: usize = 16;

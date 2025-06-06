@@ -369,8 +369,8 @@ impl IntoRDescent for Dao<EvpBits<2>> {
 impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
     fn into_rdescent_with_rev_nn(
         self: Rc<Self>,
-        num_neighbours: usize,
-        reverse_list_size: usize,
+        num_neighbours_in_nn_table: usize,
+        build_reverse_list_size: usize,
         chunk_size: usize,
         delta: f64,
         nns_in_search_structure: usize,
@@ -378,14 +378,14 @@ impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
         // let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); TODO delete me
 
         let neighbourlarities =
-            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours);
+            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours_in_nn_table);
 
         get_nn_table2_bsp(
             self.clone(),
             &neighbourlarities,
-            num_neighbours,
+            num_neighbours_in_nn_table,
             delta,
-            reverse_list_size,
+            build_reverse_list_size,
         );
 
         let reverse =

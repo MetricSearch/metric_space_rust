@@ -74,18 +74,18 @@ fn main() -> Result<()> {
 
     let start_post_load = Instant::now();
 
-    let num_neighbours_in_table = 8;
+    let num_neighbours_in_nn_table = 8;
     let chunk_size = 200;
     let delta = 0.01;
-    let reverse_list_size = 8;
+    let build_reverse_list_size = 8;
     let num_neighbours_in_reverse_table: usize = 10;
-    let num_results = 30;
+    let num_results_required = 30;
 
     log::info!("Getting NN table");
 
     let descent = dao_bsp.clone().into_rdescent_with_rev_nn(
-        num_neighbours_in_table,
-        reverse_list_size,
+        num_neighbours_in_nn_table,
+        build_reverse_list_size,
         chunk_size,
         delta,
         num_neighbours_in_reverse_table,
@@ -116,7 +116,7 @@ fn main() -> Result<()> {
         dao_bsp.clone(),
         bsp_distance_as_f32,
         args.output_path,
-        num_results,
+        num_results_required,
     );
 
     Ok(())

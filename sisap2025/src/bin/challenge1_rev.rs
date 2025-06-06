@@ -77,7 +77,7 @@ fn main() -> Result<()> {
     let num_neighbours_in_nn_table = 8;
     let chunk_size = 200;
     let delta = 0.01;
-    let build_reverse_list_size = 8;
+    let build_reverse_list_size = 12;
     let num_neighbours_in_reverse_table: usize = 10;
     let num_results_required = 30;
 

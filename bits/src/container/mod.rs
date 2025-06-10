@@ -2,7 +2,8 @@ use std::hash::Hasher;
 
 mod wide;
 
-pub trait BitsContainer {
+pub trait BitsContainer: Clone + Send + Sync {
+    fn new() -> Self;
     fn count_ones(&self) -> usize;
     fn and_cloned(&self, other: &Self) -> Self;
     fn set_bit(&mut self, index: usize, value: bool);
@@ -15,6 +16,7 @@ pub trait BitsContainer {
 #[cfg(test)]
 mod tests {
     use crate::container::BitsContainer;
+    use test_case::test_case;
     use wide::u64x4;
 
     #[test]

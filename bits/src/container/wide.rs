@@ -3,6 +3,10 @@ use std::hash::{Hash, Hasher};
 use wide::u64x4;
 
 impl BitsContainer for [u64x4; 2] {
+    fn new() -> Self {
+        Self::default()
+    }
+
     fn count_ones(&self) -> usize {
         self.iter()
             .flat_map(|a| a.as_array_ref())

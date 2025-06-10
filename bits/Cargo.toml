@@ -13,4 +13,6 @@ deepsize.workspace = true
 
 [dev-dependencies]
 divan.workspace = true
+test-case = "3.3.1"
+
 #portable-simd = { version = "0.10", features = ["into_std"] }  # Check https://crates.io/crates/portable-simd

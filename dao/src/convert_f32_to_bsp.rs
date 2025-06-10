@@ -1,12 +1,12 @@
 use crate::{Dao, DaoMatrix};
-use bits::{f32_embeddings_to_bsp, EvpBits};
+use bits::{container::BitsContainer, f32_embeddings_to_bsp, EvpBits};
 use std::rc::Rc;
 
-pub fn f32_dao_to_bsp<const D: usize>(
+pub fn f32_dao_to_bsp<C: BitsContainer, const W: usize>(
     f32_dao: Rc<DaoMatrix<f32>>,
     non_zeros: usize,
-) -> Rc<Dao<EvpBits<D>>> {
-    let bit_embeddings = f32_embeddings_to_bsp::<D>(&f32_dao.embeddings, non_zeros);
+) -> Rc<Dao<EvpBits<C, W>>> {
+    let bit_embeddings = f32_embeddings_to_bsp(&f32_dao.embeddings, non_zeros);
 
     let mut meta = f32_dao.meta.clone();
     meta.path_to_data = "none".parse().unwrap();

@@ -77,6 +77,8 @@ impl DaoMetaData {
     }
 }
 
+
+
 #[derive(DeepSizeOf)]
 pub struct Dao<Element> {
     /// The meta data for this dao
@@ -90,9 +92,6 @@ pub struct Dao<Element> {
 }
 
 impl<T> Dao<T> {
-    // pub fn new(dir_name: &str) -> Self {
-    //     todo!()
-    // }
 
     pub fn get_dim(&self) -> usize {
         self.meta.dim

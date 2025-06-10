@@ -87,7 +87,7 @@ pub trait RevSearch<T: Clone> {
     fn rev_search(
         &self,
         query: T,
-        dao: Rc<Dao<T>>,
+        dao: &Dao<T>,
         num_neighbours: usize,
         distance: fn(&T, &T) -> f32,
     ) -> Array1<usize>;
@@ -176,7 +176,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
     fn rev_search(
         &self,
         query: EvpBits<X>,
-        dao: Rc<Dao<EvpBits<X>>>,
+        dao: &Dao<EvpBits<X>>,
         num_neighbours: usize,
         distance: fn(&EvpBits<X>, &EvpBits<X>) -> f32,
     ) -> Array1<usize> {

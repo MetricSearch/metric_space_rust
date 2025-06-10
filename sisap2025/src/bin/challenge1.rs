@@ -18,6 +18,9 @@ use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::jit_dao::JitDao;
 use dao::Dao;
 use hdf5::File as Hdf5File;
+use ndarray::parallel::prelude::IndexedParallelIterator;
+use ndarray::parallel::prelude::IntoParallelRefIterator;
+use ndarray::parallel::prelude::ParallelIterator;
 use ndarray::{s, Array1, Array2, ArrayView, ArrayView1, Ix1};
 use r_descent::{IntoRDescentWithRevNNs, RDescentWithRev, RevSearch};
 use std::rc::Rc;
@@ -121,18 +124,22 @@ fn do_queries(
 ) {
     let start = Instant::now();
 
-    let mut results = vec![];
+    let dao = &*dao;
 
-    queries.iter().enumerate().for_each(|(qid, query)| {
-        let qresults = descent.rev_search(query.clone(), dao.clone(), 100, distance);
+    let results = queries
+        .par_iter()
+        .enumerate()
+        .map(|(qid, query)| {
+            let qresults = descent.rev_search(query.clone(), dao, 100, distance);
 
-        let filtered = filter_results_by_f32(qresults.view(), jit_dao, qid)
-            .take(num_results)
-            .map(|i| i + 1)
-            .collect();
+            let filtered = filter_results_by_f32(qresults.view(), jit_dao, qid)
+                .take(num_results)
+                .map(|i| i + 1)
+                .collect();
 
-        results.push(filtered);
-    });
+            filtered
+        })
+        .collect::<Vec<_>>();
 
     let end = Instant::now();
 

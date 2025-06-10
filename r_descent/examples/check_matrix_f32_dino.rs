@@ -11,7 +11,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use utils::dot_product_f32;
 
 fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
@@ -55,7 +54,7 @@ fn main() -> Result<()> {
             println!(
                 "ord: {} real dist is: {} ",
                 ord,
-                dot_product_f32(dao_f32.get_datum(i), dao_f32.get_datum(*ord))
+                dao_f32.get_datum(i).dot(&dao_f32.get_datum(*ord))
             );
         }
     }

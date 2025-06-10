@@ -14,7 +14,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
-use utils::{bytes_fmt, dot_product_f32};
+use utils::bytes_fmt;
 
 /// clap parser
 #[derive(Parser, Debug)]

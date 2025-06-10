@@ -4,6 +4,7 @@ mod functions;
 mod table_initialisation;
 mod updates;
 
+use bits::container::{BitsContainer, _256x2};
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::parallel::prelude::IntoParallelIterator;
@@ -167,7 +168,7 @@ impl<T: Clone + Default + Hasher> KnnSearch<T> for RDescent {
     }
 }
 
-impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
+impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWithRev {
     /* The function uses NN and revNN tables to query in the manner of descent
      * We start with a rough approximation of the query by selecting eg 1000 distances
      * Then we iterate to see if any of the NNs of these NNs are closer to the query, using the NN table directly but also the reverseNN table
@@ -175,20 +176,20 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
     fn rev_search(
         &self,
-        query: EvpBits<X>,
-        dao: &Dao<EvpBits<X>>,
+        query: EvpBits<C, W>,
+        dao: &Dao<EvpBits<C, W>>,
         num_neighbours: usize,
-        distance: fn(&EvpBits<X>, &EvpBits<X>) -> f32,
+        distance: fn(&EvpBits<C, W>, &EvpBits<C, W>) -> f32,
     ) -> Array1<usize> {
         let data = dao.get_data();
 
         let mut q_nns: Array1<usize> =
             Array1::from_shape_fn((num_neighbours,), |_| rng().random_range(0..dao.num_data));
         let mut q_sims: Array1<f32> = Array1::from_shape_fn((num_neighbours,), |i| {
-            bsp_similarity_as_f32::<X>(&data[q_nns[i as usize]], &query)
+            bsp_similarity_as_f32::<C, W>(&data[q_nns[i as usize]], &query)
         });
 
-        let query_as_array: ArrayBase<OwnedRepr<EvpBits<{ X }>>, Ix1> = Array1::from_elem(1, query);
+        let query_as_array = Array1::from_elem(1, query);
 
         // same as in nnTableBuild, the new flags
         let mut new_flags: Array1<bool> = Array1::from_elem(q_nns.len(), true);
@@ -248,7 +249,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
 
             // get a view of the actual data values from the full data set but not the zeros.
 
-            let nn_data: Array1<EvpBits<X>> =
+            let nn_data: Array1<EvpBits<C, W>> =
                 get_1_d_slice_using_selected_u32(&data, &all_ids.view());
 
             // and measure the similarity of each to the query
@@ -256,7 +257,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             // ie it is a 1 x N array where N is the number of elements in allIds
             // only it isnt so needs flattening
             let all_sims = matrix_dot_bsp(&nn_data.view(), &query_as_array.view(), |a, b| {
-                bsp_similarity_as_f32::<X>(a, b)
+                bsp_similarity_as_f32::<C, W>(a, b)
             });
 
             let all_sims = all_sims.flatten();
@@ -332,7 +333,7 @@ impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
     // }
 }
 
-impl IntoRDescent for Dao<EvpBits<2>> {
+impl<C: BitsContainer, const W: usize> IntoRDescent for Dao<EvpBits<C, W>> {
     fn into_rdescent(
         self: Rc<Self>,
         num_neighbours: usize,
@@ -362,7 +363,7 @@ impl IntoRDescent for Dao<EvpBits<2>> {
     }
 }
 
-impl IntoRDescentWithRevNNs for Dao<EvpBits<2>> {
+impl<C: BitsContainer, const W: usize> IntoRDescentWithRevNNs for Dao<EvpBits<C, W>> {
     fn into_rdescent_with_rev_nn(
         self: Rc<Self>,
         num_neighbours_in_nn_table: usize,
@@ -466,8 +467,8 @@ pub fn check_apply_update(
     }
 }
 
-pub fn get_nn_table2_bsp(
-    dao: Rc<Dao<EvpBits<2>>>,
+pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
+    dao: Rc<Dao<EvpBits<C, W>>>,
     neighbourlarities: &Array2<Nality>,
     num_neighbours: usize,
     delta: f64,
@@ -719,9 +720,9 @@ pub fn get_nn_table2_bsp(
                 let new_union_data =
                     get_slice_using_selectors(&data, &new_row_union.view()); // Matlab line 137
 
-                let new_new_sims: Array2<f32> =
-                    matrix_dot_bsp::<2>(&new_union_data.view(), &new_union_data.view(), |a, b| {
-                        bsp_similarity_as_f32::<2>(a, b)
+                let new_new_sims =
+                    matrix_dot_bsp(&new_union_data.view(), &new_union_data.view(), |a, b| {
+                        bsp_similarity_as_f32(a, b)
                     });
 
                 (
@@ -781,9 +782,9 @@ pub fn get_nn_table2_bsp(
                         // now do the news vs the olds, no reverse links
 
                         let new_old_sims =
-                            matrix_dot_bsp::<2>(&new_data.view(),
+                            matrix_dot_bsp(&new_data.view(),
                                                 &old_data.view(),
-                                                |a, b| { bsp_similarity_as_f32::<2>(a, b) }
+                                                |a, b| { bsp_similarity_as_f32(a, b) }
                             );
 
                         // and do the same for each pair of elements in the new_row/old_row

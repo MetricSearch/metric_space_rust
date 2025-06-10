@@ -247,21 +247,23 @@ pub fn get_reverse_nality_links_not_in_forward(
 
 #[cfg(test)]
 mod tests {
+    use std::u32;
+
     use super::*;
 
     #[test]
     pub fn test_reverse_links() {
         let reverse_gt_2: Vec<usize> = vec![
             4,
-            18446744073709551615, // 3 & 4 refer to 0 - but 3 in forward links
+            u32::MAX as usize, // 3 & 4 refer to 0 - but 3 in forward links
             0,
-            18446744073709551615, // 0 refers to 1
+            u32::MAX as usize, // 0 refers to 1
             0,
             1, // 0, 1, 2, 3, 4 refer to 2 but 2,3,4 are in the forward => 0,1
             1,
-            18446744073709551615, // 0,1,2,4 to 3 - but 0,2,4 in forward => 1
+            u32::MAX as usize, // 0,1,2,4 to 3 - but 0,2,4 in forward => 1
             1,
-            18446744073709551615,
+            u32::MAX as usize,
         ]; // 1, 2, 3 refer to 4  - but 2,3 in forward -> 1
 
         let forward_links: Vec<usize> = vec![

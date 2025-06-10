@@ -356,13 +356,14 @@ mod tests {
 
     #[test]
     pub fn test_rnd_perm1() {
-        let mut x = rand_perm(10, 10);
+        let x = rand_perm(10, 10);
         x.to_vec().sort();
         assert_eq!(x.len(), 10);
         assert_eq!(x[0], 0);
         assert_eq!(x[5], 5);
         assert_eq!(x[9], 9);
     }
+
     #[test]
     pub fn test_rnd_perm2() {
         let mut y = rand_perm(10, 5);

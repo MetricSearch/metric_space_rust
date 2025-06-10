@@ -10,6 +10,7 @@ We provide a development dataset; the evaluation phase will use an undisclosed d
 */
 
 use anyhow::Result;
+use bits::container::_256x2;
 use bits::EvpBits;
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
@@ -49,11 +50,17 @@ fn main() -> Result<()> {
     const NUM_VERTICES: usize = 256;
     const NUM_QUERIES: usize = 0;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_f32_to_bsp_load(&args.source_path, ALL_RECORDS, NUM_QUERIES, NUM_VERTICES).unwrap(),
+    let dao_bsp = Rc::new(
+        hdf5_f32_to_bsp_load::<_256x2, 384>(
+            &args.source_path,
+            ALL_RECORDS,
+            NUM_QUERIES,
+            NUM_VERTICES,
+        )
+        .unwrap(),
     );
 
-    let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
+    let data = dao_bsp.get_data();
 
     let num_data = data.len();
 

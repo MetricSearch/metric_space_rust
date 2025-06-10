@@ -90,7 +90,7 @@ pub trait RevSearch<T: Clone> {
         dao: Rc<Dao<T>>,
         num_neighbours: usize,
         distance: fn(&T, &T) -> f32,
-    ) -> Vec<usize>;
+    ) -> Array1<usize>;
 }
 
 //********** Implementations of RDescent and RDescentRev **********
@@ -179,7 +179,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
         dao: Rc<Dao<EvpBits<X>>>,
         num_neighbours: usize,
         distance: fn(&EvpBits<X>, &EvpBits<X>) -> f32,
-    ) -> Vec<usize> {
+    ) -> Array1<usize> {
         let data = dao.get_data();
 
         let mut q_nns: Array1<usize> =
@@ -290,9 +290,7 @@ impl<const X: usize> RevSearch<EvpBits<X>> for RDescentWithRev {
             }
         }
 
-        let (sorted_ords, _sorted_sims) = arg_sort_big_to_small_1d(q_sims.view());
-
-        sorted_ords.iter().map(|i| q_nns[*i]).collect()
+        q_nns
     }
 }
 

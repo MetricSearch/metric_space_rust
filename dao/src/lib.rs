@@ -26,6 +26,7 @@ pub mod glove100_hdf5_dao_loader;
 pub mod hdf5_dao_loader;
 mod hdf5_dao_matrix_loader;
 pub mod hdf5_to_dao_loader;
+pub mod jit_dao;
 pub mod laion_10_m_hdf5_dao_loader;
 pub mod laion_10_m_pca500_hdf5_dao_loader;
 pub mod pubmed_hdf5_gt_loader;
@@ -77,8 +78,6 @@ impl DaoMetaData {
     }
 }
 
-
-
 #[derive(DeepSizeOf)]
 pub struct Dao<Element> {
     /// The meta data for this dao
@@ -92,7 +91,6 @@ pub struct Dao<Element> {
 }
 
 impl<T> Dao<T> {
-
     pub fn get_dim(&self) -> usize {
         self.meta.dim
     }

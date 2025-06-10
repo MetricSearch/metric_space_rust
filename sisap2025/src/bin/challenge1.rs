@@ -15,12 +15,14 @@ use anyhow::Result;
 use bits::{bsp_distance_as_f32, EvpBits};
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::jit_dao::JitDao;
 use dao::Dao;
 use hdf5::File as Hdf5File;
-use ndarray::{s, Array2, ArrayView1};
+use ndarray::{s, Array1, Array2, ArrayView, ArrayView1, Ix1};
 use r_descent::{IntoRDescentWithRevNNs, RDescentWithRev, RevSearch};
 use std::rc::Rc;
 use std::time::Instant;
+use utils::arg_sort_big_to_small_1d;
 use utils::pair::Pair;
 
 #[global_allocator]
@@ -47,8 +49,6 @@ fn main() -> Result<()> {
         .filter_level(log::LevelFilter::Trace)
         .init();
 
-    log::error!("{}", size_of::<EvpBits<2>>());
-
     let args = Args::parse();
 
     log::info!("Loading Pubmed data...");
@@ -61,12 +61,11 @@ fn main() -> Result<()> {
     let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
         hdf5_f32_to_bsp_load(&args.source_path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
     );
+    let jit_dao = JitDao::<f32>::load(&args.source_path, ALL_RECORDS, num_queries).unwrap();
 
-    let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
+    let queries = dao_bsp.get_queries();
 
-    let queries = queries.slice(s!(0..1000));
-
-    let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
+    let data = dao_bsp.get_data();
 
     log::info!(
         "Pubmed data size: {} queries size: {}, num data: {}",
@@ -105,6 +104,7 @@ fn main() -> Result<()> {
         bsp_distance_as_f32,
         args.output_path,
         NUM_RESULTS_REQUIRED,
+        &jit_dao,
     );
 
     Ok(())
@@ -117,14 +117,21 @@ fn do_queries(
     distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
     output_path: String,
     num_results: usize,
+    jit_dao: &JitDao<f32>,
 ) {
     let start = Instant::now();
 
     let mut results = vec![];
 
-    queries.iter().enumerate().for_each(|(_qid, query)| {
+    queries.iter().enumerate().for_each(|(qid, query)| {
         let qresults = descent.rev_search(query.clone(), dao.clone(), 100, distance);
-        results.push(qresults.iter().map(|i| *i + 1).take(num_results).collect());
+
+        let filtered = filter_results_by_f32(qresults.view(), jit_dao, qid)
+            .take(num_results)
+            .map(|i| i + 1)
+            .collect();
+
+        results.push(filtered);
     });
 
     let end = Instant::now();
@@ -181,4 +188,22 @@ fn _intersection_size(results: &Vec<Pair>, gt_indices: ArrayView1<usize>) -> usi
             }
         })
         .count()
+}
+
+fn filter_results_by_f32<'a>(
+    qnns: ArrayView<'a, usize, Ix1>,
+    jit_dao: &JitDao<f32>,
+    query_id: usize,
+) -> impl Iterator<Item = usize> + 'a {
+    let query = jit_dao.get_query(query_id);
+
+    let query_similarities = qnns
+        .iter()
+        .map(|idx| jit_dao.get_datum(*idx))
+        .map(|row| row.view().dot(&query.view()))
+        .collect::<Array1<_>>();
+
+    let (sorted_ords, _sorted_sims) = arg_sort_big_to_small_1d(query_similarities.view());
+
+    sorted_ords.into_iter().map(move |idx| qnns[idx])
 }

@@ -422,7 +422,7 @@ pub fn get_selectors_from_flags(selectors: &Array1<bool>) -> Array1<usize> {
 /// # Example
 ///
 /// ```rust
-/// use ndarray::{array, ArrayView1};
+/// use {ndarray::{array, ArrayView1}, r_descent::get_slice_using_selectors};
 ///
 /// let source = array![10, 20, 30, 40];
 /// let selectors = array![2, 0, 3];
@@ -478,7 +478,7 @@ pub fn get_slice_using_selectors<T: Clone>(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::{array, ArrayView2, ArrayView1};
+/// use {ndarray::{array, ArrayView2, ArrayView1}, r_descent::functions::get_2_d_slice_using};
 ///
 /// let source = array![[1, 2], [3, 4], [5, 6]];
 /// let selectors = array![2, 0];
@@ -535,7 +535,7 @@ pub fn get_2_d_slice_using<T: Clone>(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::array;
+/// use {ndarray::array, r_descent::functions::insert_column_inplace};
 /// let mut input = ndarray::Array2::<f32>::zeros((3, 4)); // 3 rows, 4 columns (with capacity)
 /// let result = insert_column_inplace(input, 1.0);
 /// assert_eq!(result.column(0), ndarray::Array1::from_elem(3, 1.0));

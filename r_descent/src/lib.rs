@@ -1,6 +1,6 @@
 //! This implementation of Richard's NN table builder
 
-mod functions;
+pub mod functions;
 mod table_initialisation;
 mod updates;
 

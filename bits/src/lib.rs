@@ -1,31 +1,45 @@
-use crate::bitsimd::BitSimd;
-use bitvec_simd::{BitBlock, BitVecSimd};
+use crate::container::BitsContainer;
+use bitvec_simd::BitVecSimd;
 use deepsize::DeepSizeOf;
 use ndarray::parallel::prelude::*;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use rayon::iter::ParallelBridge;
-use std::hash::Hash;
-use std::hash::Hasher;
+use std::hash::{Hash, Hasher};
 use std::ops::BitXor;
 use std::sync::Arc;
 use utils::arg_sort;
 use wide::u64x4;
 
-mod bitsimd;
+pub mod container;
 
-/// Bit Scalar Product
-#[derive(Debug, Clone, Hash, Default, DeepSizeOf)]
-pub struct EvpBits<const X: usize> {
-    ones: BitSimd<[u64x4; 2], 384>,
-    negative_ones: BitSimd<[u64x4; 2], 384>,
+/// Bit Scalar Product using bit container C, with actual width W
+///
+/// For example, an AVX512 container used to store 384 bits.
+#[derive(Debug, Clone, Default)]
+pub struct EvpBits<C, const W: usize> {
+    ones: C,
+    negative_ones: C,
 }
 
-impl<const X: usize> EvpBits<X> {
-    pub fn new(ones: BitSimd<[u64x4; 2], 384>, negative_ones: BitSimd<[u64x4; 2], 384>) -> Self {
+impl<C: BitsContainer, const W: usize> EvpBits<C, W> {
+    pub fn new(ones: C, negative_ones: C) -> Self {
         Self {
             ones,
             negative_ones,
         }
+    }
+}
+
+impl<C, const W: usize> DeepSizeOf for EvpBits<C, W> {
+    fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
+        size_of::<C>() * 2
+    }
+}
+
+impl<C: BitsContainer, const W: usize> Hash for EvpBits<C, W> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.ones.hash::<_, W>(state);
+        self.negative_ones.hash::<_, W>(state);
     }
 }
 
@@ -225,25 +239,25 @@ pub fn whamming_distance<const D: usize>(
         .sum()
 }
 
-pub fn f32_embeddings_to_bsp<const D: usize>(
+pub fn f32_embeddings_to_bsp<C: BitsContainer, const W: usize>(
     embeddings: &Array2<f32>,
     non_zeros: usize,
-) -> Array1<EvpBits<D>> {
+) -> Array1<EvpBits<C, W>> {
     Array1::from_vec(
         embeddings
             .axis_iter(Axis(0))
             .into_par_iter()
-            .map(|row| f32_embedding_to_bsp::<D>(&row, non_zeros))
+            .map(|row| f32_embedding_to_bsp(&row, non_zeros))
             .collect::<Vec<_>>(),
     )
 }
 
-pub fn f32_embedding_to_bsp<const D: usize>(
+pub fn f32_embedding_to_bsp<C: BitsContainer, const W: usize>(
     embedding: &ArrayView1<f32>,
     non_zeros: usize,
-) -> EvpBits<D> {
-    let mut ones = BitSimd::default();
-    let mut negative_ones = BitSimd::default();
+) -> EvpBits<C, W> {
+    let mut ones = C::new();
+    let mut negative_ones = C::new();
     let embedding_len = embedding.len();
 
     let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| x.abs()).collect());
@@ -256,43 +270,46 @@ pub fn f32_embedding_to_bsp<const D: usize>(
     (0..embedding.len()).for_each(|index| {
         if biggest_indices.contains(&index) {
             if embedding[index] > 0.0 {
-                ones.set(one_index, true);
+                ones.set_bit(one_index, true);
                 one_index += 1;
             } else {
-                ones.set(one_index, false);
+                ones.set_bit(one_index, false);
                 one_index += 1;
             }
             if embedding[index] < 0.0 {
-                negative_ones.set(negative_ones_index, true);
+                negative_ones.set_bit(negative_ones_index, true);
                 negative_ones_index += 1;
             } else {
-                negative_ones.set(negative_ones_index, false);
+                negative_ones.set_bit(negative_ones_index, false);
                 negative_ones_index += 1;
             }
         } else {
-            ones.set(one_index, false);
+            ones.set_bit(one_index, false);
             one_index += 1;
 
-            negative_ones.set(negative_ones_index, false);
+            negative_ones.set_bit(negative_ones_index, false);
             negative_ones_index += 1;
         }
     });
 
-    EvpBits::<D>::new(ones, negative_ones)
+    EvpBits::<C, W>::new(ones, negative_ones)
 }
 
-pub fn f32_data_to_bsp<const D: usize>(
+pub fn f32_data_to_bsp<C: BitsContainer, const W: usize>(
     embeddings: ArrayView1<Array1<f32>>,
     non_zeros: usize,
-) -> Vec<EvpBits<D>> {
+) -> Vec<EvpBits<C, W>> {
     embeddings
         .iter()
-        .map(|embedding| f32_embedding_to_bsp::<D>(&embedding.view(), non_zeros))
-        .collect::<Vec<EvpBits<D>>>()
+        .map(|embedding| f32_embedding_to_bsp(&embedding.view(), non_zeros))
+        .collect::<Vec<_>>()
 }
 
 #[inline(always)]
-pub fn bsp_similarity<const X: usize>(a: &EvpBits<X>, b: &EvpBits<X>) -> usize {
+pub fn bsp_similarity<C: BitsContainer, const W: usize>(
+    a: &EvpBits<C, W>,
+    b: &EvpBits<C, W>,
+) -> usize {
     let aa = a.ones.and_cloned(&b.ones).count_ones();
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
     let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
@@ -304,43 +321,36 @@ pub fn bsp_similarity<const X: usize>(a: &EvpBits<X>, b: &EvpBits<X>) -> usize {
     // min is zero (not in practice) max is 2048 (not in practice).
     // println!("A={} B={} C={} D={} result ={}", A, B, C, D, (A + B+X*256*2) - (C + D ));
 
-    (aa + bb + X * 256 * 2) - (cc + dd)
+    (aa + bb + W * 2) - (cc + dd)
 }
 
 #[inline(always)]
-pub fn bsp_similarity_as_f32<const X: usize>(a: &EvpBits<X>, b: &EvpBits<X>) -> f32 {
-    let aa = a.ones.and_cloned(&b.ones).count_ones() as usize;
-    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let cc = a.ones.and_cloned(&b.negative_ones).count_ones() as usize;
-    let dd = b.ones.and_cloned(&a.negative_ones).count_ones() as usize;
-
-    // println!( "a {:?} b {:?}", a, b) ;
-
-    // adding X * 256 * 2 means the result must be positive since second term is maximally X * 256 * 2  ( BitVecSimd<[u64x4; X],4> )
-    // min is zero (not in practice) max is 2048 (not in practice).
-    // println!("A={} B={} C={} D={} result ={}", A, B, C, D, (A + B+X*256*2) - (C + D ));
-
-    ((aa + bb + X * 256 * 2) - (cc + dd)) as f32
+pub fn bsp_similarity_as_f32<C: BitsContainer, const W: usize>(
+    a: &EvpBits<C, W>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    bsp_similarity(a, b) as f32
 }
 
 #[inline(always)]
-pub fn bsp_distance<const X: usize>(a: &EvpBits<X>, b: &EvpBits<X>) -> usize {
+pub fn bsp_distance<C: BitsContainer, const W: usize>(
+    a: &EvpBits<C, W>,
+    b: &EvpBits<C, W>,
+) -> usize {
     let aa = a.ones.and_cloned(&b.ones).count_ones();
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
     let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
     let dd = b.ones.and_cloned(&a.negative_ones).count_ones();
 
-    (cc + dd + X * 256 * 2) - (aa + bb)
+    (cc + dd + W * 2) - (aa + bb)
 }
 
 #[inline(always)]
-pub fn bsp_distance_as_f32<const X: usize>(a: &EvpBits<X>, b: &EvpBits<X>) -> f32 {
-    let aa = a.ones.and_cloned(&b.ones).count_ones();
-    let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
-    let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
-    let dd = b.ones.and_cloned(&a.negative_ones).count_ones();
-
-    ((cc + dd + X * 256 * 2) - (aa + bb)) as f32
+pub fn bsp_distance_as_f32<C: BitsContainer, const W: usize>(
+    a: &EvpBits<C, W>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    bsp_distance(a, b) as f32
 }
 
 pub fn f32_embedding_to_i8_embedding(embedding: &ArrayView1<f32>, non_zeros: usize) -> Array1<i8> {
@@ -375,34 +385,30 @@ pub fn i8_similarity(a: ArrayView1<i8>, b: ArrayView1<i8>) -> usize {
 
 // should return the distance from each entry in A (as rows) to each in b.
 // Matrix multiply: C = A × B using mult.
-pub fn matrix_dot_bsp_sequential<const X: usize>(
-    a: &ArrayView1<EvpBits<X>>,
-    b: &ArrayView1<EvpBits<X>>,
-    dot: fn(a: &EvpBits<X>, b: &EvpBits<X>) -> f32,
+pub fn matrix_dot_bsp_sequential<C: BitsContainer, const W: usize>(
+    a: &ArrayView1<EvpBits<C, W>>,
+    b: &ArrayView1<EvpBits<C, W>>,
+    dot: fn(a: &EvpBits<C, W>, b: &EvpBits<C, W>) -> f32,
 ) -> Array2<f32> {
     let a_len = a.len();
     let b_len = b.len();
 
     let mut result = unsafe { Array2::<f32>::uninit((a_len, b_len)).assume_init() };
 
-    a.iter()
-        .enumerate()
-        .for_each(|(a_index, a_item): (usize, &EvpBits<X>)| {
-            b.iter()
-                .enumerate()
-                .for_each(|(b_index, b_item): (usize, &EvpBits<X>)| {
-                    let loc = result.get_mut([a_index, b_index]).unwrap();
-                    *loc = dot(a_item, b_item);
-                });
+    a.iter().enumerate().for_each(|(a_index, a_item)| {
+        b.iter().enumerate().for_each(|(b_index, b_item)| {
+            let loc = result.get_mut([a_index, b_index]).unwrap();
+            *loc = dot(a_item, b_item);
         });
+    });
 
     result
 }
 
-pub fn matrix_dot_bsp<const X: usize>(
-    a: &ArrayView1<EvpBits<X>>,
-    b: &ArrayView1<EvpBits<X>>,
-    dot: fn(a: &EvpBits<X>, b: &EvpBits<X>) -> f32,
+pub fn matrix_dot_bsp<C: BitsContainer, const W: usize>(
+    a: &ArrayView1<EvpBits<C, W>>,
+    b: &ArrayView1<EvpBits<C, W>>,
+    dot: fn(a: &EvpBits<C, W>, b: &EvpBits<C, W>) -> f32,
 ) -> Array2<f32> {
     let a_len = a.len();
     let b_len = b.len();

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bits::container::_256x2;
 use bits::EvpBits;
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
@@ -33,13 +34,15 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 200;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> =
-        Rc::new(hdf5_f32_to_bsp_load(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap());
+    let dao_bsp = Rc::new(
+        hdf5_f32_to_bsp_load::<_256x2, 384>(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES)
+            .unwrap(),
+    );
 
     log::info!("DAO BSP size {}", bytes_fmt(dao_bsp.deep_size_of()));
 
-    let queries: ArrayView1<EvpBits<2>> = dao_bsp.get_queries();
-    let data: ArrayView1<EvpBits<2>> = dao_bsp.get_data();
+    let queries = dao_bsp.get_queries();
+    let data = dao_bsp.get_data();
 
     log::info!(
         "Pubmed data size: {} queries size: {}, num data: {}",

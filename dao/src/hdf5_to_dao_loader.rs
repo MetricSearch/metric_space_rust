@@ -1,5 +1,5 @@
 use crate::{Dao, DaoMetaData, Normed};
-use bits::{f32_embedding_to_bsp, EvpBits};
+use bits::{container::BitsContainer, f32_embedding_to_bsp, EvpBits};
 use deepsize::DeepSizeOf;
 use hdf5::{Dataset, File, Ix};
 use ndarray::{s, Array1, Array2, ArrayBase, Ix1, OwnedRepr};
@@ -9,12 +9,12 @@ use std::marker::PhantomData;
 use tracing::error;
 use utils::bytes_fmt;
 
-pub fn hdf5_f32_to_bsp_load(
+pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
     data_path: &str,
     num_records_required: usize, // zero if all the data
     num_queries: usize,
     num_vertices: usize,
-) -> anyhow::Result<Dao<EvpBits<2>>> {
+) -> anyhow::Result<Dao<EvpBits<C, W>>> {
     let file = File::open(data_path)?; // open for reading
     let h5_data = file.dataset("train")?; // the data
 
@@ -49,7 +49,7 @@ pub fn hdf5_f32_to_bsp_load(
         })
         .collect::<Vec<(usize, usize)>>();
 
-    let mut bsp_data: Vec<EvpBits<2>> = chunks
+    let mut bsp_data = chunks
         .par_iter()
         .flat_map(|&(start, end)| {
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
@@ -59,10 +59,10 @@ pub fn hdf5_f32_to_bsp_load(
 
             data.rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices))
-                .collect::<Vec<EvpBits<2>>>()
+                .map(|x| f32_embedding_to_bsp(&x, num_vertices))
+                .collect::<Vec<_>>()
         })
-        .collect();
+        .collect::<Vec<_>>();
 
     log::error!("{}", bytes_fmt(bsp_data.deep_size_of()));
 
@@ -96,13 +96,13 @@ pub fn hdf5_f32_to_bsp_load(
             o_queries_slice
                 .rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp::<2>(&x, num_vertices)),
+                .map(|x| f32_embedding_to_bsp(&x, num_vertices)),
         );
     });
 
     log::error!("{}", bytes_fmt(bsp_data.deep_size_of()));
 
-    let all_combined: Array1<EvpBits<2>> = Array1::from_vec(bsp_data);
+    let all_combined = Array1::from_vec(bsp_data);
 
     log::error!("{}", bytes_fmt(all_combined.deep_size_of()));
 

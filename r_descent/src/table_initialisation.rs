@@ -4,6 +4,7 @@ use crate::functions::{
     get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace,
 };
 use crate::get_slice_using_selectors;
+use bits::container::BitsContainer;
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::{s, Array2, Axis, Zip};
@@ -326,8 +327,8 @@ pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nali
     nalities
 }
 
-pub fn initialise_table_bsp(
-    dao: Rc<Dao<EvpBits<2>>>,
+pub fn initialise_table_bsp<C: BitsContainer, const W: usize>(
+    dao: Rc<Dao<EvpBits<C, W>>>,
     chunk_size: usize,
     num_neighbours: usize,
 ) -> Array2<Nality> {
@@ -373,10 +374,9 @@ pub fn initialise_table_bsp(
             let original_row_ids = rand_perm(num_data, real_chunk_size); // random data ids from whole data set
             let rand_data = get_slice_using_selectors(&data, &original_row_ids.view()); // a view of the original data points as a matrix
 
-            let chunk_dists: Array2<f32> =
-                matrix_dot_bsp::<2>(&chunk, &rand_data.view(), |a, b| {
-                    bsp_similarity_as_f32::<2>(a, b)
-                }); // matrix mult all the distances - all relative to the original_rows
+            let chunk_dists = matrix_dot_bsp(&chunk, &rand_data.view(), |a, b| {
+                bsp_similarity_as_f32(a, b)
+            }); // matrix mult all the distances - all relative to the original_rows
 
             let (sorted_ords, sorted_dists) = arg_sort_big_to_small_2d(&chunk_dists.view()); // sorted ords are row relative indices.
                                                                                              // these ords are row relative all range from 0..real_chunk_size

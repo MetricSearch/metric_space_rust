@@ -1,4 +1,4 @@
-use bits::{bsp_similarity, f32_embedding_to_bsp};
+use bits::{bsp_similarity, container::_256x2, f32_embedding_to_bsp};
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use divan::{black_box, Bencher};
@@ -23,12 +23,12 @@ fn bench(bencher: Bencher) {
         .unwrap(),
     );
 
-    let query = f32_embedding_to_bsp::<2>(&dao.get_query(0).view(), 200);
-    let data = f32_embedding_to_bsp::<2>(&dao.get_datum(0).view(), 200);
+    let query = f32_embedding_to_bsp::<_256x2, 384>(&dao.get_query(0).view(), 200);
+    let data = f32_embedding_to_bsp::<_256x2, 384>(&dao.get_datum(0).view(), 200);
 
     bencher.bench(|| {
         for _ in 0..1_000_000 {
-            let res = bsp_similarity::<2>(black_box(&query), black_box(&data));
+            let res = bsp_similarity::<_256x2, 384>(black_box(&query), black_box(&data));
             black_box(res);
         }
     });

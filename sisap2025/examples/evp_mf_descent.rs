@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{bsp_distance, f32_data_to_evp, EvpBits};
+use bits::f32_data_to_evp;
 use bitvec_simd::BitVecSimd;
 use dao::convert_f32_to_evp::f32_dao_to_evp;
 use dao::csv_dao_loader::dao_from_csv_dir;
@@ -62,8 +62,4 @@ pub fn to_usize(i32s: &Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     i32s.into_iter()
         .map(|v| v.iter().map(|&v| v as usize).collect())
         .collect()
-}
-
-fn _distance_adapter(a: &EvpBits<2>, b: &EvpBits<2>) -> f32 {
-    bsp_distance::<2>(a, b) as f32
 }

@@ -12,6 +12,7 @@
 // // Code originates from metric_space/r_descent/examples/check_r_descent_bsp_pubmed.rs
 
 use anyhow::Result;
+use bits::container::{BitsContainer, _256x2};
 use bits::{bsp_distance_as_f32, EvpBits};
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
@@ -61,8 +62,14 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_VERTICES: usize = 256;
 
-    let dao_bsp: Rc<Dao<EvpBits<2>>> = Rc::new(
-        hdf5_f32_to_bsp_load(&args.source_path, ALL_RECORDS, num_queries, NUM_VERTICES).unwrap(),
+    let dao_bsp = Rc::new(
+        hdf5_f32_to_bsp_load::<_256x2, 384>(
+            &args.source_path,
+            ALL_RECORDS,
+            num_queries,
+            NUM_VERTICES,
+        )
+        .unwrap(),
     );
     let jit_dao = JitDao::<f32>::load(&args.source_path, ALL_RECORDS, num_queries).unwrap();
 
@@ -113,11 +120,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn do_queries(
-    queries: Vec<EvpBits<2>>,
+fn do_queries<C: BitsContainer, const W: usize>(
+    queries: Vec<EvpBits<C, W>>,
     descent: &RDescentWithRev,
-    dao: Rc<Dao<EvpBits<2>>>,
-    distance: fn(&EvpBits<2>, &EvpBits<2>) -> f32,
+    dao: Rc<Dao<EvpBits<C, W>>>,
+    distance: fn(&EvpBits<C, W>, &EvpBits<C, W>) -> f32,
     output_path: String,
     num_results: usize,
     jit_dao: &JitDao<f32>,

@@ -3,7 +3,7 @@ use std::hash::Hasher;
 
 pub use wide::{_256p128::_256p128, _256x2::_256x2, _256x4::_256x4, _256::_256};
 
-//mod _512;
+mod stdsimd;
 mod wide;
 
 pub trait BitsContainer: Clone + Send + Sync {

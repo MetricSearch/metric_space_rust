@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::{BitsContainer, _256};
+use bits::container::{BitsContainer, _128};
 use bits::{bsp_similarity, f32_data_to_bsp, EvpBits};
 use dao::glove100_hdf5_dao_loader::hdf5_glove_f32_load;
 use metrics::euc;
@@ -31,8 +31,8 @@ fn main() -> Result<()> {
 
     // This is a 5 bit encoding => need hamming distance
 
-    let data_bsp_reps = f32_data_to_bsp::<_256, 100>(data, 67); // 67 bits selected
-    let queries_bsp_reps = f32_data_to_bsp::<_256, 100>(queries, 67);
+    let data_bsp_reps = f32_data_to_bsp::<_128, 100>(data, 67); // 67 bits selected
+    let queries_bsp_reps = f32_data_to_bsp::<_128, 100>(queries, 67);
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();

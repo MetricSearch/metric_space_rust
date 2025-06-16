@@ -37,7 +37,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           rustflags: ""
-      - run: cargo test --all-targets --workspace
+      - run: cargo test --workspace
 
   publish:
     name: SISAP Container Publish

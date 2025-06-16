@@ -29,15 +29,15 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  build:
-    name: Compilation Check
+  test:
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           rustflags: ""
-      - run: cargo check --all-targets --workspace
+      - run: cargo test --all-targets --workspace
 
   publish:
     name: SISAP Container Publish

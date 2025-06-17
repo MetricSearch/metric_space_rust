@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bits::{
-    f32_data_to_cubic_bitrep, f32_embedding_to_cubic_bitrep, hamming_distance,
-    hamming_distance_as_f32, whamming_distance,
+    hamming_distance,
+    hamming_distance_as_f32,
 };
 use bitvec_simd::BitVecSimd;
 use metrics::euc;

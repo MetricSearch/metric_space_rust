@@ -2,6 +2,10 @@ use crate::container::BitsContainer;
 use deepsize::DeepSizeOf;
 use std::hash::Hash;
 use std::hash::Hasher;
+use bitvec_simd::BitVecSimd;
+use ndarray::{Array1, ArrayView1};
+use wide::u64x4;
+use utils::arg_sort;
 
 /// Bit Scalar Product using bit container C, with actual width W
 ///
@@ -65,3 +69,43 @@ pub fn bsp_similarity<C: BitsContainer, const W: usize>(
 
     (aa + bb + W * 2) - (cc + dd)
 }
+
+pub fn f32_data_to_evp<const D: usize>(
+    embeddings: ArrayView1<Array1<f32>>,
+    non_zeros: usize,
+) -> Vec<BitVecSimd<[u64x4; D], 4>> {
+    embeddings
+        .iter()
+        .map(|embedding| f32_embedding_to_evp(embedding, non_zeros))
+        .collect::<Vec<BitVecSimd<[u64x4; D], 4>>>()
+}
+
+pub fn f32_embedding_to_evp<const D: usize>(
+    embedding: &Array1<f32>,
+    non_zeros: usize,
+) -> BitVecSimd<[u64x4; D], 4> {
+    let mut bit_vec = vec![];
+
+    let embedding_len = embedding.len();
+
+    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| x.abs()).collect());
+    let (_smallest_indices, biggest_indices) = indices.split_at(embedding_len - non_zeros);
+
+    (0..embedding.len()).for_each(|index| {
+        if biggest_indices.contains(&index) {
+            if embedding[index] > 0.0 {
+                bit_vec.push(true);
+                bit_vec.push(true);
+            } else {
+                bit_vec.push(false);
+                bit_vec.push(false);
+            }
+        } else {
+            bit_vec.push(false);
+            bit_vec.push(true);
+        }
+    });
+
+    BitVecSimd::from_bool_iterator(bit_vec.into_iter())
+}
+

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use bits::{f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::{Dao, DaoMatrix};

@@ -4,14 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [[bench]]
-name = "evp_distance_3"
-harness = false
-
-[[bench]]
-name = "hamming_distance"
-harness = false
-
-[[bench]]
 name = "bsp_similarity"
 harness = false
 

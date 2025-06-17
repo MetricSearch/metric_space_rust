@@ -1,5 +1,5 @@
 use crate::Dao;
-use bits::f32_embedding_to_cubeoct_bitrep;
+use bits::cubeoct::f32_embedding_to_cubeoct_bitrep;
 use bitvec_simd::BitVecSimd;
 use ndarray::Array1;
 use std::rc::Rc;

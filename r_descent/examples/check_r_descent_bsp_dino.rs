@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bits::container::Simd256x2;
-use bits::{bsp_similarity, bsp_similarity_as_f32, f32_data_to_cubic_bitrep, whamming_distance};
+use bits::{bsp_similarity, bsp_similarity_as_f32};
 use bitvec_simd::BitVecSimd;
 use clap::Parser;
 use dao::convert_f32_to_bsp::f32_dao_to_bsp;

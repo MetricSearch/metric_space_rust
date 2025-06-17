@@ -1,5 +1,4 @@
 use anyhow::Result;
-use bits::f32_data_to_evp;
 use bitvec_simd::BitVecSimd;
 use dao::convert_f32_to_evp::f32_dao_to_evp;
 use dao::csv_dao_loader::dao_from_csv_dir;
@@ -9,6 +8,7 @@ use ndarray::{Array1, Axis};
 use std::rc::Rc;
 use utils::pair::Pair;
 use wide::u64x4;
+use bits::evp::f32_data_to_evp;
 //use std::time::Instant;
 
 fn main() -> Result<()> {

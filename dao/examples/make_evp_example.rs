@@ -1,7 +1,7 @@
 use anyhow::Result;
-use bits::f32_data_to_evp;
 use bitvec_simd::BitVecSimd;
 use dao::csv_dao_loader::dao_from_csv_dir;
+use bits::evp::f32_data_to_evp;
 use dao::Dao;
 use metrics::euc;
 use ndarray::{Array1, ArrayView1, Axis};

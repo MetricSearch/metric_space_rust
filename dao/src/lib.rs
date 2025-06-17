@@ -3,7 +3,6 @@
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::Result;
-use bits::f32_embedding_to_evp;
 use bitvec_simd::BitVecSimd;
 use deepsize::DeepSizeOf;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
@@ -13,6 +12,7 @@ use std::io::Read;
 use std::path::Path;
 use std::string::ToString;
 use wide::u64x4;
+use bits::evp::f32_embedding_to_evp;
 
 mod class_labels;
 pub mod convert_f32_to_bsp;

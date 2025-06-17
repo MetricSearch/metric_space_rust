@@ -3,7 +3,6 @@
 
 pub use anndists::{dist::DistDot, prelude::*};
 use anyhow::Result;
-use bitvec_simd::BitVecSimd;
 use deepsize::DeepSizeOf;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Ix1, ViewRepr};
 use serde::{Deserialize, Serialize};
@@ -11,14 +10,11 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::string::ToString;
-use wide::u64x4;
-use bits::evp::f32_embedding_to_evp;
 
 mod class_labels;
 pub mod convert_f32_to_bsp;
 pub mod convert_f32_to_cube_oct;
 pub mod convert_f32_to_cubic;
-pub mod convert_f32_to_evp;
 pub mod csv_dao_loader;
 pub mod csv_dao_matrix_loader;
 mod csv_nn_table_loader;
@@ -190,14 +186,4 @@ impl<T> DaoMatrix<T> {
     pub fn get_queries(&self) -> ArrayView2<T> {
         self.embeddings.slice(s![self.num_data.., ..])
     }
-}
-
-pub fn f32_embeddings_to_evp<const D: usize>(
-    embeddings: &Array1<Array1<f32>>,
-    non_zeros: usize,
-) -> Array1<BitVecSimd<[u64x4; D], 4>> {
-    embeddings
-        .iter()
-        .map(|row| f32_embedding_to_evp::<D>(row, non_zeros))
-        .collect()
 }

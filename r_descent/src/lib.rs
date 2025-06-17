@@ -5,7 +5,7 @@ mod table_initialisation;
 mod updates;
 
 use bits::container::{BitsContainer, Simd256x2};
-use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
+use bits::{evp::matrix_dot, evp::similarity_as_f32, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::parallel::prelude::IntoParallelIterator;
 use ndarray::parallel::prelude::*;
@@ -186,7 +186,7 @@ impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWith
         let mut q_nns: Array1<usize> =
             Array1::from_shape_fn((num_neighbours,), |_| rng().random_range(0..dao.num_data));
         let mut q_sims: Array1<f32> = Array1::from_shape_fn((num_neighbours,), |i| {
-            bsp_similarity_as_f32::<C, W>(&data[q_nns[i as usize]], &query)
+            similarity_as_f32::<C, W>(&data[q_nns[i as usize]], &query)
         });
 
         let query_as_array = Array1::from_elem(1, query);
@@ -256,8 +256,8 @@ impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWith
             // allSims is a flat vector is distances
             // ie it is a 1 x N array where N is the number of elements in allIds
             // only it isnt so needs flattening
-            let all_sims = matrix_dot_bsp(&nn_data.view(), &query_as_array.view(), |a, b| {
-                bsp_similarity_as_f32::<C, W>(a, b)
+            let all_sims = matrix_dot(nn_data.view(), query_as_array.view(), |a, b| {
+                similarity_as_f32::<C, W>(a, b)
             });
 
             let all_sims = all_sims.flatten();
@@ -721,8 +721,8 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                     get_slice_using_selectors(&data, &new_row_union.view()); // Matlab line 137
 
                 let new_new_sims =
-                    matrix_dot_bsp(&new_union_data.view(), &new_union_data.view(), |a, b| {
-                        bsp_similarity_as_f32(a, b)
+                    matrix_dot(new_union_data.view(), new_union_data.view(), |a, b| {
+                        similarity_as_f32(a, b)
                     });
 
                 (
@@ -782,9 +782,9 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                         // now do the news vs the olds, no reverse links
 
                         let new_old_sims =
-                            matrix_dot_bsp(&new_data.view(),
-                                                &old_data.view(),
-                                                |a, b| { bsp_similarity_as_f32(a, b) }
+                            matrix_dot(new_data.view(),
+                                                old_data.view(),
+                                                |a, b| { similarity_as_f32(a, b) }
                             );
 
                         // and do the same for each pair of elements in the new_row/old_row

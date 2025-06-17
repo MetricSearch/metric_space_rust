@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bits::container::{BitsContainer, Simd256x2};
-use bits::{bsp_similarity, EvpBits};
+use bits::{similarity, EvpBits};
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
 use dao::Dao;
@@ -136,7 +136,7 @@ fn generate_bsp_dists<C: BitsContainer, const W: usize>(
         .map(|query| {
             data_bitreps
                 .iter()
-                .map(|data| (1 - bsp_similarity(query, data)))
+                .map(|data| (1 - similarity(query, data)))
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()

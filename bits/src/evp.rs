@@ -1,10 +1,12 @@
 use crate::container::BitsContainer;
 use deepsize::DeepSizeOf;
+use ndarray::{Array1, ArrayBase, ArrayView1, ArrayView2, Data, Ix1};
+use ndarray::{Array2, Axis};
+use rayon::iter::ParallelIterator;
+use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::hash::Hash;
 use std::hash::Hasher;
-use bitvec_simd::BitVecSimd;
-use ndarray::{Array1, ArrayView1};
-use wide::u64x4;
+use std::sync::Arc;
 use utils::arg_sort;
 
 /// Bit Scalar Product using bit container C, with actual width W
@@ -23,6 +25,61 @@ impl<C: BitsContainer, const W: usize> EvpBits<C, W> {
             negative_ones,
         }
     }
+
+    pub fn from_embedding<S: Data<Elem = f32>>(
+        embedding: ArrayBase<S, Ix1>,
+        non_zeros: usize,
+    ) -> Self {
+        assert_eq!(W, embedding.len());
+
+        let mut ones = C::new();
+        let mut negative_ones = C::new();
+        let embedding_len = embedding.len();
+
+        let (indices, _dists) = arg_sort(embedding.iter().map(|x| x.abs()).collect());
+
+        let (_smallest_indices, biggest_indices) = indices.split_at(embedding_len - non_zeros);
+
+        let mut one_index = 0;
+        let mut negative_ones_index = 0;
+
+        (0..embedding.len()).for_each(|index| {
+            if biggest_indices.contains(&index) {
+                if embedding[index] > 0.0 {
+                    ones.set_bit(one_index, true);
+                    one_index += 1;
+                } else {
+                    ones.set_bit(one_index, false);
+                    one_index += 1;
+                }
+                if embedding[index] < 0.0 {
+                    negative_ones.set_bit(negative_ones_index, true);
+                    negative_ones_index += 1;
+                } else {
+                    negative_ones.set_bit(negative_ones_index, false);
+                    negative_ones_index += 1;
+                }
+            } else {
+                ones.set_bit(one_index, false);
+                one_index += 1;
+
+                negative_ones.set_bit(negative_ones_index, false);
+                negative_ones_index += 1;
+            }
+        });
+
+        Self::new(ones, negative_ones)
+    }
+
+    pub fn from_embeddings(embeddings: ArrayView2<f32>, non_zeros: usize) -> Array1<Self> {
+        Array1::from_vec(
+            embeddings
+                .axis_iter(Axis(0))
+                .into_par_iter()
+                .map(|row| EvpBits::from_embedding(row, non_zeros))
+                .collect::<Vec<_>>(),
+        )
+    }
 }
 
 impl<C, const W: usize> DeepSizeOf for EvpBits<C, W> {
@@ -39,10 +96,7 @@ impl<C: BitsContainer, const W: usize> Hash for EvpBits<C, W> {
 }
 
 #[inline(always)]
-pub fn bsp_distance<C: BitsContainer, const W: usize>(
-    a: &EvpBits<C, W>,
-    b: &EvpBits<C, W>,
-) -> usize {
+pub fn distance<C: BitsContainer, const W: usize>(a: &EvpBits<C, W>, b: &EvpBits<C, W>) -> usize {
     let aa = a.ones.and_cloned(&b.ones).count_ones();
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
     let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
@@ -52,10 +106,7 @@ pub fn bsp_distance<C: BitsContainer, const W: usize>(
 }
 
 #[inline(always)]
-pub fn bsp_similarity<C: BitsContainer, const W: usize>(
-    a: &EvpBits<C, W>,
-    b: &EvpBits<C, W>,
-) -> usize {
+pub fn similarity<C: BitsContainer, const W: usize>(a: &EvpBits<C, W>, b: &EvpBits<C, W>) -> usize {
     let aa = a.ones.and_cloned(&b.ones).count_ones();
     let bb = a.negative_ones.and_cloned(&b.negative_ones).count_ones();
     let cc = a.ones.and_cloned(&b.negative_ones).count_ones();
@@ -70,42 +121,56 @@ pub fn bsp_similarity<C: BitsContainer, const W: usize>(
     (aa + bb + W * 2) - (cc + dd)
 }
 
-pub fn f32_data_to_evp<const D: usize>(
-    embeddings: ArrayView1<Array1<f32>>,
-    non_zeros: usize,
-) -> Vec<BitVecSimd<[u64x4; D], 4>> {
-    embeddings
-        .iter()
-        .map(|embedding| f32_embedding_to_evp(embedding, non_zeros))
-        .collect::<Vec<BitVecSimd<[u64x4; D], 4>>>()
+#[inline(always)]
+pub fn similarity_as_f32<C: BitsContainer, const W: usize>(
+    a: &EvpBits<C, W>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    similarity(a, b) as f32
 }
 
-pub fn f32_embedding_to_evp<const D: usize>(
-    embedding: &Array1<f32>,
-    non_zeros: usize,
-) -> BitVecSimd<[u64x4; D], 4> {
-    let mut bit_vec = vec![];
+#[inline(always)]
+pub fn distance_as_f32<C: BitsContainer, const W: usize>(
+    a: &EvpBits<C, W>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    distance(a, b) as f32
+}
 
-    let embedding_len = embedding.len();
+// Real hamming distance:
+pub fn hamming_distance<C: BitsContainer>(a: &C, b: &C) -> usize {
+    a.xor(b).count_ones()
+}
 
-    let (indices, _dists) = arg_sort(embedding.to_vec().iter().map(|x| x.abs()).collect());
-    let (_smallest_indices, biggest_indices) = indices.split_at(embedding_len - non_zeros);
+pub fn hamming_distance_as_f32<C: BitsContainer>(a: &C, b: &C) -> f32 {
+    hamming_distance(a, b) as f32
+}
 
-    (0..embedding.len()).for_each(|index| {
-        if biggest_indices.contains(&index) {
-            if embedding[index] > 0.0 {
-                bit_vec.push(true);
-                bit_vec.push(true);
-            } else {
-                bit_vec.push(false);
-                bit_vec.push(false);
+// should return the distance from each entry in A (as rows) to each in b.
+// Matrix multiply: C = A × B using mult.
+pub fn matrix_dot<C: BitsContainer, const W: usize>(
+    a: ArrayView1<EvpBits<C, W>>,
+    b: ArrayView1<EvpBits<C, W>>,
+    dot: fn(a: &EvpBits<C, W>, b: &EvpBits<C, W>) -> f32,
+) -> Array2<f32> {
+    let a_len = a.len();
+    let b_len = b.len();
+    let b = Arc::new(b.to_owned()); // Arc for shared parallel use
+
+    let result: Array2<f32> = Array2::from_shape_fn((a_len, b_len), |(_i, _j)| 0.0);
+
+    // Parallel over rows of `a`
+    let mut result = result;
+    result
+        .outer_iter_mut()
+        .enumerate()
+        .par_bridge()
+        .for_each(|(i, mut row)| {
+            let a_item = &a[i];
+            for (j, b_item) in b.iter().enumerate() {
+                row[j] = dot(a_item, b_item);
             }
-        } else {
-            bit_vec.push(false);
-            bit_vec.push(true);
-        }
-    });
+        });
 
-    BitVecSimd::from_bool_iterator(bit_vec.into_iter())
+    result
 }
-

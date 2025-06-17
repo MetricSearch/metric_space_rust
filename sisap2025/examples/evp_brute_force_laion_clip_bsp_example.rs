@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bits::container::{BitsContainer, Simd256x4};
-use bits::{bsp_similarity, f32_data_to_bsp, EvpBits};
+use bits::distance;
+use bits::{similarity, EvpBits};
 use dao::laion_10_m_hdf5_dao_loader::hdf5_laion_f32_load;
 use dao::Dao;
 use metrics::euc;
@@ -33,8 +34,17 @@ fn main() -> Result<()> {
 
     // This is a 5 bit encoding => need hamming distance
 
-    let data_bsp_reps = f32_data_to_bsp::<Simd256x4, 768>(data, 420); // 384 bits selected
-    let queries_bsp_reps = f32_data_to_bsp::<Simd256x4, 768>(queries, 420);
+    let data_bsp_reps = Array1::from_vec(
+        data.into_par_iter()
+            .map(|row| EvpBits::<Simd256x4, 768>::from_embedding(row.view(), 420))
+            .collect::<Vec<_>>(),
+    ); // 384 bits selected
+    let queries_bsp_reps = Array1::from_vec(
+        queries
+            .into_par_iter()
+            .map(|row| EvpBits::<Simd256x4, 768>::from_embedding(row.view(), 420))
+            .collect::<Vec<_>>(),
+    );
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();
@@ -138,15 +148,15 @@ fn brute_force_all_dists(
 }
 
 fn generate_bsp_dists<C: BitsContainer, const W: usize>(
-    queries_bitreps: Vec<EvpBits<C, W>>,
-    data_bitreps: Vec<EvpBits<C, W>>,
+    queries_bitreps: Array1<EvpBits<C, W>>,
+    data_bitreps: Array1<EvpBits<C, W>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .par_iter()
         .map(|query| {
             data_bitreps
                 .iter()
-                .map(|data| (1 - bsp_similarity(&query, &data)))
+                .map(|data| distance(&query, &data))
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()

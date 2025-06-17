@@ -1,5 +1,5 @@
 use crate::{Dao, DaoMetaData, Normed};
-use bits::{container::BitsContainer, f32_embedding_to_bsp, EvpBits};
+use bits::{container::BitsContainer, EvpBits};
 use deepsize::DeepSizeOf;
 use hdf5::{Dataset, File, Ix};
 use ndarray::{s, Array1, Array2, ArrayBase, Ix1, OwnedRepr};
@@ -59,7 +59,7 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
 
             data.rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp(&x, num_vertices))
+                .map(|x| EvpBits::from_embedding(x, num_vertices))
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
@@ -96,7 +96,7 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
             o_queries_slice
                 .rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp(&x, num_vertices)),
+                .map(|x| EvpBits::from_embedding(x, num_vertices)),
         );
     });
 

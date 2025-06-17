@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bench]]
-name = "bsp_similarity"
+name = "evp_similarity"
 harness = false
 
 [[bench]]

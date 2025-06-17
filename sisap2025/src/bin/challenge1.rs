@@ -13,7 +13,7 @@
 
 use anyhow::Result;
 use bits::container::{BitsContainer, Simd256x2};
-use bits::{bsp_distance_as_f32, EvpBits};
+use bits::{evp::distance_as_f32, EvpBits};
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::jit_dao::JitDao;
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
         queries.to_vec(),
         &descent,
         dao_bsp.clone(),
-        bsp_distance_as_f32,
+        distance_as_f32,
         args.output_path,
         NUM_RESULTS_REQUIRED,
         &jit_dao,

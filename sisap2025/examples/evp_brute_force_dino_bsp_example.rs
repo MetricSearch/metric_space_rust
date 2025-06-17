@@ -1,10 +1,10 @@
 use anyhow::Result;
 use bits::container::{BitsContainer, Simd256x2};
-use bits::{bsp_distance, f32_data_to_bsp, EvpBits};
+use bits::{distance, EvpBits};
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use metrics::euc;
-use ndarray::{Array1, ArrayView1, Axis};
+use ndarray::{Array1, ArrayRef1, ArrayView1, Axis};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -33,8 +33,17 @@ fn main() -> Result<()> {
 
     // This is a 5 bit encoding => need hamming distance
 
-    let data_bsp_reps = f32_data_to_bsp::<Simd256x2, 384>(data, 200);
-    let queries_bsp_reps = f32_data_to_bsp::<Simd256x2, 384>(queries, 200);
+    let data_bsp_reps = Array1::from_vec(
+        data.into_par_iter()
+            .map(|row| EvpBits::<Simd256x2, 384>::from_embedding(row.view(), 200))
+            .collect::<Vec<_>>(),
+    );
+    let queries_bsp_reps = Array1::from_vec(
+        queries
+            .into_par_iter()
+            .map(|row| EvpBits::<Simd256x2, 384>::from_embedding(row.view(), 200))
+            .collect::<Vec<_>>(),
+    );
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();
@@ -156,15 +165,15 @@ fn brute_force_all_dists(
 }
 
 fn generate_bsp_dists<C: BitsContainer, const W: usize>(
-    queries_bitreps: Vec<EvpBits<C, W>>,
-    data_bitreps: Vec<EvpBits<C, W>>,
+    queries_bitreps: Array1<EvpBits<C, W>>,
+    data_bitreps: Array1<EvpBits<C, W>>,
 ) -> Vec<Vec<usize>> {
     queries_bitreps
         .par_iter()
         .map(|query| {
             data_bitreps
                 .iter()
-                .map(|data| bsp_distance(&query, &data))
+                .map(|data| distance(&query, &data))
                 .collect::<Vec<usize>>()
         })
         .collect::<Vec<Vec<usize>>>()

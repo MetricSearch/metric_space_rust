@@ -19,6 +19,10 @@ impl BitsContainer for Simd128 {
         *self & *other
     }
 
+    fn xor(&self, other: &Self) -> Self {
+        *self ^ *other
+    }
+
     fn set_bit(&mut self, index: usize, value: bool) {
         let element_width = size_of::<u64x2>() * 8;
         let inner_width = size_of::<u64>() * 8;

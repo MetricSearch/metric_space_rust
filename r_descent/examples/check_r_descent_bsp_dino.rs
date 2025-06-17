@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::_256x2;
+use bits::container::Simd256x2;
 use bits::{bsp_similarity, bsp_similarity_as_f32, f32_data_to_cubic_bitrep, whamming_distance};
 use bitvec_simd::BitVecSimd;
 use clap::Parser;
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
         bytes_fmt(dao_f32.deep_size_of())
     );
 
-    let dao_bsp = f32_dao_to_bsp::<_256x2, 384>(dao_f32.clone(), 200);
+    let dao_bsp = f32_dao_to_bsp::<Simd256x2, 384>(dao_f32.clone(), 200);
     log::info!(
         "Loaded {}, converting mf dino to bsp...",
         bytes_fmt(dao_bsp.deep_size_of())

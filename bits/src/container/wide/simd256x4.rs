@@ -1,9 +1,9 @@
 use crate::container::BitsContainer;
 use wide::u64x4;
 
-pub type _256x2 = [u64x4; 2];
+pub type Simd256x4 = [u64x4; 4];
 
-impl BitsContainer for _256x2 {
+impl BitsContainer for Simd256x4 {
     fn new() -> Self {
         Self::default()
     }
@@ -16,7 +16,12 @@ impl BitsContainer for _256x2 {
     }
 
     fn and_cloned(&self, other: &Self) -> Self {
-        [self[0] & other[0], self[1] & other[1]]
+        [
+            self[0] & other[0],
+            self[1] & other[1],
+            self[2] & other[2],
+            self[3] & other[3],
+        ]
     }
 
     fn set_bit(&mut self, index: usize, value: bool) {
@@ -44,32 +49,32 @@ impl BitsContainer for _256x2 {
 
 #[cfg(test)]
 mod tests {
-    use crate::container::{BitsContainer, _256x2};
+    use crate::container::{BitsContainer, Simd256x4};
 
     #[test]
     fn bits_default() {
-        let bits = <_256x2>::new();
+        let bits = <Simd256x4>::new();
 
-        assert_eq!(&bits.into_u64_iter().collect::<Vec<_>>(), &[0; 8]);
+        assert_eq!(&bits.into_u64_iter().collect::<Vec<_>>(), &[0; 16]);
     }
 
     #[test]
     fn bits_set_zero() {
-        let mut bits = <_256x2>::new();
+        let mut bits = <Simd256x4>::new();
 
         bits.set_bit(0, true);
         assert_eq!(
             &bits.into_u64_iter().collect::<Vec<_>>(),
-            &[1, 0, 0, 0, 0, 0, 0, 0]
+            &[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         );
 
         bits.set_bit(0, false);
-        assert_eq!(bits, <_256x2>::new());
+        assert_eq!(bits, <Simd256x4>::new());
     }
 
     #[test]
     fn bits_all() {
-        let mut bits = <_256x2>::new();
+        let mut bits = <Simd256x4>::new();
 
         for i in 0..384 {
             bits.set_bit(i, true);
@@ -85,14 +90,22 @@ mod tests {
                 u64::MAX,
                 u64::MAX,
                 0,
-                0
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
             ]
         );
     }
 
     #[test]
     fn bits_all_then_unset() {
-        let mut bits = <_256x2>::new();
+        let mut bits = <Simd256x4>::new();
 
         for i in 0..384 {
             bits.set_bit(i, true);
@@ -110,18 +123,26 @@ mod tests {
                 u64::MAX,
                 u64::MAX,
                 0,
-                0
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
             ]
         );
     }
 
     #[test]
     fn bits_65() {
-        let mut bits = <_256x2>::new();
+        let mut bits = <Simd256x4>::new();
         bits.set_bit(65, true);
         assert_eq!(
             &bits.into_u64_iter().collect::<Vec<_>>(),
-            &[0, 2, 0, 0, 0, 0, 0, 0]
+            &[0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]
         );
     }
 }

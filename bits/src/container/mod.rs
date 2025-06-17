@@ -1,7 +1,10 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 
-pub use wide::{_256p128::_256p128, _256x2::_256x2, _256x4::_256x4, _128::_128, _256::_256};
+pub use wide::{
+    simd128::Simd128, simd256::Simd256, simd256p128::Simd256p128, simd256x2::Simd256x2,
+    simd256x4::Simd256x4,
+};
 
 mod stdsimd;
 mod wide;

@@ -10,7 +10,7 @@ We provide a development dataset; the evaluation phase will use an undisclosed d
 */
 
 use anyhow::Result;
-use bits::container::_256x2;
+use bits::container::Simd256x2;
 use bits::EvpBits;
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     const NUM_QUERIES: usize = 0;
 
     let dao_bsp = Rc::new(
-        hdf5_f32_to_bsp_load::<_256x2, 384>(
+        hdf5_f32_to_bsp_load::<Simd256x2, 384>(
             &args.source_path,
             ALL_RECORDS,
             NUM_QUERIES,

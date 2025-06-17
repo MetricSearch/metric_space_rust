@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::_256x2;
+use bits::container::Simd256x2;
 use bits::EvpBits;
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     const NUM_VERTICES: usize = 200;
 
     let dao_bsp = Rc::new(
-        hdf5_f32_to_bsp_load::<_256x2, 384>(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES)
+        hdf5_f32_to_bsp_load::<Simd256x2, 384>(&args.path, ALL_RECORDS, num_queries, NUM_VERTICES)
             .unwrap(),
     );
 

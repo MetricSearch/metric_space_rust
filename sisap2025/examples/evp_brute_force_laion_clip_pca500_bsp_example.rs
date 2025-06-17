@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::{BitsContainer, _256x2};
+use bits::container::{BitsContainer, Simd256x2};
 use bits::{bsp_similarity, f32_data_to_bsp, EvpBits};
 use dao::laion_10_m_pca500_hdf5_dao_loader::hdf5_laion_pca_500_f32_load;
 use dao::Dao;
@@ -34,8 +34,8 @@ fn main() -> Result<()> {
 
     // This is a 5 bit encoding => need hamming distance
 
-    let data_bsp_reps = f32_data_to_bsp::<_256x2, 500>(data, 250); // 250 bits selected
-    let queries_bsp_reps = f32_data_to_bsp::<_256x2, 500>(queries, 250);
+    let data_bsp_reps = f32_data_to_bsp::<Simd256x2, 500>(data, 250); // 250 bits selected
+    let queries_bsp_reps = f32_data_to_bsp::<Simd256x2, 500>(queries, 250);
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();

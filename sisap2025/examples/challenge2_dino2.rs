@@ -9,7 +9,7 @@ We provide a development dataset; the evaluation phase will use an undisclosed d
 */
 
 use anyhow::Result;
-use bits::container::{_256p128, _256x2};
+use bits::container::{Simd256p128, Simd256x2};
 use bits::EvpBits;
 use clap::Parser;
 use dao::convert_f32_to_bsp::f32_dao_to_bsp;
@@ -48,13 +48,13 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     log::info!("Loading DINO2 data...");
-    log::debug!("{}", size_of::<EvpBits<_256x2, 384>>());
+    log::debug!("{}", size_of::<EvpBits<Simd256x2, 384>>());
     let start = Instant::now();
 
     let dao_f32: Rc<DaoMatrix<f32>> =
         Rc::new(dao_matrix_from_csv_dir(&args.path, 1_000_000, NUM_QUERIES)?);
 
-    let dao_bsp = f32_dao_to_bsp::<_256x2, 384>(dao_f32.clone(), 200);
+    let dao_bsp = f32_dao_to_bsp::<Simd256x2, 384>(dao_f32.clone(), 200);
     let data = dao_bsp.get_data();
 
     log::info!(

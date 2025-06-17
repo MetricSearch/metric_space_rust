@@ -1,9 +1,9 @@
 use crate::container::BitsContainer;
 use wide::u64x2;
 
-pub type _128 = u64x2;
+pub type Simd128 = u64x2;
 
-impl BitsContainer for _128 {
+impl BitsContainer for Simd128 {
     fn new() -> Self {
         Self::default()
     }
@@ -46,29 +46,29 @@ impl BitsContainer for _128 {
 
 #[cfg(test)]
 mod tests {
-    use crate::container::{BitsContainer, _128};
+    use crate::container::{BitsContainer, Simd128};
 
     #[test]
     fn bits_default() {
-        let bits = <_128>::default();
+        let bits = <Simd128>::default();
 
         assert_eq!(&bits.into_u64_iter().collect::<Vec<_>>(), &[0; 2]);
     }
 
     #[test]
     fn bits_set_zero() {
-        let mut bits = <_128>::default();
+        let mut bits = <Simd128>::default();
 
         bits.set_bit(0, true);
         assert_eq!(&bits.into_u64_iter().collect::<Vec<_>>(), &[1, 0]);
 
         bits.set_bit(0, false);
-        assert_eq!(bits, <_128>::default());
+        assert_eq!(bits, <Simd128>::default());
     }
 
     #[test]
     fn bits_all() {
-        let mut bits = <_128>::default();
+        let mut bits = <Simd128>::default();
 
         for i in 0..128 {
             bits.set_bit(i, true);
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn bits_all_then_unset() {
-        let mut bits = <_128>::default();
+        let mut bits = <Simd128>::default();
 
         for i in 0..128 {
             bits.set_bit(i, true);
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn bits_65() {
-        let mut bits = <_128>::default();
+        let mut bits = <Simd128>::default();
         bits.set_bit(65, true);
         assert_eq!(&bits.into_u64_iter().collect::<Vec<_>>(), &[0, 2]);
     }

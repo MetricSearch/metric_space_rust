@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::_256x2;
+use bits::container::Simd256x2;
 use bits::EvpBits;
 use chrono::Utc;
 use dao::csv_dao_loader::dao_from_csv_dir;
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     const NUM_VERTICES: usize = 200;
 
     let dao_bsp = Rc::new(
-        hdf5_f32_to_bsp_load::<_256x2, 384>(f_name, ALL_RECORDS, num_queries, NUM_VERTICES)
+        hdf5_f32_to_bsp_load::<Simd256x2, 384>(f_name, ALL_RECORDS, num_queries, NUM_VERTICES)
             .unwrap(),
     );
 

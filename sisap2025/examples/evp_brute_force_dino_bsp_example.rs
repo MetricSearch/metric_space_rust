@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::{BitsContainer, _256x2};
+use bits::container::{BitsContainer, Simd256x2};
 use bits::{bsp_distance, f32_data_to_bsp, EvpBits};
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
@@ -33,8 +33,8 @@ fn main() -> Result<()> {
 
     // This is a 5 bit encoding => need hamming distance
 
-    let data_bsp_reps = f32_data_to_bsp::<_256x2, 384>(data, 200);
-    let queries_bsp_reps = f32_data_to_bsp::<_256x2, 384>(queries, 200);
+    let data_bsp_reps = f32_data_to_bsp::<Simd256x2, 384>(data, 200);
+    let queries_bsp_reps = f32_data_to_bsp::<Simd256x2, 384>(queries, 200);
 
     println!("Brute force NNs for {} queries", queries.len());
     let now = Instant::now();

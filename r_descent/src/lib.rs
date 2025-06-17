@@ -4,7 +4,7 @@ pub mod functions;
 mod table_initialisation;
 mod updates;
 
-use bits::container::{BitsContainer, _256x2};
+use bits::container::{BitsContainer, Simd256x2};
 use bits::{bsp_similarity_as_f32, matrix_dot_bsp, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::parallel::prelude::IntoParallelIterator;

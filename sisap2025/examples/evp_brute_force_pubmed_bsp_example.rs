@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::container::{BitsContainer, _256x2};
+use bits::container::{BitsContainer, Simd256x2};
 use bits::{bsp_similarity, EvpBits};
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     tracing::info!("Loading Pubmed {} data...", num_records);
 
     let dao_bsp =
-        hdf5_f32_to_bsp_load::<_256x2, 384>(f_name, num_records, num_queries, vertices).unwrap();
+        hdf5_f32_to_bsp_load::<Simd256x2, 384>(f_name, num_records, num_queries, vertices).unwrap();
 
     let queries = dao_bsp.get_queries();
     let data = dao_bsp.get_data();

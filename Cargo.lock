@@ -130,6 +130,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "big_knn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bits",
+ "bitvec_simd",
+ "clap",
+ "dao",
+ "descent",
+ "hdf5-metno",
+ "jemallocator",
+ "log",
+ "metrics",
+ "ndarray",
+ "pretty_env_logger",
+ "r_descent",
+ "rayon",
+ "tracing",
+ "tracing-subscriber",
+ "utils",
+ "wide",
+]
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

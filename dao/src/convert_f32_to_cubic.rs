@@ -1,9 +1,9 @@
 use crate::Dao;
+use bits::cubic::f32_embedding_to_cubic_bitrep;
 use bitvec_simd::BitVecSimd;
 use ndarray::Array1;
 use std::rc::Rc;
 use wide::u64x4;
-use bits::cubic::f32_embedding_to_cubic_bitrep;
 
 pub fn to_cubic_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x4; 4], 4>>> {
     let bit_embeddings = to_cubic_embeddings(&f32_dao.embeddings);

@@ -6,6 +6,8 @@ use ndarray::{s, Array1, Array2, ArrayBase, Ix1, OwnedRepr};
 use rayon::prelude::*;
 use std::cmp::min;
 use std::marker::PhantomData;
+use std::path::Path;
+use std::rc::Rc;
 use tracing::error;
 use utils::bytes_fmt;
 
@@ -18,15 +20,15 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
     let file = File::open(data_path)?; // open for reading
     let h5_data = file.dataset("train")?; // the data
 
-    let train_size = h5_data.shape()[0]; // 23_887_701
+    let data_size = h5_data.shape()[0]; // 23_887_701
 
-    if num_records_required > train_size {
+    if num_records_required > data_size {
         error!("Too many records requested")
     }
     let num_records = if num_records_required == 0 {
-        train_size
+        data_size
     } else {
-        num_records_required.min(train_size)
+        num_records_required.min(data_size)
     };
 
     let dim = 384;
@@ -40,29 +42,7 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
     // The hdf5 crate (https://docs.rs/hdf5) is not fully thread-safe when using a single handle.
     // The recommended approach in Rust is to reopen the dataset or file handle in each thread for reading.
 
-    // 1. Set up ranges of chunks
-    let chunks = (0..num_records)
-        .step_by(rows_at_a_time)
-        .map(|start| {
-            let end = (start + rows_at_a_time).min(num_records);
-            (start, end)
-        })
-        .collect::<Vec<(usize, usize)>>();
-
-    let mut bsp_data = chunks
-        .par_iter()
-        .flat_map(|&(start, end)| {
-            // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
-            let data: Array2<f32> = h5_data
-                .read_slice(s![start..end, ..])
-                .expect("Failed to read slice");
-
-            data.rows()
-                .into_iter()
-                .map(|x| EvpBits::from_embedding(x, num_vertices))
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
+    let mut bsp_data = parallel_read_dataset(num_vertices, h5_data, num_records, rows_at_a_time);
 
     log::error!("{}", bytes_fmt(bsp_data.deep_size_of()));
 
@@ -125,3 +105,104 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
 
     Ok(dao)
 }
+
+pub fn load_h5_files<C: BitsContainer, const W: usize>(
+    base_path: &Path,
+    filenames: &(usize, Vec<&String>),
+    num_vertices: usize,
+) -> anyhow::Result<Dao<EvpBits<C, W>>> {
+    let mut loaded = 0;
+
+    let mut bits = vec![];
+
+    // load all data from the h5 files into a single Dao object.
+    for data_path in &filenames.1 {
+        let path = base_path.join(data_path);
+        let file = File::open(path)?; // open for reading
+        let h5_data = file.dataset("data")?; // the data // TODO make a parameter.
+        let data_size = h5_data.shape()[0];
+        let mut bsp_data = parallel_read_dataset(num_vertices, h5_data, data_size, 5000);
+        bits.append(&mut bsp_data);
+        loaded += data_size;
+        println!("loaded {} data from {}", data_size, data_path);
+    }
+
+    let embeddings = Array1::from_vec(bits);
+
+    let dao_meta = DaoMetaData {
+        name: "TODO".to_string(),        // TODO
+        description: "TODO".to_string(), // TODO
+        data_disk_format: "".to_string(),
+        path_to_data: "".to_string(),
+        normed: Normed::L2,
+        num_records: loaded,
+        dim: 512, // TODO
+    };
+
+    let dao = Dao {
+        // TODO
+        meta: dao_meta,
+        num_data: loaded,
+        num_queries: 0,
+        embeddings: embeddings,
+    };
+
+    Ok(dao)
+}
+
+fn parallel_read_dataset<C: BitsContainer, const W: usize>(
+    num_vertices: usize,
+    h5_data: Dataset,
+    num_records: Ix,
+    mut rows_at_a_time: Ix,
+) -> Vec<EvpBits<C, W>> {
+    // 1. Set up ranges of chunks
+    let chunks = (0..num_records)
+        .step_by(rows_at_a_time)
+        .map(|start| {
+            let end = (start + rows_at_a_time).min(num_records);
+            (start, end)
+        })
+        .collect::<Vec<(usize, usize)>>();
+
+    let mut bsp_data = chunks
+        .par_iter()
+        .flat_map(|&(start, end)| {
+            // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
+            let data: Array2<f32> = h5_data
+                .read_slice(s![start..end, ..])
+                .expect("Failed to read slice");
+
+            data.rows()
+                .into_iter()
+                .map(|x| f32_embedding_to_bsp(&x, num_vertices))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    bsp_data
+}
+
+// Ferdia:
+// // 1. Set up ranges of chunks
+// let chunks = (0..num_records)
+// .step_by(rows_at_a_time)
+// .map(|start| {
+// let end = (start + rows_at_a_time).min(num_records);
+// (start, end)
+// })
+// .collect::<Vec<(usize, usize)>>();
+//
+// let mut bsp_data = chunks
+// .par_iter()
+// .flat_map(|&(start, end)| {
+// // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
+// let data: Array2<f32> = h5_data
+// .read_slice(s![start..end, ..])
+// .expect("Failed to read slice");
+//
+// data.rows()
+// .into_iter()
+// .map(|x| EvpBits::from_embedding(x, num_vertices))
+// .collect::<Vec<_>>()
+// })
+// .collect::<Vec<_>>();

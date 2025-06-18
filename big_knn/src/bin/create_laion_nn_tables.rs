@@ -1,6 +1,5 @@
 /*
-   First program to load data from Laion-400 h5 files.
-   Load...
+   Program to create NN tables from Laion-400 h5 files.
 */
 use anyhow::Result;
 use big_knn::{

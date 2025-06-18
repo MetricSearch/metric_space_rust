@@ -162,7 +162,7 @@ pub fn create_and_store_nn_table<C: BitsContainer, const W: usize>(
 
     let file: File = File::create(output_path).unwrap();
     let writer = BufWriter::new(file);
-    bincode::serialize_into(writer, &descent);
+    let _ = bincode::serialize_into(writer, &descent);
 
     println!("NN table saved to bin file");
 }

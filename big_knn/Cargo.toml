@@ -1,5 +1,5 @@
 [package]
-name = "sisap2025"
+name = "big_knn"
 version = "0.1.0"
 edition = "2021"
 

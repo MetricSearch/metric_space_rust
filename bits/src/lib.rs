@@ -11,9 +11,9 @@ use wide::u64x4;
 pub use evp::{bsp_distance, bsp_similarity, EvpBits};
 
 pub mod container;
-pub mod evp;
-pub mod cubic;
 pub mod cubeoct;
+pub mod cubic;
+pub mod evp;
 
 // Real hamming distance:
 

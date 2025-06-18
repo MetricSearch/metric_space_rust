@@ -22,3 +22,4 @@ pretty_env_logger.workspace = true
 r_descent.workspace = true
 hdf5.workspace = true
 jemallocator = "0.5.4"
+bincode = "1.3.3"

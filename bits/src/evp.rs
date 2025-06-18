@@ -1,11 +1,11 @@
 use crate::container::BitsContainer;
+use bitvec_simd::BitVecSimd;
 use deepsize::DeepSizeOf;
+use ndarray::{Array1, ArrayView1};
 use std::hash::Hash;
 use std::hash::Hasher;
-use bitvec_simd::BitVecSimd;
-use ndarray::{Array1, ArrayView1};
-use wide::u64x4;
 use utils::arg_sort;
+use wide::u64x4;
 
 /// Bit Scalar Product using bit container C, with actual width W
 ///
@@ -108,4 +108,3 @@ pub fn f32_embedding_to_evp<const D: usize>(
 
     BitVecSimd::from_bool_iterator(bit_vec.into_iter())
 }
-

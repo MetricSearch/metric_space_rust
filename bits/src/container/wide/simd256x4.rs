@@ -24,7 +24,7 @@ impl BitsContainer for Simd256x4 {
         ]
     }
 
-      fn xor(&self, other: &Self) -> Self {
+    fn xor(&self, other: &Self) -> Self {
         [
             self[0] ^ other[0],
             self[1] ^ other[1],

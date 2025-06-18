@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::hamming_distance_as_f32;
+use bits::{hamming_distance, hamming_distance_as_f32};
 use bitvec_simd::BitVecSimd;
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;

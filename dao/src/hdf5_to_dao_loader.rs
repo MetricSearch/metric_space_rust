@@ -175,34 +175,9 @@ fn parallel_read_dataset<C: BitsContainer, const W: usize>(
 
             data.rows()
                 .into_iter()
-                .map(|x| f32_embedding_to_bsp(&x, num_vertices))
+                .map(|x| EvpBits::from_embedding(x, num_vertices))
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
     bsp_data
 }
-
-// Ferdia:
-// // 1. Set up ranges of chunks
-// let chunks = (0..num_records)
-// .step_by(rows_at_a_time)
-// .map(|start| {
-// let end = (start + rows_at_a_time).min(num_records);
-// (start, end)
-// })
-// .collect::<Vec<(usize, usize)>>();
-//
-// let mut bsp_data = chunks
-// .par_iter()
-// .flat_map(|&(start, end)| {
-// // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
-// let data: Array2<f32> = h5_data
-// .read_slice(s![start..end, ..])
-// .expect("Failed to read slice");
-//
-// data.rows()
-// .into_iter()
-// .map(|x| EvpBits::from_embedding(x, num_vertices))
-// .collect::<Vec<_>>()
-// })
-// .collect::<Vec<_>>();

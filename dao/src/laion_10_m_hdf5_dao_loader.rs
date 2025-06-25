@@ -40,6 +40,7 @@ pub fn hdf5_laion_f32_load(
     let dao = Dao {
         meta: dao_meta,
         num_data: num_records - num_queries,
+        base_addr: 0,
         num_queries: num_queries,
         embeddings: embeddings,
     };

@@ -1,0 +1,45 @@
+use ndarray::Array2;
+use rand::Rng;
+use std::time::Instant;
+use utils::address::GlobalAddress;
+use utils::Nality;
+
+/// Initialise with a base address for the NN table
+pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nality> {
+    log::info!("Randomly initializing table bsp, rows: {rows} neighbours: {columns}");
+    let start_time = Instant::now();
+
+    let mut rng = rand::rng();
+    let nalities: Vec<Nality> = (0..rows * columns)
+        .map(|_| {
+            let rand_index = rng.random_range(0..rows); // pick random row index
+            Nality::new_empty_index(GlobalAddress::into(
+                rand_index
+                    .try_into()
+                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+            ))
+        })
+        .collect();
+
+    let mut nalities = Array2::from_shape_vec((rows, columns), nalities)
+        .expect("Shape mismatch during initialisation");
+
+    // overwrite first entry with a new nality of itself and 0
+    for row in 0..nalities.nrows() {
+        nalities[[row, 0]] = Nality::new(
+            f32::MAX,
+            GlobalAddress::into(
+                row.try_into()
+                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+            ),
+        );
+    }
+
+    let end_time = Instant::now();
+    log::debug!(
+        "Initialistion in {:?}ms",
+        ((end_time - start_time).as_millis() as f64)
+    );
+
+    nalities
+}

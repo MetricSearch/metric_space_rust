@@ -6,6 +6,7 @@ use std::ptr;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
+use utils::address::GlobalAddress;
 use utils::{min_index_and_value, min_index_and_value_neighbourlarities, Nality};
 
 pub fn get_new_reverse_links_not_in_forward(
@@ -196,8 +197,8 @@ pub fn get_reverse_nality_links_not_in_forward(
     // there is a limit to the number of reverse ids we will store.
 
     for row in 0..num_data {
-        let current_row = &neighbours.row(row); // Matlab line 98
-                                                // so for each one of these (there are k...):
+        // let current_row = &neighbours.row(row); // Matlab line 98
+        // so for each one of these (there are k...):
         for col in 0..num_neighbours {
             // get the id
 
@@ -223,8 +224,13 @@ pub fn get_reverse_nality_links_not_in_forward(
                     // See if there’s still room:
                     if reverse_count[next_id as usize] < reverse_list_size {
                         let mut reverse_row = reverse.row_mut(next_id as usize);
-                        reverse_row[reverse_count[next_id as usize]] =
-                            Nality::new(next_sim, row as u32);
+                        reverse_row[reverse_count[next_id as usize]] = Nality::new(
+                            next_sim,
+                            GlobalAddress::into(
+                                row.try_into()
+                                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+                            ),
+                        );
                         reverse_count[next_id as usize] += 1;
                     } else {
                         // No room, so find the lowest‐similarity entry in reverse[next_id] and
@@ -234,7 +240,13 @@ pub fn get_reverse_nality_links_not_in_forward(
 
                         if min_nality.sim() < next_sim {
                             let mut reverse_row = reverse.row_mut(next_id as usize);
-                            reverse_row[min_index] = Nality::new(next_sim, row as u32);
+                            reverse_row[min_index] = Nality::new(
+                                next_sim,
+                                GlobalAddress::into(
+                                    row.try_into()
+                                        .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+                                ),
+                            );
                         }
                     }
                 }

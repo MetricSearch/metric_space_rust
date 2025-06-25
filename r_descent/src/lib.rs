@@ -4,15 +4,11 @@ pub mod functions;
 mod table_initialisation;
 mod updates;
 
-use bits::container::{BitsContainer, Simd256x2};
+use bits::container::BitsContainer;
 use bits::{evp::matrix_dot, evp::similarity_as_f32, EvpBits};
 use dao::{Dao, DaoMatrix};
-use ndarray::parallel::prelude::IntoParallelIterator;
 use ndarray::parallel::prelude::*;
-use ndarray::{
-    concatenate, s, Array1, Array2, ArrayBase, ArrayView1, ArrayViewMut1, Axis, Dim, Ix1,
-    OwnedRepr, Zip,
-};
+use ndarray::{concatenate, Array1, Array2, ArrayViewMut1, Axis};
 use rand::{rng, Rng};
 use rand_chacha::rand_core::SeedableRng;
 use rayon::prelude::*;
@@ -26,22 +22,20 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
-use utils::{
-    arg_sort_big_to_small_1d, bytes_fmt, min_index_and_value_neighbourlarities, minimum_in_nality,
-    Nality,
-};
 use utils::{arg_sort_big_to_small_2d, min_index_and_value, rand_perm};
+use utils::{min_index_and_value_neighbourlarities, minimum_in_nality, Nality};
 
 use crate::functions::{
-    fill_false_atomic, fill_selected, get_1_d_slice_using_selected,
-    get_1_d_slice_using_selected_u32, get_2_d_slice_using, get_reverse_nality_links_not_in_forward,
-    get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace,
+    fill_false_atomic, fill_selected, get_1_d_slice_using_selected_u32, get_2_d_slice_using,
+    get_reverse_nality_links_not_in_forward,
 };
 pub use functions::{get_selectors_from_flags, get_slice_using_selectors};
 
 use crate::table_initialisation::*;
 
-pub use table_initialisation::{initialise_table_bsp, initialise_table_m}; // used in some examples - clean up later
+pub use table_initialisation::{initialise_table_bsp, initialise_table_m};
+use utils::address::GlobalAddress;
+// used in some examples - clean up later
 
 #[derive(Serialize, Deserialize)]
 pub struct RDescent {
@@ -431,7 +425,8 @@ pub fn check_apply_update(
             }
 
             let min_ality_before_check = min_naility.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
-            let new_value_to_add = Nality::new(new_similarity, new_index_to_add); // this is the new Naility to add to the row
+            let new_value_to_add =
+                Nality::new(new_similarity, GlobalAddress::into(new_index_to_add)); // this is the new Naility to add to the row
 
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check
@@ -640,8 +635,13 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                         // if the list is not full
                         // update the reverse pointer list and the similarities
 
-                        reverse[[this_id, reverse_count[this_id]]] =
-                            Nality::new(local_sim, row as u32);
+                        reverse[[this_id, reverse_count[this_id]]] = Nality::new(
+                            local_sim,
+                            GlobalAddress::into(
+                                row.try_into()
+                                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+                            ),
+                        );
                         reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
                     } else {
                         // the list is full - so no need to do anything with counts
@@ -653,8 +653,13 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
 
                         if value < local_sim {
                             // Matlab line 110  if the value in reverse_sims is less similar we over write
-                            reverse[[this_id, position as usize]] =
-                                Nality::new(local_sim, row as u32);
+                            reverse[[this_id, position as usize]] = Nality::new(
+                                local_sim,
+                                GlobalAddress::into(
+                                    row.try_into()
+                                        .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+                                ),
+                            );
                         }
                     }
                 }

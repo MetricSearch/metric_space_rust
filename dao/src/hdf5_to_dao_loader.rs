@@ -2,12 +2,10 @@ use crate::{Dao, DaoMetaData, Normed};
 use bits::{container::BitsContainer, EvpBits};
 use deepsize::DeepSizeOf;
 use hdf5::{Dataset, File, Ix};
-use ndarray::{s, Array1, Array2, ArrayBase, Ix1, OwnedRepr};
+use ndarray::{s, Array1, Array2};
 use rayon::prelude::*;
 use std::cmp::min;
-use std::marker::PhantomData;
 use std::path::Path;
-use std::rc::Rc;
 use tracing::error;
 use utils::bytes_fmt;
 
@@ -99,6 +97,7 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
     let dao = Dao {
         meta: dao_meta,
         num_data: num_records,
+        base_addr: 0,
         num_queries: num_queries,
         embeddings: all_combined,
     };
@@ -108,7 +107,7 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
 
 pub fn load_h5_files<C: BitsContainer, const W: usize>(
     base_path: &Path,
-    filenames: &(usize, Vec<&String>),
+    filenames: &Vec<String>,
     num_vertices: usize,
 ) -> anyhow::Result<Dao<EvpBits<C, W>>> {
     let mut loaded = 0;
@@ -116,8 +115,8 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
     let mut bits = vec![];
 
     // load all data from the h5 files into a single Dao object.
-    for data_path in &filenames.1 {
-        let path = base_path.join(data_path);
+    for data_path in filenames {
+        let path = base_path.join(&data_path);
         let file = File::open(path)?; // open for reading
         let h5_data = file.dataset("data")?; // the data // TODO make a parameter.
         let data_size = h5_data.shape()[0];
@@ -143,6 +142,7 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
         // TODO
         meta: dao_meta,
         num_data: loaded,
+        base_addr: 0,
         num_queries: 0,
         embeddings: embeddings,
     };
@@ -154,7 +154,7 @@ fn parallel_read_dataset<C: BitsContainer, const W: usize>(
     num_vertices: usize,
     h5_data: Dataset,
     num_records: Ix,
-    mut rows_at_a_time: Ix,
+    rows_at_a_time: Ix,
 ) -> Vec<EvpBits<C, W>> {
     // 1. Set up ranges of chunks
     let chunks = (0..num_records)
@@ -165,7 +165,7 @@ fn parallel_read_dataset<C: BitsContainer, const W: usize>(
         })
         .collect::<Vec<(usize, usize)>>();
 
-    let mut bsp_data = chunks
+    let bsp_data = chunks
         .par_iter()
         .flat_map(|&(start, end)| {
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here

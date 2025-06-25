@@ -15,6 +15,7 @@ pub fn to_cube_oct_dao(f32_dao: Rc<Dao<Array1<f32>>>) -> Rc<Dao<BitVecSimd<[u64x
     Rc::new(Dao {
         meta,
         num_data: f32_dao.num_data.clone(),
+        base_addr: 0,
         num_queries: f32_dao.num_queries.clone(),
         embeddings: bit_embeddings,
     })

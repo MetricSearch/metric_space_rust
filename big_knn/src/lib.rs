@@ -1,5 +1,10 @@
 #![feature(path_add_extension)]
 
+mod dao_manager;
+mod knn_r_descent;
+mod table_initialisation;
+
+use crate::knn_r_descent::into_big_knn_r_descent;
 use anyhow::anyhow;
 use bincode;
 use bits::container::{BitsContainer, Simd256x2};
@@ -7,15 +12,12 @@ use bits::EvpBits;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use hdf5::File as Hdf5File;
-use ndarray::{Array2, ArrayView2};
-use r_descent::IntoRDescent;
+use ndarray::ArrayView2;
 use std::fs;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::time::Instant;
-use utils::arg_sort_big_to_small_2d;
 
 const ALL_RECORDS: usize = 0;
 const NUM_QUERIES: usize = 0;
@@ -30,7 +32,22 @@ pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> anyhow::Result<()> {
 
     file.flush()?;
 
+    println!("NN table saved to bin file");
+
     Ok(())
+}
+
+/// Partitions up a bunch of h5 files from the base_path directory
+/// into groups of files containing at most max_entries rows
+pub fn get_partitions<'a>(
+    dir_base: &'a Path,
+    max_entries: usize,
+) -> (Vec<usize>, Vec<Vec<String>>) {
+    let file_names = get_file_names(dir_base).unwrap();
+    let sizes = get_file_sizes(dir_base, &file_names).unwrap();
+    let partition_boundaries = partition_into(&sizes, max_entries).unwrap();
+    let partitions = make_partitions(&partition_boundaries, &file_names);
+    (sizes, partitions)
 }
 
 pub fn get_file_names<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
@@ -120,39 +137,36 @@ pub fn partition_into(
 // Takes some filename partitions and returns a Vec of Vecs containing the files partitioned up
 // each outer Vec entry contains a pair containing the partition size along with a Vec of filenames from the partition.
 pub fn make_partitions<'a>(
-    partition_boundaries: Vec<usize>,
+    partition_boundaries: &Vec<usize>,
     file_names: &'a Vec<String>,
-    sizes: &'a Vec<usize>,
-) -> Vec<(usize, Vec<&'a String>)> {
+) -> Vec<Vec<String>> {
     let mut result = vec![];
 
     let mut start: usize = 0;
-    let mut partition_size = 0;
     for i in 0..partition_boundaries.len() {
         let mut files_in_partition = vec![];
         for j in start..partition_boundaries[i] {
-            files_in_partition.push(&file_names[j]);
-            partition_size += sizes[j];
+            files_in_partition.push(file_names[j].clone());
         }
         start = partition_boundaries[i];
-        result.push((partition_size, files_in_partition));
-        partition_size = 0;
+        result.push(files_in_partition);
     }
     result
 }
 
-pub fn create_and_store_nn_table<C: BitsContainer, const W: usize>(
-    dao: Rc<Dao<EvpBits<Simd256x2, 500>>>,
+pub fn create_and_store_nn_table(
+    dao: Rc<Dao<EvpBits<Simd256x2, 512>>>,
     num_neighbours: usize,
     reverse_list_size: usize,
-    chunk_size: usize,
     delta: f64,
+    start_index: usize,
     output_dir: &String,
     output_file: &String,
 ) {
-    let descent = dao
-        .clone()
-        .into_rdescent(num_neighbours, reverse_list_size, chunk_size, delta);
+    let vec_dao: Vec<Rc<Dao<EvpBits<Simd256x2, 512>>>> = vec![dao.clone()];
+
+    //let descent = vec_dao.into_big_knn_r_descent(num_neighbours, reverse_list_size, delta);
+    let descent = into_big_knn_r_descent(vec_dao, num_neighbours, reverse_list_size, delta);
 
     let output_path = Path::new(&output_dir)
         .join(output_file)

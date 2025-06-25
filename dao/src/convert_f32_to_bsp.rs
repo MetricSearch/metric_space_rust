@@ -1,6 +1,5 @@
 use crate::{Dao, DaoMatrix};
 use bits::{container::BitsContainer, EvpBits};
-use ndarray::Axis;
 use std::rc::Rc;
 
 pub fn f32_dao_to_bsp<C: BitsContainer, const W: usize>(
@@ -16,6 +15,7 @@ pub fn f32_dao_to_bsp<C: BitsContainer, const W: usize>(
     Rc::new(Dao {
         meta,
         num_data: f32_dao.num_data.clone(),
+        base_addr: 0,
         num_queries: f32_dao.num_queries.clone(),
         embeddings: bit_embeddings,
     })

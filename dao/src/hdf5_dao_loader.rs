@@ -44,6 +44,7 @@ pub fn hdf5_f32_load(
     let dao = Dao {
         meta: dao_meta,
         num_data,
+        base_addr: 0,
         num_queries,
         embeddings: data,
     };

@@ -46,6 +46,7 @@ pub fn hdf5_glove_f32_load(data_path: &str) -> anyhow::Result<Dao<Array1<f32>>> 
     let dao = Dao {
         meta: dao_meta,
         num_data: num_records,
+        base_addr: 0,
         num_queries,
         embeddings: combined,
     };

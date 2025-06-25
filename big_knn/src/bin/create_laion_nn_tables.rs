@@ -36,7 +36,6 @@ const NUM_NEIGHBOURS: usize = 18;
 const DELTA: f64 = 0.01;
 const REVERSE_LIST_SIZE: usize = 32;
 const NUM_VERTICES: usize = 333;
-const UNUSED_DELETE_ME: usize = 0;
 
 pub fn main() -> Result<()> {
     pretty_env_logger::formatted_timed_builder()
@@ -56,29 +55,34 @@ pub fn main() -> Result<()> {
     let file_names = get_file_names(dir_base).unwrap();
     let sizes = get_file_sizes(dir_base, &file_names).unwrap();
     let partition_boundaries = partition_into(&sizes, 2_500_000).unwrap();
-    let parititions = make_partitions(partition_boundaries, &file_names, &sizes);
+    let partitions = make_partitions(&partition_boundaries, &file_names);
 
-    for i in 0..parititions.len() {
+    for i in 0..partitions.len() {
         println!("Partition: {}", i);
-        let vec = &parititions[i];
+        let vec = &partitions[i];
         println!("Files in part: {:?}", vec);
     }
 
-    for i in 0..parititions.len() {
-        let part = parititions.get(i).unwrap();
+    let mut start_index = 0;
 
-        let dao = Rc::new(load_h5_files::<Simd256x2, 500>(dir_base, part, NUM_VERTICES).unwrap());
+    for i in 0..partitions.len() {
+        let part = partitions.get(i).unwrap();
+        let part_size = partition_boundaries.get(i).unwrap();
+
+        let dao = Rc::new(load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES).unwrap());
 
         let file_name = "nn_table".to_string().add(i.to_string().as_str());
-        create_and_store_nn_table::<Simd256x2, 500>(
+        create_and_store_nn_table::<Simd256x2, 512>(
             dao,
             NUM_NEIGHBOURS,
             REVERSE_LIST_SIZE,
-            UNUSED_DELETE_ME,
             DELTA,
+            start_index,
             &args.output_path,
             &file_name,
         );
+
+        start_index = start_index + part_size;
     }
 
     Ok(())

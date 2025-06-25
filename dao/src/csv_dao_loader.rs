@@ -53,6 +53,7 @@ pub fn dao_from_csv_dir(
     Ok(Dao::<Array1<f32>> {
         meta,
         num_data,
+        base_addr: 0,
         num_queries,
         embeddings,
     })

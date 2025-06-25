@@ -1,3 +1,4 @@
+use crate::address::GlobalAddress;
 use crate::non_nan::NonNan;
 use crate::pair::Pair;
 use byte_unit::Byte;
@@ -17,6 +18,7 @@ use std::{
     u32,
 };
 
+pub mod address;
 pub mod non_nan;
 pub mod pair;
 
@@ -27,15 +29,15 @@ pub struct Nality(AtomicU64);
 
 impl Nality {
     pub fn new_empty() -> Self {
-        Self(AtomicU64::new(Self::combine(-1f32, 0))) // was u32::MAX 0
+        Self(AtomicU64::new(GlobalAddress::into(0).combine(-1f32))) // was u32::MAX 0
     }
 
-    pub fn new_empty_index(id: u32) -> Self {
-        Self(AtomicU64::new(Self::combine(-1f32, id)))
+    pub fn new_empty_index(id: GlobalAddress) -> Self {
+        Self(AtomicU64::new(id.combine(-1f32)))
     }
 
-    pub fn new(sim: f32, id: u32) -> Self {
-        Self(AtomicU64::new(Self::combine(sim, id)))
+    pub fn new(sim: f32, id: GlobalAddress) -> Self {
+        Self(AtomicU64::new(id.combine(sim)))
     }
 
     pub fn new_from_u64(value: u64) -> Self {
@@ -46,8 +48,8 @@ impl Nality {
         self.id() == 0 && self.sim() == -1f32 // was u32::MAX
     }
 
-    pub fn update(&self, sim: f32, id: u32) {
-        self.0.store(Self::combine(sim, id), Ordering::Relaxed)
+    pub fn update(&self, sim: f32, id: GlobalAddress) {
+        self.0.store(id.combine(sim), Ordering::Relaxed)
     }
 
     pub fn sim(&self) -> f32 {
@@ -57,11 +59,6 @@ impl Nality {
 
     pub fn id(&self) -> u32 {
         (self.0.load(Ordering::Relaxed) >> 32) as u32
-    }
-
-    fn combine(sim: f32, id: u32) -> u64 {
-        // ((sim as u32) as u64)
-        (f32::to_bits(sim) as u64) | ((id as u64) << 32)
     }
 
     pub fn get(&self) -> &AtomicU64 {

@@ -12,6 +12,7 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::rc::Rc;
 use std::time::Instant;
+use utils::address::GlobalAddress;
 use utils::{arg_sort_big_to_small_2d, bytes_fmt, rand_perm, Nality};
 
 pub fn initialise_table_m(
@@ -22,7 +23,7 @@ pub fn initialise_table_m(
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
-    let dims = dao.get_dim();
+    //let dims = dao.get_dim();
     let data = dao.get_data();
 
     let mut result_indices =
@@ -306,7 +307,7 @@ pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nali
     let nalities: Vec<Nality> = (0..rows * columns)
         .map(|_| {
             let rand_index = rng.random_range(0..rows); // pick random row index
-            Nality::new_empty_index(rand_index as u32)
+            Nality::new_empty_index(GlobalAddress::into(rand_index as u32))
         })
         .collect();
 
@@ -315,7 +316,13 @@ pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nali
 
     // overwrite first entry with a new nality of itself and 0
     for row in 0..nalities.nrows() {
-        nalities[[row, 0]] = Nality::new(f32::MAX, row as u32);
+        nalities[[row, 0]] = Nality::new(
+            f32::MAX,
+            GlobalAddress::into(
+                row.try_into()
+                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+            ),
+        );
     }
 
     let end_time = Instant::now();
@@ -405,9 +412,15 @@ pub fn initialise_table_bsp<C: BitsContainer, const W: usize>(
     let sims = insert_column_inplace(result_sims, 1224.0);
 
     // Makes neighbourlarities from similarities and ids
-    let xx = Zip::from(&indices)
-        .and(&sims)
-        .map_collect(|&id, &sim| Nality::new(sim, id as u32));
+    let xx = Zip::from(&indices).and(&sims).map_collect(|&id, &sim| {
+        Nality::new(
+            sim,
+            GlobalAddress::into(
+                id.try_into()
+                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+            ),
+        )
+    });
 
     // println!("First row initialisation: {:#?}", xx.row(0)); // TODO fix this
 

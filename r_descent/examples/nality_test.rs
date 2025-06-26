@@ -1,3 +1,4 @@
+use utils::address::GlobalAddress;
 use utils::Nality;
 
 fn main() -> () {
@@ -9,11 +10,11 @@ fn main() -> () {
 
     println!("{:?}", n2);
 
-    n2.update(0.3, 585585);
+    n2.update(0.3, GlobalAddress::into(585585));
 
     println!("{:?}", n2);
 
-    let n3 = Nality::new(0.6, 14);
+    let n3 = Nality::new(0.6, GlobalAddress::into(14));
 
     println!("{:?}", n3);
 

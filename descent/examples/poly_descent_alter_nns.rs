@@ -1,14 +1,14 @@
 use anyhow::Result;
 use bits::hamming_distance_as_f32;
 use bitvec_simd::BitVecSimd;
-use metrics::euc;
-use ndarray::{s, Array1, ArrayView1};
 //use rayon::prelude::*;
 use dao::convert_f32_to_cube_oct::to_cube_oct_dao;
 use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use descent::Descent;
+use metrics::euc;
+use ndarray::{s, Array1, ArrayView1};
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
@@ -202,10 +202,6 @@ fn do_queries<T: Clone>(
         print!("{}\t", nn_table.get(0).unwrap().len());
         print!("{}\t", (after - now).as_nanos());
         print!("{:?}\t", dists);
-        print!(
-            "{:?}\t",
-            intersection(&qresults, &gt_pairs.get(qid).unwrap()[0..swarm_size - 1])
-        );
         // show_results(qid,&qresults);
         // show_gt(qid,gt_pairs);
         println!(
@@ -213,10 +209,6 @@ fn do_queries<T: Clone>(
             ndcg(&qresults, &gt_pairs.get(qid).unwrap()[0..swarm_size - 1])
         );
     });
-}
-
-fn intersection(results: &[Pair], true_nns: &[Pair]) -> usize {
-    todo!()
 }
 
 // TODO fix this mess somehow!

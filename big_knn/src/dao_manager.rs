@@ -11,7 +11,7 @@ pub struct DaoStore<C: BitsContainer, const W: usize> {
 pub trait DaoManager<C: BitsContainer, const W: usize> {
     fn new(daos: Vec<Dao<EvpBits<C, W>>>) -> Self;
     fn is_mapped(&self, addr: GlobalAddress) -> bool;
-    fn table_addr_from_global_addr(&self, addr: &GlobalAddress) -> LocalAddress;
+    fn table_addr_from_global_addr(&self, addr: &GlobalAddress) -> anyhow::Result<LocalAddress>;
     fn global_addr_from_table_addr(&self, addr: &LocalAddress) -> anyhow::Result<GlobalAddress>;
 }
 
@@ -34,10 +34,31 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
             .fold(false, |acc, x| acc || x)
     }
 
-    fn table_addr_from_global_addr(&self, addr: &GlobalAddress) -> LocalAddress {
-        todo!()
+    /// Returns the global address for a local table address for data that is mapped or returns an error.
+    fn table_addr_from_global_addr(
+        &self,
+        target_addr: &GlobalAddress,
+    ) -> anyhow::Result<LocalAddress> {
+        let mut table_index: u32 = 0;
+        let target_addr = GlobalAddress::as_u32(*target_addr) as usize;
+        for dao in &self.daos {
+            if target_addr > dao.base_addr && target_addr < dao.base_addr + dao.num_data {
+                // We have found it.
+                let difference_from_dao_base: u32 = (target_addr - dao.base_addr)
+                    .try_into()
+                    .unwrap_or_else(|_| panic!("cannot convert into u32 from usize"));
+                return Ok(LocalAddress::into(table_index + difference_from_dao_base));
+            } else {
+                table_index = table_index + dao.num_data as u32;
+            }
+        }
+        Err(anyhow!(
+            "Local Address {} not found in mapping table",
+            target_addr
+        ))
     }
 
+    /// Returns the local table address for a global address that is mapped or returns an error.
     fn global_addr_from_table_addr(
         &self,
         target_addr: &LocalAddress,
@@ -58,6 +79,9 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
                 addresses_processed = addresses_processed + dao.num_data;
             }
         }
-        Err(anyhow!("No such global address {}", target_addr))
+        Err(anyhow!(
+            "Global Address {} not found in mapping table",
+            target_addr
+        ))
     }
 }

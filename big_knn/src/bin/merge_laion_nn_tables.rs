@@ -50,7 +50,7 @@ pub fn main() -> anyhow::Result<()> {
         anyhow::bail!("{} is not a directory", args.raw_data_base_name);
     }
 
-    let partitions = get_partitions(raw_data_base_dir, 2_500_000);
+    let (sizes, partitions) = get_partitions(raw_data_base_dir, 2_500_000);
 
     if partitions.len() != nn_file_names.len() {
         bail!(

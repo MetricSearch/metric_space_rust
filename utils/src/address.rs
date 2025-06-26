@@ -1,7 +1,7 @@
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct LocalAddress(u32);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct GlobalAddress(u32);
 
 impl GlobalAddress {

@@ -193,7 +193,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
                 let forward_links_dont_contain_this = !new_forward_links
                     .iter()
-                    .any(|x| dao_manager.table_addr_from_global_addr(&x.id()) == row);
+                    .any(|x| dao_manager.table_addr_from_global_addr(&x.id()).unwrap() == row);
 
                 // if the reverse list isn't full, we will just add this one
                 // this adds to a priority queue and keeps track of max
@@ -379,7 +379,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 let this_sim = *new_old_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_old_sims.shape()));
 
                                 check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u1.id()).as_usize(),   // the new row
+                                    dao_manager.table_addr_from_global_addr(&u1.id()).unwrap().as_usize(),   // the new row
                                     GlobalAddress::as_u32(u2.id()),            // <<<<<<<<<< the new index to be added to row
                                     this_sim,           // with this similarity
                                     &neighbour_is_new,
@@ -388,7 +388,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 );
 
                                 check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u2.id()).as_usize(),
+                                    dao_manager.table_addr_from_global_addr(&u2.id()).unwrap().as_usize(),
                                     GlobalAddress::as_u32(u1.id()),
                                     this_sim,
                                     &neighbour_is_new,

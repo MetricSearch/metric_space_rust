@@ -9,7 +9,7 @@ use dao::{Dao, DaoMatrix};
 use deepsize::DeepSizeOf;
 use metrics::euc;
 use ndarray::Array1;
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent};
+use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent, RDescent};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
@@ -64,27 +64,29 @@ fn main() -> Result<()> {
 
     log::info!("Initializing NN table with chunk size {}", chunk_size);
 
-    let descent = dao_bsp
+    let descent: RDescent = dao_bsp
         .clone()
         .into_rdescent(num_neighbours, reverse_list_size, delta);
 
-    // log::info!("Line 0 of table:");
-    // for i in 0..10 {
-    //     log::info!(" neighbours: {} dists: {}", descent.neighbours[0,i], descent.similarities[0,i]);
-    // }
-    //
-    // let end = Instant::now();
-    //
-    // log::info!(
-    //     "Finished (including load time in {} s",
-    //     (end - start).as_secs()
-    // );
-    // log::info!(
-    //     "Finished (post load time) in {} s",
-    //     (end - start_post_load).as_secs()
-    // );
+    log::info!("Line 0 of table:");
+    for i in 0..10 {
+        log::info!(
+            " neighbours: {:?} dists: {:?}",
+            descent.neighbours[[0, i]],
+            descent.similarities[[0, i]]
+        );
+    }
 
-    todo!(); // TODO <<<<<<<<<<<
+    let end = Instant::now();
+
+    log::info!(
+        "Finished (including load time in {} s",
+        (end - start).as_secs()
+    );
+    log::info!(
+        "Finished (post load time) in {} s",
+        (end - start_post_load).as_secs()
+    );
 
     Ok(())
 }

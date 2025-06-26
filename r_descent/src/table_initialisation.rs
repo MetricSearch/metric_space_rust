@@ -346,7 +346,7 @@ pub fn initialise_table_bsp<C: BitsContainer, const W: usize>(
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
-    let dims = dao.get_dim();
+    //let dims = dao.get_dim();
     let data = dao.get_data();
 
     if num_neighbours > chunk_size {

@@ -67,10 +67,9 @@ fn main() -> Result<()> {
 
     log::info!("Getting NN table");
 
-    let descent =
-        dao_bsp
-            .clone()
-            .into_rdescent(NUM_NEIGHBOURS, REVERSE_LIST_SIZE, CHUNK_SIZE, DELTA);
+    let descent = dao_bsp
+        .clone()
+        .into_rdescent(NUM_NEIGHBOURS, REVERSE_LIST_SIZE, DELTA);
 
     let end = Instant::now();
 

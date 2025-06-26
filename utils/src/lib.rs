@@ -45,7 +45,7 @@ impl Nality {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.id() == 0 && self.sim() == -1f32 // was u32::MAX
+        self.id() == GlobalAddress::into(0) && self.sim() == -1f32 // was u32::MAX
     }
 
     pub fn update(&self, sim: f32, id: GlobalAddress) {
@@ -57,8 +57,8 @@ impl Nality {
         f32::from_bits(self.0.load(Ordering::Relaxed) as u32)
     }
 
-    pub fn id(&self) -> u32 {
-        (self.0.load(Ordering::Relaxed) >> 32) as u32
+    pub fn id(&self) -> GlobalAddress {
+        GlobalAddress::into((self.0.load(Ordering::Relaxed) >> 32) as u32)
     }
 
     pub fn get(&self) -> &AtomicU64 {

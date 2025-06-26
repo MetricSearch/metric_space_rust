@@ -1,19 +1,12 @@
 use anyhow::Result;
 use bits::container::Simd256x2;
-use bits::EvpBits;
 use chrono::Utc;
-use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
-use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
-use dao::Dao;
-use ndarray::{s, Array1, Array2, ArrayView1};
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent, RDescent};
-use std::collections::HashSet;
+use r_descent::IntoRDescent;
 use std::fs::File;
 use std::io::BufWriter;
 use std::rc::Rc;
 use std::time::Instant;
-use utils::distance_f32;
 
 fn main() -> Result<()> {
     let start = Instant::now();
@@ -49,10 +42,9 @@ fn main() -> Result<()> {
     let delta = 0.01;
     let reverse_list_size = 32;
 
-    let descent =
-        dao_bsp
-            .clone()
-            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, delta);
+    let descent = dao_bsp
+        .clone()
+        .into_rdescent(num_neighbours, reverse_list_size, delta);
 
     let end = Instant::now();
 

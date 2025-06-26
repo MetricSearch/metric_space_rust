@@ -1,21 +1,21 @@
 use crate::dao_manager::{DaoManager, DaoStore};
 use crate::table_initialisation::initialise_table_bsp_randomly;
-use bits::container::{BitsContainer, Simd256x2};
+use bits::container::BitsContainer;
 use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
 use dao::Dao;
-use ndarray::{s, Array1, Array2, ArrayView, ArrayView1, ArrayViewMut1, Axis};
+use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use r_descent::functions::{fill_false_atomic, fill_selected};
 use r_descent::{check_apply_update, get_slice_using_selectors, RDescent};
 use rayon::prelude::*;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
-use utils::address::{GlobalAddress, LocalAddress, TableAddress};
+use utils::address::{GlobalAddress, LocalAddress};
 use utils::{min_index_and_value_neighbourlarities, rand_perm, Nality};
 
 pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
-    daos: Vec<Rc<Dao<EvpBits<C, W>>>>,
+    daos: Vec<Dao<EvpBits<C, W>>>,
     num_neighbours: usize,
     reverse_list_size: usize,
     delta: f64,
@@ -33,7 +33,7 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
         reverse_list_size,
     );
 
-    let ords = neighbourlarities.mapv(|x| x.id() as usize);
+    let ords = neighbourlarities.mapv(|x| GlobalAddress::as_usize(x.id()));
     let dists = neighbourlarities.mapv(|x| x.sim() as f32);
 
     RDescent {
@@ -43,7 +43,7 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
 }
 
 pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
-    daos: Vec<Rc<Dao<EvpBits<C, W>>>>,
+    daos: Vec<Dao<EvpBits<C, W>>>,
     num_data: usize,
     neighbourlarities: &Array2<Nality>,
     num_neighbours: usize,
@@ -174,16 +174,16 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         // there is a limit to the number of reverse ids we will store, as these
         // are in a zipf distribution, so we will add the most similar only
 
-        for row in (0..num_data).map(|x| LocalAddress::new(x as u32)) {
+        for row in (0..num_data).map(|x| LocalAddress::into(x as u32)) {
             // Matlab line 97
             // all_ids are the forward links in the current id's row
 
-            let this_row_neighbourlarities = &neighbourlarities.row(TableAddress::as_usize(&row)); // Matlab line 98
+            let this_row_neighbourlarities = &neighbourlarities.row(LocalAddress::as_usize(&row)); // Matlab line 98
                                                                                                    // so for each one of these (there are k...):
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
-                let this_id = this_row_neighbourlarities[id].id() as usize;
+                let this_id = GlobalAddress::as_usize(this_row_neighbourlarities[id].id());
                 // and how similar it is to the current id
                 let local_sim = this_row_neighbourlarities[id].sim();
 
@@ -191,9 +191,9 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 let new_forward_links = new.row(this_id);
 
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
-                let forward_links_dont_contain_this = !new_forward_links.iter().any(|x| {
-                    dao_manager.table_addr_from_global_addr(&GlobalAddress::into(x.id())) == row
-                });
+                let forward_links_dont_contain_this = !new_forward_links
+                    .iter()
+                    .any(|x| dao_manager.table_addr_from_global_addr(&x.id()) == row);
 
                 // if the reverse list isn't full, we will just add this one
                 // this adds to a priority queue and keeps track of max
@@ -269,11 +269,11 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 } else {
                     new_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() { None } else { Some(x.id() as usize) } }) //<<<<<<<<< only take real values
+                        .filter_map(|x| { if x.is_empty() { None } else { Some(GlobalAddress::as_usize(x.id())) } }) //<<<<<<<<< only take real values
                         .chain(binding
                             .iter()
                             .filter(|&x| !x.is_empty())
-                            .map(|x| x.id() as usize))
+                            .map(|x| GlobalAddress::as_usize(x.id())))
                         .collect::<Array1<usize>>()
                 };
 
@@ -282,7 +282,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     &dao_manager,
                     &old_row
                         .iter()
-                        .map(|x| { x.id() as usize })
+                        .map(|x| { GlobalAddress::as_usize(x.id()) })
                         .filter(|global_address: &usize| dao_manager.is_mapped(GlobalAddress::into((*global_address).try_into().unwrap_or_else(|_| panic!("Cannot convert to u32"))))) // only look at addresses that are mapped.
                         .collect::<Array1<_>>().view() ); // Matlab line 136
 
@@ -290,7 +290,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     &dao_manager,
                     &new_row
                         .iter()
-                        .map(|x| x.id() as usize)
+                        .map(|x| GlobalAddress::as_usize(x.id()))
                         .filter(|global_address: &usize| dao_manager.is_mapped(GlobalAddress::into((*global_address).try_into().unwrap_or_else(|_| panic!("Cannot convert to u32"))))) // only look at addresses that are mapped.
                         .collect::<Array1<_>>().view() ); // Matlab line 137
 
@@ -377,8 +377,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 let this_sim = *new_old_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_old_sims.shape()));
 
                                 check_apply_update(
-                                    u1.id() as usize,   // the new row
-                                    u2.id(),            // <<<<<<<<<< the new index to be added to row
+                                    dao_manager.table_addr_from_global_addr(&u1.id()).as_usize(),   // the new row
+                                    GlobalAddress::as_u32(u2.id()),            // <<<<<<<<<< the new index to be added to row
                                     this_sim,           // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
@@ -386,8 +386,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 );
 
                                 check_apply_update(
-                                    u2.id() as usize,
-                                    u1.id(),
+                                    dao_manager.table_addr_from_global_addr(&u2.id()).as_usize(),
+                                    GlobalAddress::as_u32(u1.id()),
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,

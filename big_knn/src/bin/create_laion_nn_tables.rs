@@ -69,10 +69,10 @@ pub fn main() -> Result<()> {
         let part = partitions.get(i).unwrap();
         let part_size = partition_boundaries.get(i).unwrap();
 
-        let dao = Rc::new(load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES).unwrap());
+        let dao = load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES).unwrap();
 
         let file_name = "nn_table".to_string().add(i.to_string().as_str());
-        create_and_store_nn_table::<Simd256x2, 512>(
+        create_and_store_nn_table(
             dao,
             NUM_NEIGHBOURS,
             REVERSE_LIST_SIZE,

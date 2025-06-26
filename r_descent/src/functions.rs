@@ -203,20 +203,20 @@ pub fn get_reverse_nality_links_not_in_forward(
             // get the id
 
             let next_nality = &neighbours[[row, col]];
-            let next_id = next_nality.id();
+            let next_id = GlobalAddress::as_u32(next_nality.id()) as usize;
             let next_sim = next_nality.sim();
 
             // 1) If ‘row’ is not already a forward‐neighbour of next_id..
             if !neighbours
-                .row(next_id as usize) // if it is not in the neighbours of the row
+                .row(next_id) // if it is not in the neighbours of the row
                 .iter()
-                .any(|x| x.id() == row as u32)
+                .any(|x| GlobalAddress::as_u32(x.id()) as usize == row)
             {
                 let bind_reverse = reverse.row(next_id as usize);
 
                 let already_in_reverse = &bind_reverse // and if it isn't in the reverse neighbours already
                     .iter()
-                    .any(|x| x.id() == row as u32);
+                    .any(|x| GlobalAddress::as_u32(x.id()) as usize == row);
 
                 // 2) check if we’ve already added ‘row’ into reverse[next_id]:
                 if !already_in_reverse {
@@ -239,7 +239,7 @@ pub fn get_reverse_nality_links_not_in_forward(
                             min_index_and_value_neighbourlarities(&bind_reverse);
 
                         if min_nality.sim() < next_sim {
-                            let mut reverse_row = reverse.row_mut(next_id as usize);
+                            let mut reverse_row = reverse.row_mut(next_id);
                             reverse_row[min_index] = Nality::new(
                                 next_sim,
                                 GlobalAddress::into(

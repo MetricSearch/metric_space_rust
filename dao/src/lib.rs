@@ -120,8 +120,7 @@ impl<T> Dao<T> {
     }
 
     pub fn get_data(&self) -> ArrayView1<T> {
-        let data = self.embeddings.slice(s![0..self.num_data]);
-        data
+        self.embeddings.slice(s![0..self.num_data])
     }
 
     pub fn get_queries(&self) -> ArrayView1<T> {

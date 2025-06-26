@@ -155,7 +155,7 @@ pub fn make_partitions<'a>(
 }
 
 pub fn create_and_store_nn_table(
-    dao: Rc<Dao<EvpBits<Simd256x2, 512>>>,
+    dao: Dao<EvpBits<Simd256x2, 512>>,
     num_neighbours: usize,
     reverse_list_size: usize,
     delta: f64,
@@ -163,7 +163,7 @@ pub fn create_and_store_nn_table(
     output_dir: &String,
     output_file: &String,
 ) {
-    let vec_dao: Vec<Rc<Dao<EvpBits<Simd256x2, 512>>>> = vec![dao.clone()];
+    let vec_dao: Vec<Dao<EvpBits<Simd256x2, 512>>> = vec![dao];
 
     //let descent = vec_dao.into_big_knn_r_descent(num_neighbours, reverse_list_size, delta);
     let descent = into_big_knn_r_descent(vec_dao, num_neighbours, reverse_list_size, delta);

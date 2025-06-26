@@ -64,10 +64,9 @@ fn main() -> Result<()> {
 
     log::info!("Initializing NN table with chunk size {}", chunk_size);
 
-    let descent =
-        dao_bsp
-            .clone()
-            .into_rdescent(num_neighbours, reverse_list_size, chunk_size, delta);
+    let descent = dao_bsp
+        .clone()
+        .into_rdescent(num_neighbours, reverse_list_size, delta);
 
     // log::info!("Line 0 of table:");
     // for i in 0..10 {

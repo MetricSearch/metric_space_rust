@@ -214,8 +214,10 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                         // if the list is not full
                         // update the reverse pointer list and the similarities
 
-                        reverse[[this_id, reverse_count[this_id]]] =
-                            Nality::new(local_sim, dao_manager.global_addr_from_table_addr(&row));
+                        reverse[[this_id, reverse_count[this_id]]] = Nality::new(
+                            local_sim,
+                            dao_manager.global_addr_from_table_addr(&row).unwrap(),
+                        );
                         reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
                     } else {
                         // the list is full - so no need to do anything with counts
@@ -229,7 +231,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                             // Matlab line 110  if the value in reverse_sims is less similar we over write
                             reverse[[this_id, position as usize]] = Nality::new(
                                 local_sim,
-                                dao_manager.global_addr_from_table_addr(&row),
+                                dao_manager.global_addr_from_table_addr(&row).unwrap(),
                             );
                         }
                     }

@@ -1,3 +1,5 @@
+use bits::container::Simd256x2;
+use bits::evp::max_bsp_similarity_as_f32;
 use ndarray::Array2;
 use rand::Rng;
 use std::time::Instant;
@@ -27,7 +29,7 @@ pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nali
     // overwrite first entry with a new nality of itself and 0
     for row in 0..nalities.nrows() {
         nalities[[row, 0]] = Nality::new(
-            f32::MAX,
+            max_bsp_similarity_as_f32::<Simd256x2, 512>(),
             GlobalAddress::into(
                 row.try_into()
                     .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),

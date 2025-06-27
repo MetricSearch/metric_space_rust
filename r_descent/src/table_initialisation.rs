@@ -4,7 +4,8 @@ use crate::functions::{
     get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace,
 };
 use crate::get_slice_using_selectors;
-use bits::container::BitsContainer;
+use bits::container::{BitsContainer, Simd256x2};
+use bits::evp::max_bsp_similarity_as_f32;
 use bits::{evp::matrix_dot, evp::similarity_as_f32, EvpBits};
 use dao::{Dao, DaoMatrix};
 use ndarray::{s, Array2, Axis, Zip};
@@ -317,7 +318,7 @@ pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nali
     // overwrite first entry with a new nality of itself and 0
     for row in 0..nalities.nrows() {
         nalities[[row, 0]] = Nality::new(
-            f32::MAX,
+            max_bsp_similarity_as_f32::<Simd256x2, 512>(),
             GlobalAddress::into(
                 row.try_into()
                     .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),

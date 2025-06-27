@@ -43,7 +43,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         let mut table_index: u32 = 0;
         let target_addr = GlobalAddress::as_u32(*target_addr) as usize;
         for dao in &self.daos {
-            if target_addr > dao.base_addr && target_addr < dao.base_addr + dao.num_data {
+            if target_addr >= dao.base_addr && target_addr < dao.base_addr + dao.num_data {
                 // We have found it.
                 let difference_from_dao_base: u32 = (target_addr - dao.base_addr)
                     .try_into()
@@ -67,7 +67,8 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         let target_addr = LocalAddress::as_u32(target_addr) as usize;
         let mut addresses_processed = 0;
         for dao in &self.daos {
-            if target_addr > addresses_processed && target_addr < addresses_processed + dao.num_data
+            if target_addr >= addresses_processed
+                && target_addr < addresses_processed + dao.num_data
             {
                 // we have found the right dao.
                 let offset_in_dao: usize = target_addr - addresses_processed;
@@ -89,7 +90,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
     fn get_dao(&self, target_addr: &GlobalAddress) -> anyhow::Result<&Dao<EvpBits<C, W>>> {
         let target_addr = GlobalAddress::as_u32(*target_addr) as usize;
         for dao in &self.daos {
-            if target_addr > dao.base_addr && target_addr < dao.base_addr + dao.num_data {
+            if target_addr >= dao.base_addr && target_addr < dao.base_addr + dao.num_data {
                 // we have found it
                 return Ok(dao);
             }

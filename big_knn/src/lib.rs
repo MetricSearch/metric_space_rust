@@ -170,7 +170,7 @@ pub fn create_and_store_nn_table(
 
     let output_path = Path::new(&output_dir)
         .join(output_file)
-        .with_added_extension(".bin");
+        .with_added_extension("bin");
 
     log::info!("Writing to bin file {}", output_path.to_str().unwrap());
 

@@ -4,7 +4,7 @@ use bits::container::BitsContainer;
 use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
 use dao::Dao;
-use ndarray::{Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use r_descent::functions::{fill_false_atomic, fill_selected};
 use r_descent::{check_apply_update, get_slice_using_selectors, RDescent};
 use rayon::prelude::*;
@@ -265,18 +265,18 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     .row(row);
 
 
-                let new_row_union: Array1<usize> = if new_row.len() == 0 {
+                let new_row_union: Array1<GlobalAddress> = if new_row.len() == 0 {
                     // Matlab line 130
                     Array1::from(vec![])
                 } else {
                     new_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() { None } else { Some(GlobalAddress::as_usize(x.id())) } }) //<<<<<<<<< only take real values
+                        .filter_map(|x| { if x.is_empty() { None } else { Some(x.id()) } }) //<<<<<<<<< only take real values
                         .chain(binding
                             .iter()
                             .filter(|&x| !x.is_empty())
-                            .map(|x| GlobalAddress::as_usize(x.id())))
-                        .collect::<Array1<usize>>()
+                            .map(|x| x.id()))
+                        .collect::<Array1<GlobalAddress>>()
                 };
 
                 // index the data using the rows indicated in old_row
@@ -284,16 +284,16 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     &dao_manager,
                     &old_row
                         .iter()
-                        .map(|x| { GlobalAddress::as_usize(x.id()) })
-                        .filter(|global_address: &usize| dao_manager.is_mapped(GlobalAddress::into((*global_address).try_into().unwrap_or_else(|_| panic!("Cannot convert to u32"))))) // only look at addresses that are mapped.
+                        .map(|x| { x.id() })
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped.
                         .collect::<Array1<_>>().view() ); // Matlab line 136
 
                 let new_data = get_slice_using_multi_dao_selectors(
                     &dao_manager,
                     &new_row
                         .iter()
-                        .map(|x| GlobalAddress::as_usize(x.id()))
-                        .filter(|global_address: &usize| dao_manager.is_mapped(GlobalAddress::into((*global_address).try_into().unwrap_or_else(|_| panic!("Cannot convert to u32"))))) // only look at addresses that are mapped.
+                        .map(|x| x.id())
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped.
                         .collect::<Array1<_>>().view() ); // Matlab line 137
 
                 let new_union_data =
@@ -339,16 +339,16 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 // in the row for u1_id? if it's not, then do nothing
 
                                 check_apply_update(
-                                    u1_id,
-                                    u2_id as u32, // &Nality::new(this_sim, ),
+                                    dao_manager.table_addr_from_global_addr(&u1_id).unwrap().as_usize(),
+                                    GlobalAddress::as_u32(u2_id),
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,
                                     &work_done,
                                 );
                                 check_apply_update(
-                                    u2_id,
-                                    u1_id as u32,  // &Nality::new(this_sim, ),
+                                    dao_manager.table_addr_from_global_addr(&u2_id).unwrap().as_usize(),
+                                    GlobalAddress::as_u32(u1_id),
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,
@@ -413,19 +413,19 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 }
 
 fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
-    source: &DaoStore<C, { W }>,
-    selectors: &ArrayView1<usize>,
+    dao_store: &DaoStore<C, W>,
+    selectors: &ArrayView1<GlobalAddress>,
 ) -> Array1<EvpBits<C, W>> {
-    todo!();
-    // let mut sliced = Array1::uninit(selectors.len());
-    //
-    // for count in 0..selectors.len() {
-    //
-    //
-    //     source
-    //         .slice(s![selectors[count]])
-    //         .assign_to(sliced.slice_mut(s![count]));
-    // }
-    //
-    // unsafe { sliced.assume_init() }
+    let mut sliced = Array1::uninit(selectors.len());
+
+    for count in 0..selectors.len() {
+        let source = dao_store.get_dao(&selectors[count]).unwrap();
+        let data = source.get_data();
+        let arrai_view = data.slice(s![
+            GlobalAddress::as_usize(selectors[count]) - source.base_addr
+        ]);
+        arrai_view.assign_to(sliced.slice_mut(s![count]));
+    }
+
+    unsafe { sliced.assume_init() }
 }

@@ -13,6 +13,7 @@ pub trait DaoManager<C: BitsContainer, const W: usize> {
     fn is_mapped(&self, addr: GlobalAddress) -> bool;
     fn table_addr_from_global_addr(&self, addr: &GlobalAddress) -> anyhow::Result<LocalAddress>;
     fn global_addr_from_table_addr(&self, addr: &LocalAddress) -> anyhow::Result<GlobalAddress>;
+    fn get_dao(&self, target_addr: &GlobalAddress) -> anyhow::Result<&Dao<EvpBits<C, W>>>;
 }
 
 impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
@@ -83,5 +84,16 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
             "Global Address {} not found in mapping table",
             target_addr
         ))
+    }
+
+    fn get_dao(&self, target_addr: &GlobalAddress) -> anyhow::Result<&Dao<EvpBits<C, W>>> {
+        let target_addr = GlobalAddress::as_u32(*target_addr) as usize;
+        for dao in &self.daos {
+            if target_addr > dao.base_addr && target_addr < dao.base_addr + dao.num_data {
+                // we have found it
+                return Ok(dao);
+            }
+        }
+        Err(anyhow!("Didn't find the dao"))
     }
 }

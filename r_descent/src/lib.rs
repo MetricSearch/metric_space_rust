@@ -288,7 +288,7 @@ impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWith
     }
 }
 
-// WHY IS THIS COMMENTED? AL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// TODO WHY IS THIS COMMENTED? Ben?? <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 // impl IntoRDescentWithRevNNs for DaoMatrix<f32> {
 //     fn into_rdescent_with_rev_nn(
 //         self: Rc<Self>,
@@ -310,8 +310,6 @@ impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWith
 //     );
 //     let (reverse_nns, _reverse_similarities) =
 //         get_reverse_links_not_in_forward(&neighbours, &similarities, nns_in_search_structure);
-//
-//     // TODO perhaps need to deal with MAXINT values
 //
 //     let r_descent = RDescentMatrix {
 //         neighbours: neighbours,
@@ -400,8 +398,8 @@ impl<C: BitsContainer, const W: usize> IntoRDescentWithRevNNs for Dao<EvpBits<C,
 
 pub fn check_apply_update(
     row_id: usize,
-    new_index_to_add: u32,
-    new_similarity: f32,
+    new_nality_value_to_add: u32,
+    new_nality_similarity: f32,
     neighbour_is_new: &Array2<AtomicBool>,
     neighbourlarities: &Array2<Nality>,
     work_done: &AtomicUsize,
@@ -409,19 +407,21 @@ pub fn check_apply_update(
     loop {
         // We expect the old value to be the same as the new if there is no contention.
         let (min_col_id, min_naility) = minimum_in_nality(&neighbourlarities.row(row_id));
-        if new_similarity > min_naility.sim() {
+        if new_nality_similarity > min_naility.sim() {
             if neighbourlarities
                 .row(row_id)
                 .iter()
-                .any(|x| x.id() == GlobalAddress::into(new_index_to_add))
+                .any(|x| GlobalAddress::as_u32(x.id()) == new_nality_value_to_add)
             {
                 // If we see the id we're inserting, bomb out
                 return;
             }
 
             let min_ality_before_check = min_naility.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
-            let new_value_to_add =
-                Nality::new(new_similarity, GlobalAddress::into(new_index_to_add)); // this is the new Naility to add to the row
+            let new_value_to_add = Nality::new(
+                new_nality_similarity,
+                GlobalAddress::into(new_nality_value_to_add),
+            ); // this is the new Naility to add to the row
 
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check
@@ -446,7 +446,7 @@ pub fn check_apply_update(
                     let updated_slot_similarity = Nality::new_from_u64(updated_value_in_slot).sim();
 
                     // The least similar thing is now something better than the update we are applying... bomb out
-                    if updated_slot_similarity >= new_similarity {
+                    if updated_slot_similarity >= new_nality_similarity {
                         return;
                     }
                 }

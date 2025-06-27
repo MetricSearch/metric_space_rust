@@ -119,8 +119,15 @@ impl<T> Dao<T> {
         self.embeddings.get(self.num_data + id).unwrap()
     }
 
+    /// Get all data
     pub fn get_data(&self) -> ArrayView1<T> {
         self.embeddings.slice(s![0..self.num_data])
+    }
+
+    /// Get a slice relative to the start of the Dao
+    /// Note does not use Global addresses
+    pub fn get_slice(&self, index: usize) -> ArrayView1<T> {
+        self.embeddings.slice(s![index..index + 1])
     }
 
     pub fn get_queries(&self) -> ArrayView1<T> {

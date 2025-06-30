@@ -5,7 +5,7 @@ use dao::Dao;
 use utils::address::{GlobalAddress, LocalAddress};
 
 pub struct DaoStore<C: BitsContainer, const W: usize> {
-    daos: Vec<Dao<EvpBits<C, W>>>,
+    pub daos: Vec<Dao<EvpBits<C, W>>>,
 }
 
 pub trait DaoManager<C: BitsContainer, const W: usize> {

@@ -1,7 +1,7 @@
 #![feature(path_add_extension)]
 
-mod dao_manager;
-mod knn_r_descent;
+pub mod dao_manager;
+pub mod knn_r_descent;
 mod table_initialisation;
 
 use crate::knn_r_descent::into_big_knn_r_descent;
@@ -13,6 +13,7 @@ use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use hdf5::File as Hdf5File;
 use ndarray::ArrayView2;
+use r_descent::RDescent;
 use std::fs;
 use std::fs::File;
 use std::io::BufWriter;
@@ -172,6 +173,10 @@ pub fn create_and_store_nn_table(
         .join(output_file)
         .with_added_extension("bin");
 
+    write_table(output_path, &descent);
+}
+
+pub fn write_table(output_path: PathBuf, descent: &RDescent) {
     log::info!("Writing to bin file {}", output_path.to_str().unwrap());
 
     let file: File = File::create(output_path).unwrap();

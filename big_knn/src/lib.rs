@@ -12,16 +12,23 @@ use bits::EvpBits;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use hdf5::File as Hdf5File;
-use ndarray::ArrayView2;
+use ndarray::{Array2, ArrayView2};
 use r_descent::RDescent;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use utils::Nality;
 
 const ALL_RECORDS: usize = 0;
 const NUM_QUERIES: usize = 0;
+
+#[derive(Serialize, Deserialize)]
+pub struct NalityNNTable {
+    pub nalities: Array2<Nality>,
+}
 
 pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> anyhow::Result<()> {
     let file = Hdf5File::create(f_name)?; // open for writing
@@ -167,16 +174,16 @@ pub fn create_and_store_nn_table(
     let vec_dao: Vec<Dao<EvpBits<Simd256x2, 512>>> = vec![dao];
 
     //let descent = vec_dao.into_big_knn_r_descent(num_neighbours, reverse_list_size, delta);
-    let descent = into_big_knn_r_descent(vec_dao, num_neighbours, reverse_list_size, delta);
+    let nn_table = into_big_knn_r_descent(vec_dao, num_neighbours, reverse_list_size, delta);
 
     let output_path = Path::new(&output_dir)
         .join(output_file)
         .with_added_extension("bin");
 
-    write_table(output_path, &descent);
+    write_table(output_path, &nn_table);
 }
 
-pub fn write_table(output_path: PathBuf, descent: &RDescent) {
+pub fn write_table(output_path: PathBuf, descent: &NalityNNTable) {
     log::info!("Writing to bin file {}", output_path.to_str().unwrap());
 
     let file: File = File::create(output_path).unwrap();

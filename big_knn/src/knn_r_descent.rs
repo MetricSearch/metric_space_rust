@@ -1,5 +1,6 @@
 use crate::dao_manager::{DaoManager, DaoStore};
 use crate::table_initialisation::initialise_table_bsp_randomly;
+use crate::NalityNNTable;
 use bits::container::BitsContainer;
 use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
@@ -19,7 +20,7 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     num_neighbours: usize,
     reverse_list_size: usize,
     delta: f64,
-) -> RDescent {
+) -> NalityNNTable {
     let num_data = daos.iter().map(|dao| dao.num_data).sum();
 
     let neighbourlarities = initialise_table_bsp_randomly(num_data, num_neighbours);
@@ -36,9 +37,8 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     let ords = neighbourlarities.mapv(|x| GlobalAddress::as_usize(x.id()));
     let dists = neighbourlarities.mapv(|x| x.sim() as f32);
 
-    RDescent {
-        neighbours: ords,
-        similarities: dists,
+    NalityNNTable {
+        nalities: neighbourlarities,
     }
 }
 

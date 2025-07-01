@@ -147,6 +147,7 @@ dependencies = [
  "r_descent",
  "rand 0.9.1",
  "rayon",
+ "serde",
  "utils",
 ]
 

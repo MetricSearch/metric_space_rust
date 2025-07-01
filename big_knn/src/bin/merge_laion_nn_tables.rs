@@ -6,7 +6,7 @@
 use anyhow::bail;
 use big_knn::dao_manager::{DaoManager, DaoStore};
 use big_knn::knn_r_descent::make_big_knn_table2_bsp;
-use big_knn::{get_file_names, get_partitions, write_table};
+use big_knn::{get_file_names, get_partitions, write_table, NalityNNTable};
 use bits::container::{BitsContainer, Simd256x2};
 use bits::EvpBits;
 use clap::Parser;
@@ -125,43 +125,37 @@ pub fn main() -> anyhow::Result<()> {
 
 /// Split up the combined table and write back to the orginal NN files.
 fn split_and_write_back(
-    nn_table: RDescent,
+    nn_table: NalityNNTable,
     nn_table1_path: PathBuf,
     part1_size: usize,
     nn_table2_path: PathBuf,
     part2_size: usize,
 ) {
-    let neighbours = nn_table.neighbours;
-    let similarities = nn_table.similarities;
+    let nalities = nn_table.nalities;
 
-    let top_neighbours: ArrayView2<_> = neighbours.slice(s![0..part1_size, ..]);
-    let bottom_neighbours: ArrayView2<_> = neighbours.slice(s![part1_size.., ..]);
+    let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, ..]);
+    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part1_size.., ..]);
 
-    let top_sims: ArrayView2<_> = similarities.slice(s![0..part1_size, ..]);
-    let bottom_sims: ArrayView2<_> = similarities.slice(s![part1_size.., ..]);
-
-    let descent1 = RDescent {
-        // TODO more copying!!!
-        neighbours: top_neighbours.to_owned(),
-        similarities: top_sims.to_owned(),
+    let nn_table_1 = NalityNNTable {
+        // TODO More copying???
+        nalities: top_nalities.to_owned(),
     };
 
-    write_table(nn_table1_path, &descent1);
+    write_table(nn_table1_path, &nn_table_1);
 
-    let descent2 = RDescent {
-        // TODO more copying!!!
-        neighbours: bottom_neighbours.to_owned(),
-        similarities: bottom_sims.to_owned(),
+    let nn_table_2 = NalityNNTable {
+        // TODO More copying???
+        nalities: bottom_nalities.to_owned(),
     };
 
-    write_table(nn_table2_path, &descent2);
+    write_table(nn_table2_path, &nn_table_2);
 }
 
 fn combine_nn_table(
     nn_table1_path: &PathBuf,
     nn_table2_path: &PathBuf,
     daos: Vec<Dao<EvpBits<Simd256x2, 512>>>,
-) -> RDescent {
+) -> NalityNNTable {
     let nn_table1 = get_nn_table(&nn_table1_path);
     let nn_table2 = get_nn_table(&nn_table2_path);
 
@@ -201,13 +195,7 @@ fn combine_nn_table(
         REVERSE_LIST_SIZE, // TODO hard code for the minute fix later
     );
 
-    let ords = nalities.mapv(|x| GlobalAddress::as_u32(x.id()) as usize);
-    let dists = nalities.mapv(|x| x.sim());
-
-    RDescent {
-        neighbours: ords,
-        similarities: dists,
-    }
+    NalityNNTable { nalities: nalities }
 }
 
 fn get_nn_table(nn_table_path: &PathBuf) -> RDescent {

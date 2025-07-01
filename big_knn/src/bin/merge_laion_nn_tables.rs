@@ -4,8 +4,8 @@
 */
 
 use anyhow::bail;
+use big_knn::big_knn_r_descent::make_big_knn_table2_bsp;
 use big_knn::dao_manager::{DaoManager, DaoStore};
-use big_knn::knn_r_descent::make_big_knn_table2_bsp;
 use big_knn::{get_file_names, get_partitions, write_table, NalityNNTable};
 use bits::container::{BitsContainer, Simd256x2};
 use bits::EvpBits;

@@ -1,5 +1,5 @@
 use crate::dao_manager::{DaoManager, DaoStore};
-use crate::table_initialisation::initialise_table_bsp_randomly;
+// use crate::table_initialisation::initialise_table_bsp_randomly;
 use crate::NalityNNTable;
 use bits::container::BitsContainer;
 use bits::evp::{matrix_dot, similarity_as_f32};
@@ -7,6 +7,7 @@ use bits::EvpBits;
 use dao::Dao;
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
 use r_descent::functions::{fill_false_atomic, fill_selected};
+use r_descent::initialise_table_bsp_randomly;
 use r_descent::{check_apply_update, get_slice_using_selectors, RDescent};
 use rayon::prelude::*;
 use std::rc::Rc;

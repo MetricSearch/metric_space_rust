@@ -6,8 +6,10 @@ use std::time::Instant;
 use utils::address::GlobalAddress;
 use utils::Nality;
 
+// This code is the same as the one in r_descent but uses GlobalAddress.
+
 /// Initialise with a base address for the NN table
-pub fn initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nality> {
+pub fn xxx_initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<Nality> {
     log::info!("Randomly initializing table bsp, rows: {rows} neighbours: {columns}");
     let start_time = Instant::now();
 

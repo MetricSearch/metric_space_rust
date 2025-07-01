@@ -54,44 +54,47 @@ pub fn hdf5_glove_f32_load(data_path: &str) -> anyhow::Result<Dao<Array1<f32>>> 
     Ok(dao)
 }
 
-// pub fn hdf5_f32_write(
-//     data_path: &str,
-//     name: &str,
-//     description: &str,
-//     normed: &str,
-//     arrai: &Array1<Array1<f32>>,
-// ) -> anyhow::Result<()> {
-//     let file = File::create(data_path)?; // open for writing
-//     let group = file.create_group("/embeddings")?; // create a group
-//                                                    // A blocking, shuffling and loss-less compression
-//                                                    // #[cfg(feature = "blosc")]
-//                                                    // blosc_set_nthreads(2);                                      // set number of blosc threads
-//     let builder = group.new_dataset_builder();
-//     //#[cfg(feature = "blosc")]
-//     //let builder = builder.blosc_zstd(9, true); // zstd + shuffle
-//     let dim = arrai.len();
-//     let num_records = arrai[0].len();
-//
-//     let arrai: Array1<f32> = arrai
-//         .iter()
-//         .map(|row| row.iter()) // 1D array of f32s
-//         .flatten()
-//         .map(|x| *x)
-//         .collect::<Array1<f32>>();
-//
-//     let arrai: Array2<f32> = arrai.into_shape_with_order([num_records, dim]).unwrap().into();
-//
-//     let ds = builder.with_data(&arrai).create("all_embeddings")?;
-//
-//     add_str_attr(&ds, "name", name);
-//     add_str_attr(&ds, &"description", description);
-//     add_attr(&ds, "dim", &dim);
-//     add_attr(&ds, "num_records", &num_records);
-//     add_str_attr(&ds, &"normed", normed);
-//
-//     let _ = file.flush();
-//     Ok(())
-// }
+pub fn hdf5_f32_write(
+    data_path: &str,
+    name: &str,
+    description: &str,
+    normed: &str,
+    arrai: &Array1<Array1<f32>>,
+) -> anyhow::Result<()> {
+    let file = File::create(data_path)?; // open for writing
+    let group = file.create_group("/embeddings")?; // create a group
+                                                   // A blocking, shuffling and loss-less compression
+                                                   // #[cfg(feature = "blosc")]
+                                                   // blosc_set_nthreads(2);                                      // set number of blosc threads
+    let builder = group.new_dataset_builder();
+    //#[cfg(feature = "blosc")]
+    //let builder = builder.blosc_zstd(9, true); // zstd + shuffle
+    let dim = arrai.len();
+    let num_records = arrai[0].len();
+
+    let arrai: Array1<f32> = arrai
+        .iter()
+        .map(|row| row.iter()) // 1D array of f32s
+        .flatten()
+        .map(|x| *x)
+        .collect::<Array1<f32>>();
+
+    let arrai: Array2<f32> = arrai
+        .into_shape_with_order([num_records, dim])
+        .unwrap()
+        .into();
+
+    let ds = builder.with_data(&arrai).create("all_embeddings")?;
+
+    add_str_attr(&ds, "name", name);
+    add_str_attr(&ds, &"description", description);
+    add_attr(&ds, "dim", &dim);
+    add_attr(&ds, "num_records", &num_records);
+    add_str_attr(&ds, &"normed", normed);
+
+    let _ = file.flush();
+    Ok(())
+}
 
 pub fn add_attr(ds: &Dataset, key: &str, value: &usize) {
     let attr = ds.new_attr::<i32>().create(key).unwrap();

@@ -1,10 +1,10 @@
 #![feature(path_add_extension)]
 
+pub mod big_knn_r_descent;
 pub mod dao_manager;
-pub mod knn_r_descent;
 mod table_initialisation;
 
-use crate::knn_r_descent::into_big_knn_r_descent;
+use crate::big_knn_r_descent::into_big_knn_r_descent;
 use anyhow::anyhow;
 use bincode;
 use bits::container::{BitsContainer, Simd256x2};
@@ -33,7 +33,6 @@ pub struct NalityNNTable {
 pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> anyhow::Result<()> {
     let file = Hdf5File::create(f_name)?; // open for writing
     let group = file.create_group("/knns")?; // create a group
-                                             // TODO do they need the dists too?
     let builder = group.new_dataset_builder();
 
     let _ds = builder.with_data(&data.to_owned()).create("results")?;

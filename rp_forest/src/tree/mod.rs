@@ -200,26 +200,6 @@ pub fn make_pivot2<T: Clone>(dao: Rc<Dao<T>>, rng: &mut ChaCha8Rng) -> T {
     dao.get_datum(index).clone()
 }
 
-// fn make_pivot(dim: usize, distribution: Normal<f32>) -> Vec<f32> {
-//     // IF WE USE THIS NEED TO ADD rng
-//     let values: Vec<f32> = (0..dim) // for all the required dimensions
-//         .map(|_| distribution.sample(&mut StdRng::from_seed(SEED))) // map randoms in range 0..1
-//         .collect(); // put them all in a vector
-//     let mag_squared: f32 = values
-//         .iter() // take all the elements in the Vector
-//         .map(|x| (x * x)) // square each of them
-//         .sum(); // and sum them up
-//
-//     let mag = mag_squared.sqrt();
-//
-//     let normed = values
-//         .iter() // take all the values
-//         .map(|x| x / mag) // divide by the mag
-//         .collect(); // collect them up into a vec
-//
-//     normed // return the norm
-// }
-
 /***************************************************************************************************
                                              RPTree
 ***************************************************************************************************/

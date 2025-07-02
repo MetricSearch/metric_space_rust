@@ -17,7 +17,7 @@ pub fn xxx_initialise_table_bsp_randomly(rows: usize, columns: usize) -> Array2<
     let nalities: Vec<Nality> = (0..rows * columns)
         .map(|_| {
             let rand_index = rng.random_range(0..rows); // pick random row index
-            Nality::new_empty_index(GlobalAddress::into(
+            Nality::new_empty_sim(GlobalAddress::into(
                 rand_index
                     .try_into()
                     .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),

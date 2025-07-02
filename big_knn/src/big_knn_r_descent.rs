@@ -21,10 +21,13 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     num_neighbours: usize,
     reverse_list_size: usize,
     delta: f64,
+    start_index: u32,
 ) -> NalityNNTable {
     let num_data = daos.iter().map(|dao| dao.num_data).sum();
 
-    let neighbourlarities = initialise_table_bsp_randomly(num_data, num_neighbours);
+    let neighbourlarities = initialise_table_bsp_randomly(num_data, num_neighbours, start_index);
+
+    check_neighbours(&neighbourlarities, &daos[0]);
 
     make_big_knn_table2_bsp(
         daos,
@@ -41,6 +44,20 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     NalityNNTable {
         nalities: neighbourlarities,
     }
+}
+
+fn check_neighbours<C: BitsContainer, const W: usize>(
+    neebs: &Array2<Nality>,
+    dao: &Dao<EvpBits<C, { W }>>,
+) {
+    println!("Checking neighbours");
+    neebs.iter().for_each(|nality| {
+        let id = GlobalAddress::as_u32(nality.id());
+        if id < dao.base_addr && id > dao.base_addr + dao.embeddings.len() as u32 {
+            println!("Unmapped nality: {:?}", &nality.id());
+        }
+    });
+    println!("Finished checking neighbours");
 }
 
 pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
@@ -128,7 +145,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 (new_indices.len() as f64).round() as u64 as usize,
             );
 
-            // sampled are random indices from new_indices
+            // sampled are random indices from new_indices - they are indices into the current row
 
             let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
             let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
@@ -184,12 +201,17 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
-                let this_id = GlobalAddress::as_usize(this_row_neighbourlarities[id].id());
+                let this_id = this_row_neighbourlarities[id].id();
                 // and how similar it is to the current id
                 let local_sim = this_row_neighbourlarities[id].sim();
 
+                let this_local_id: LocalAddress =
+                    dao_manager.table_addr_from_global_addr(&this_id).unwrap();
+
+                let this_local_id: usize = LocalAddress::as_usize(&this_local_id);
+
                 // newForwardLinks = new(thisId,:);
-                let new_forward_links = new.row(this_id);
+                let new_forward_links = new.row(this_local_id);
 
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
                 let forward_links_dont_contain_this = !new_forward_links
@@ -211,26 +233,27 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     // biggest similarity of size reverse_list_size.
                     // first find all the forward links containing the row
 
-                    if reverse_count[this_id] < reverse_list_size {
+                    if reverse_count[this_local_id] < reverse_list_size {
                         // if the list is not full
                         // update the reverse pointer list and the similarities
 
-                        reverse[[this_id, reverse_count[this_id]]] = Nality::new(
+                        reverse[[this_local_id, reverse_count[this_local_id]]] = Nality::new(
                             local_sim,
                             dao_manager.global_addr_from_table_addr(&row).unwrap(),
                         );
-                        reverse_count[this_id] = reverse_count[this_id] + 1; // increment the count
+                        reverse_count[this_local_id] = reverse_count[this_local_id] + 1;
+                    // increment the count
                     } else {
                         // the list is full - so no need to do anything with counts
                         // but it is, so we will only add it if it's more similar than another one already there
 
                         let (position, value) =
-                            min_index_and_value_neighbourlarities(&reverse.row(this_id)); // Matlab line 109
+                            min_index_and_value_neighbourlarities(&reverse.row(this_local_id)); // Matlab line 109
                         let value = value.sim();
 
                         if value < local_sim {
                             // Matlab line 110  if the value in reverse_sims is less similar we over write
-                            reverse[[this_id, position as usize]] = Nality::new(
+                            reverse[[this_local_id, position as usize]] = Nality::new(
                                 local_sim,
                                 dao_manager.global_addr_from_table_addr(&row).unwrap(),
                             );
@@ -249,22 +272,21 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         work_done = AtomicUsize::new(0);
 
-        // let updates = Updates::new(num_data); // TODO delete
-
-        // let mut mutexes = vec![];
-        // for i in 0..num_data {
-        //     mutexes.push(Mutex::new(()));
-        // }
-
         old.axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
             .enumerate()
             .zip(new.axis_iter_mut(Axis(0))
             )
             .par_bridge()
             .map(|((row, old_row), new_row)| {
+
+                    // println!( "old_row:" );
+                    // old_row
+                    //     .iter()
+                    //     .map(|nality| { println!("{:?}", nality.id() ) });
+                    // println!( "-----" );
+
                 let binding = reverse
                     .row(row);
-
 
                 let new_row_union: Array1<GlobalAddress> = if new_row.len() == 0 {
                     // Matlab line 130
@@ -286,16 +308,24 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     &old_row
                         .iter()
                         .map(|x| { x.id() })
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped.
-                        .collect::<Array1<_>>().view() ); // Matlab line 136
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped - correct
+                        .collect::<Array1<_>>().view()); // Matlab line 136
+
+                if old_data.len() == 0 {
+                    println!( "old data is empty!, old_row:" );
+                    old_row
+                        .iter()
+                        .map(|nality| { println!("{:?}", nality.id() ) });
+                    println!( "-----" );
+                }
 
                 let new_data = get_slice_using_multi_dao_selectors(
                     &dao_manager,
                     &new_row
                         .iter()
                         .map(|x| x.id())
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped.
-                        .collect::<Array1<_>>().view() ); // Matlab line 137
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped  - correct
+                        .collect::<Array1<_>>().view()); // Matlab line 137
 
                 let new_union_data =
                     get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.view()); // Matlab line 137
@@ -366,18 +396,23 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                        |a, b| { similarity_as_f32(a, b) },
                             );
 
+                        if new_old_sims.shape() == &[18, 0] {
+                            println!("new data shape = {:?}, old data shape = {:?}", new_data.shape(), old_data.shape());
+                        }
+
                         // and do the same for each pair of elements in the new_row/old_row
 
-                        for new_ind1 in 0..new_row.len() {
+                        for new_row_index_1 in 0..new_row.len() {
                             // Matlab line 183  // rectangular matrix - need to look at all
 
-                            let u1 = &new_row.get(new_ind1).unwrap_or_else(|| panic!("Illegal index of new_row at {new_ind1} length is: {}", new_row.len()));
-                            for new_ind2 in 0..old_row.len() {
-                                let u2 = &old_row.get(new_ind2).unwrap(); // Matlab line 186
+                            let u1 = &new_row.get(new_row_index_1).unwrap_or_else(|| panic!("Illegal index of new_row at {new_row_index_1} length is: {}", new_row.len()));
+                            for new_row_index_2 in 0..old_row.len() {
+                                let u2 = &old_row.get(new_row_index_2).unwrap(); // Matlab line 186
 
                                 // then get their distance from the matrix
 
-                                let this_sim = *new_old_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_old_sims.shape()));
+                                let this_sim = *new_old_sims.get((new_row_index_1, new_row_index_2))
+                                    .unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_row_index_1},{new_row_index_2} Shape is: {:?}", new_old_sims.shape()));
 
                                 check_apply_update(
                                     dao_manager.table_addr_from_global_addr(&u1.id()).unwrap().as_usize(),   // the new row
@@ -406,6 +441,12 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));
     }
 
+    log::debug!(
+        "Final iteration: c: {} iters: {}",
+        work_done.load(std::sync::atomic::Ordering::SeqCst),
+        iterations
+    );
+
     let final_time = Instant::now();
     log::debug!(
         "Overall time 3: {} ms",
@@ -417,16 +458,19 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
     dao_store: &DaoStore<C, W>,
     selectors: &ArrayView1<GlobalAddress>,
 ) -> Array1<EvpBits<C, W>> {
-    let mut sliced = Array1::uninit(selectors.len());
+    let mut result = Array1::uninit(selectors.len());
 
     for count in 0..selectors.len() {
         let source = dao_store.get_dao(&selectors[count]).unwrap();
-        let data = source.get_data();
-        let arrai_view = data.slice(s![
-            GlobalAddress::as_usize(selectors[count]) - source.base_addr
-        ]);
-        arrai_view.assign_to(sliced.slice_mut(s![count]));
+        let evps = &source.get_data(); // the actual data indexed from zero
+        let global_addr_selection = selectors[count]; // the global addr of the selection
+        let local_addr_selection = dao_store
+            .table_addr_from_global_addr(&global_addr_selection)
+            .unwrap(); // the corresponding index (indexed from zero)
+        let local_addr_selection = local_addr_selection.as_usize(); // needs to be usize for index
+        evps.slice(s![local_addr_selection]) // assign the slice of evps to slot in result
+            .assign_to(result.slice_mut(s![count]));
     }
 
-    unsafe { sliced.assume_init() }
+    unsafe { result.assume_init() }
 }

@@ -451,16 +451,16 @@ pub fn get_slice_using_selectors<T: Clone>(
     source: &ArrayView1<T>,
     selectors: &ArrayView1<usize>,
 ) -> Array1<T> {
-    let mut sliced = Array1::uninit(selectors.len());
+    let mut result = Array1::uninit(selectors.len());
 
     for count in 0..selectors.len() {
         // was result_shape
         source
             .slice(s![selectors[count]])
-            .assign_to(sliced.slice_mut(s![count]));
+            .assign_to(result.slice_mut(s![count]));
     }
 
-    unsafe { sliced.assume_init() }
+    unsafe { result.assume_init() }
 }
 
 /// Selects and copies specific rows from a 2D array view into a new 2D array.

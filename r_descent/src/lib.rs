@@ -253,6 +253,8 @@ impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWith
 // }
 //}
 
+const ZERO: u32 = 0;
+
 impl<C: BitsContainer, const W: usize> IntoRDescent for Dao<EvpBits<C, W>> {
     fn into_rdescent(
         self: Rc<Self>,
@@ -262,7 +264,7 @@ impl<C: BitsContainer, const W: usize> IntoRDescent for Dao<EvpBits<C, W>> {
     ) -> RDescent {
         //let rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
         let neighbourlarities =
-            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours);
+            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours, ZERO);
 
         get_nn_table2_bsp(
             self.clone(),
@@ -293,7 +295,7 @@ impl<C: BitsContainer, const W: usize> IntoRDescentWithRevNNs for Dao<EvpBits<C,
         // let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); TODO delete me
 
         let neighbourlarities =
-            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours_in_nn_table);
+            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours_in_nn_table, ZERO);
 
         get_nn_table2_bsp(
             self.clone(),
@@ -761,6 +763,12 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
         let after = Instant::now();
         log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));
     }
+
+    log::debug!(
+        "Final iteration: c: {} iters: {}",
+        work_done.load(std::sync::atomic::Ordering::SeqCst),
+        iterations
+    );
 
     let final_time = Instant::now();
     log::debug!(

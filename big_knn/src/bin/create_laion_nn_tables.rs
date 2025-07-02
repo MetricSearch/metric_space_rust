@@ -54,7 +54,7 @@ pub fn main() -> Result<()> {
 
     let file_names = get_file_names(dir_base).unwrap();
     let sizes = get_file_sizes(dir_base, &file_names).unwrap();
-    let partition_boundaries = partition_into(&sizes, 2_500_000).unwrap();
+    let partition_boundaries = partition_into(&sizes, 3_500_000).unwrap();
     let partitions = make_partitions(&partition_boundaries, &file_names);
 
     for i in 0..partitions.len() {
@@ -67,11 +67,16 @@ pub fn main() -> Result<()> {
 
     for i in 0..partitions.len() {
         let part = partitions.get(i).unwrap();
-        let part_size = partition_boundaries.get(i).unwrap();
 
-        let dao = load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES).unwrap();
+        let dao =
+            load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES, start_index).unwrap();
+
+        println!("Dao base: {} size = {} ", dao.base_addr, dao.num_data);
+
+        let partition_data_size = dao.embeddings.len() as u32;
 
         let file_name = "nn_table".to_string().add(i.to_string().as_str());
+
         create_and_store_nn_table(
             dao,
             NUM_NEIGHBOURS,
@@ -82,7 +87,7 @@ pub fn main() -> Result<()> {
             &file_name,
         );
 
-        start_index = start_index + part_size;
+        start_index = start_index + partition_data_size;
     }
 
     Ok(())

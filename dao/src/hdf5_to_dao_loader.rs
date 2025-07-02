@@ -109,6 +109,7 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
     base_path: &Path,
     filenames: &Vec<String>,
     num_vertices: usize,
+    base_address: u32,
 ) -> anyhow::Result<Dao<EvpBits<C, W>>> {
     let mut loaded = 0;
 
@@ -142,7 +143,7 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
         // TODO
         meta: dao_meta,
         num_data: loaded,
-        base_addr: 0,
+        base_addr: base_address,
         num_queries: 0,
         embeddings: embeddings,
     };

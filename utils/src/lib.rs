@@ -32,7 +32,7 @@ impl Nality {
         Self(AtomicU64::new(GlobalAddress::into(0).combine(-1f32))) // was u32::MAX 0
     }
 
-    pub fn new_empty_index(id: GlobalAddress) -> Self {
+    pub fn new_empty_sim(id: GlobalAddress) -> Self {
         Self(AtomicU64::new(id.combine(-1f32)))
     }
 

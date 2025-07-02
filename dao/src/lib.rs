@@ -81,7 +81,7 @@ pub struct Dao<Element> {
     /// the size of the data (a subset of the total data)
     pub num_data: usize,
     /// the size of the queries (a subset of the total data)
-    pub base_addr: usize,
+    pub base_addr: u32,
     /// the base address of the dao
     pub num_queries: usize,
     /// the data and queries
@@ -97,7 +97,7 @@ impl<T> Dao<T> {
         self.num_data
     }
 
-    pub fn get_base_addr(&self) -> usize {
+    pub fn get_base_addr(&self) -> u32 {
         self.base_addr
     }
 

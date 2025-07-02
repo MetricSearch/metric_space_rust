@@ -46,10 +46,7 @@ pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> anyhow::Result<()> {
 
 /// Partitions up a bunch of h5 files from the base_path directory
 /// into groups of files containing at most max_entries rows
-pub fn get_partitions<'a>(
-    dir_base: &'a Path,
-    max_entries: usize,
-) -> (Vec<usize>, Vec<Vec<String>>) {
+pub fn get_partitions<'a>(dir_base: &'a Path, max_entries: u32) -> (Vec<u32>, Vec<Vec<String>>) {
     let file_names = get_file_names(dir_base).unwrap();
     let sizes = get_file_sizes(dir_base, &file_names).unwrap();
     let partition_boundaries = partition_into(&sizes, max_entries).unwrap();
@@ -95,7 +92,7 @@ fn extract_index(filename: &str) -> Option<u32> {
 /// Finds the sizes of all the h5 files in the directory base_path whose names are in the filenames vector
 /// returns a Vector of the same size as the filenames Vector containing the number of entries in the h5 file.
 /// Fails if any of the files are not h5 files
-pub fn get_file_sizes(base_path: &Path, filenames: &Vec<String>) -> anyhow::Result<Vec<usize>> {
+pub fn get_file_sizes(base_path: &Path, filenames: &Vec<String>) -> anyhow::Result<Vec<u32>> {
     let mut sizes = vec![];
 
     for filename in filenames {
@@ -103,16 +100,13 @@ pub fn get_file_sizes(base_path: &Path, filenames: &Vec<String>) -> anyhow::Resu
         path.push(filename);
         let file = Hdf5File::open(path)?; // open for reading
         let h5_data = file.dataset("data")?; // the data
-        sizes.push(h5_data.shape()[0]);
+        sizes.push(h5_data.shape()[0] as u32); // safe as files are not that big!
     }
     Ok(sizes)
 }
 
 // Partitions the h5 files into blocks of at most max_entries_per_block and returns the starting index of weach block
-pub fn partition_into(
-    sizes: &Vec<usize>,
-    max_entries_per_block: usize,
-) -> anyhow::Result<Vec<usize>> {
+pub fn partition_into(sizes: &Vec<u32>, max_entries_per_block: u32) -> anyhow::Result<Vec<u32>> {
     let mut partitions = vec![];
 
     let mut entries_accumulated = 0;
@@ -127,7 +121,7 @@ pub fn partition_into(
         }
         if entries_accumulated + sizes[index] > max_entries_per_block {
             //  block filled
-            partitions.push(index); // so start a new block
+            partitions.push(index as u32); // so start a new block
             entries_accumulated = sizes[index]; // reset the counter
         } else {
             entries_accumulated += sizes[index]; // otherwise increment the counter
@@ -135,7 +129,7 @@ pub fn partition_into(
     }
     if entries_accumulated > 0 {
         // push the last index if there is data accumulated
-        partitions.push(sizes.len());
+        partitions.push(sizes.len() as u32);
     }
 
     Ok(partitions)
@@ -144,7 +138,7 @@ pub fn partition_into(
 // Takes some filename partitions and returns a Vec of Vecs containing the files partitioned up
 // each outer Vec entry contains a pair containing the partition size along with a Vec of filenames from the partition.
 pub fn make_partitions<'a>(
-    partition_boundaries: &Vec<usize>,
+    partition_boundaries: &Vec<u32>,
     file_names: &'a Vec<String>,
 ) -> Vec<Vec<String>> {
     let mut result = vec![];
@@ -152,10 +146,10 @@ pub fn make_partitions<'a>(
     let mut start: usize = 0;
     for i in 0..partition_boundaries.len() {
         let mut files_in_partition = vec![];
-        for j in start..partition_boundaries[i] {
+        for j in start..partition_boundaries[i] as usize {
             files_in_partition.push(file_names[j].clone());
         }
-        start = partition_boundaries[i];
+        start = partition_boundaries[i] as usize;
         result.push(files_in_partition);
     }
     result
@@ -166,14 +160,19 @@ pub fn create_and_store_nn_table(
     num_neighbours: usize,
     reverse_list_size: usize,
     delta: f64,
-    start_index: usize,
+    start_index: u32,
     output_dir: &String,
     output_file: &String,
 ) {
     let vec_dao: Vec<Dao<EvpBits<Simd256x2, 512>>> = vec![dao];
 
-    //let descent = vec_dao.into_big_knn_r_descent(num_neighbours, reverse_list_size, delta);
-    let nn_table = into_big_knn_r_descent(vec_dao, num_neighbours, reverse_list_size, delta);
+    let nn_table = into_big_knn_r_descent(
+        vec_dao,
+        num_neighbours,
+        reverse_list_size,
+        delta,
+        start_index,
+    );
 
     let output_path = Path::new(&output_dir)
         .join(output_file)

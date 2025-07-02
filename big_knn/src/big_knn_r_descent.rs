@@ -6,7 +6,7 @@ use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
 use dao::Dao;
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
-use r_descent::functions::{fill_false_atomic, fill_selected};
+use r_descent::functions::{fill_false_atomic_from_selectors, fill_selected};
 use r_descent::initialise_table_bsp_randomly;
 use r_descent::{check_apply_update, get_slice_using_selectors, RDescent};
 use rayon::prelude::*;
@@ -50,14 +50,16 @@ fn check_neighbours<C: BitsContainer, const W: usize>(
     neebs: &Array2<Nality>,
     dao: &Dao<EvpBits<C, { W }>>,
 ) {
+    let mut count = 0;
     println!("Checking neighbours");
     neebs.iter().for_each(|nality| {
         let id = GlobalAddress::as_u32(nality.id());
+        count += 1;
         if id < dao.base_addr && id > dao.base_addr + dao.embeddings.len() as u32 {
             println!("Unmapped nality: {:?}", &nality.id());
         }
     });
-    println!("Finished checking neighbours");
+    println!("Finished checking {} neighbours", count);
 }
 
 pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
@@ -163,7 +165,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 &old_indices.view(),
             );
 
-            fill_false_atomic(&mut neighbour_row_view, &sampled.view())
+            fill_false_atomic_from_selectors(&mut neighbour_row_view, &sampled.view())
         }
 
         let after = Instant::now();
@@ -279,12 +281,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             .par_bridge()
             .map(|((row, old_row), new_row)| {
 
-                    // println!( "old_row:" );
-                    // old_row
-                    //     .iter()
-                    //     .map(|nality| { println!("{:?}", nality.id() ) });
-                    // println!( "-----" );
-
                 let binding = reverse
                     .row(row);
 
@@ -303,28 +299,26 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 };
 
                 // index the data using the rows indicated in old_row
-                let old_data = get_slice_using_multi_dao_selectors(
+                let old_data = get_slice_using_multi_dao_selectors( // an array of evps selected from the old row
                     &dao_manager,
                     &old_row
                         .iter()
                         .map(|x| { x.id() })
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped - correct
-                        .collect::<Array1<_>>().view()); // Matlab line 136
-
-                if old_data.len() == 0 {
-                    println!( "old data is empty!, old_row:" );
-                    old_row
-                        .iter()
-                        .map(|nality| { println!("{:?}", nality.id() ) });
-                    println!( "-----" );
-                }
+                        // TODO *** BUG HERE ***
+                        // the old data starts as zeros - flag not set.
+                        // the filter takes these all out and gives an empty array.
+                        // this mistake is in all the code - other code just gives zeros
+                        // could filter the empties but still will give an empty array
+                        // Does not happen below because these is always some new data?
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped
+                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 136
 
                 let new_data = get_slice_using_multi_dao_selectors(
                     &dao_manager,
                     &new_row
                         .iter()
                         .map(|x| x.id())
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped  - correct
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped
                         .collect::<Array1<_>>().view()); // Matlab line 137
 
                 let new_union_data =
@@ -397,7 +391,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                             );
 
                         if new_old_sims.shape() == &[18, 0] {
-                            println!("new data shape = {:?}, old data shape = {:?}", new_data.shape(), old_data.shape());
+                            println!("new data shape = {:?}, old_data shape = {:?}", new_data.shape(), old_data.shape());
                         }
 
                         // and do the same for each pair of elements in the new_row/old_row

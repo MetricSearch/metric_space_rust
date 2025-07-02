@@ -335,7 +335,10 @@ pub fn fill_false(row: &mut ArrayViewMut1<bool>, selector: &ArrayView1<usize>) {
     }
 }
 
-pub fn fill_false_atomic(row: &mut ArrayViewMut1<AtomicBool>, selector: &ArrayView1<usize>) {
+pub fn fill_false_atomic_from_selectors(
+    row: &mut ArrayViewMut1<AtomicBool>,
+    selector: &ArrayView1<usize>,
+) {
     for i in 0..selector.len() {
         row[selector[i]].store(false, Ordering::Relaxed);
     }

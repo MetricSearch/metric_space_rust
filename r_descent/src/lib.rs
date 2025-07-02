@@ -28,8 +28,8 @@ use utils::{arg_sort_big_to_small_2d, min_index_and_value, rand_perm};
 use utils::{min_index_and_value_neighbourlarities, minimum_in_nality, Nality};
 
 use crate::functions::{
-    fill_false_atomic, fill_selected, get_1_d_slice_using_selected_u32, get_2_d_slice_using,
-    get_reverse_nality_links_not_in_forward,
+    fill_false_atomic_from_selectors, fill_selected, get_1_d_slice_using_selected_u32,
+    get_2_d_slice_using, get_reverse_nality_links_not_in_forward,
 };
 pub use functions::{get_selectors_from_flags, get_slice_using_selectors};
 
@@ -495,7 +495,7 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                 &old_indices.view(),
             );
 
-            fill_false_atomic(&mut neighbour_row_view, &sampled.view())
+            fill_false_atomic_from_selectors(&mut neighbour_row_view, &sampled.view())
         }
 
         let after = Instant::now();

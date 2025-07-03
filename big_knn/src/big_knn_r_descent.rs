@@ -281,6 +281,11 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             .par_bridge()
             .map(|((row, old_row), new_row)| {
 
+                // TODO maybe need some tests here?
+                // matlab has:
+                //      oldRow = nonzeros(old(i_phase3,:));
+                //      newRow = nonzeros(new(i_phase3,:));
+
                 let binding = reverse
                     .row(row);
 

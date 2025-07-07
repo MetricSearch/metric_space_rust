@@ -54,7 +54,7 @@ pub fn main() -> Result<()> {
 
     let file_names = get_file_names(dir_base).unwrap();
     let sizes = get_file_sizes(dir_base, &file_names).unwrap();
-    let partition_boundaries = partition_into(&sizes, 3_500_000).unwrap();
+    let partition_boundaries = partition_into(&sizes, 1_100_000).unwrap();
     let partitions = make_partitions(&partition_boundaries, &file_names);
 
     for i in 0..partitions.len() {

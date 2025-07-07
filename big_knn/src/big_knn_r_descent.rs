@@ -5,7 +5,7 @@ use bits::container::BitsContainer;
 use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
 use dao::Dao;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1, Axis};
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1, Axis, CowArray};
 use r_descent::functions::{fill_false_atomic_from_selectors, fill_selected};
 use r_descent::initialise_table_bsp_randomly;
 use r_descent::{check_apply_update, get_slice_using_selectors, RDescent};
@@ -78,7 +78,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
     let mut iterations = 0;
 
-    let mut neighbour_is_new =
+    let mut neighbour_is_new: Array2<AtomicBool> =
         Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(true));
 
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
@@ -100,76 +100,82 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         let now = Instant::now();
 
-        let mut new: Array2<Nality> =
-            Array2::from_elem((num_data, num_neighbours), Nality::new_empty()); // Matlab line 65
-        let mut old: Array2<Nality> =
-            Array2::from_elem((num_data, num_neighbours), Nality::new_empty());
+        // Take a copy of the state of the world
+        let mut previous_neighbours = &mut neighbourlarities.clone();
+        let previous_flags: Array2<AtomicBool> =
+            Array2::from_shape_fn(neighbour_is_new.dim(), |(i, j)| {
+                // clone the atomic flags array
+                AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
+            });
+
+        neighbour_is_new =
+            Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(false));
 
         // initialise old and new inline
 
-        for row in 0..num_data {
-            // in Matlab line 74
-            let row_flags = neighbour_is_new.row_mut(row); // Matlab line 74
+        // for row in 0..num_data {
+        //     // in Matlab line 74
+        //     let row_flags = neighbour_is_new.row_mut(row); // Matlab line 74
+        //
+        //     // new_indices are the indices in this row whose flag is set to true (columns)
+        //
+        //     let new_indices = row_flags // Matlab line 76
+        //         .iter()
+        //         .enumerate()
+        //         .filter_map(|(index, flag)| {
+        //             if flag.load(Ordering::Relaxed) {
+        //                 Some(index)
+        //             } else {
+        //                 None
+        //             }
+        //         })
+        //         .collect::<Array1<usize>>();
 
-            // new_indices are the indices in this row whose flag is set to true (columns)
+        // old_indices are the indices in this row whose flag is set to false (intially there are none of these).
 
-            let new_indices = row_flags // Matlab line 76
-                .iter()
-                .enumerate()
-                .filter_map(|(index, flag)| {
-                    if flag.load(Ordering::Relaxed) {
-                        Some(index)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Array1<usize>>();
+        // let old_indices = row_flags // Matlab line 77
+        //     .iter()
+        //     .enumerate()
+        //     .filter_map(|(index, flag)| {
+        //         if !flag.load(Ordering::Relaxed) {
+        //             Some(index)
+        //         } else {
+        //             None
+        //         }
+        //     })
+        //     .collect::<Array1<usize>>();
 
-            // old_indices are the indices in this row whose flag is set to false (intially there are none of these).
+        // random data ids from whole data set
+        // in matlab p = randperm(n,k) returns a row vector containing k unique integers selected randomly from 1 to n
 
-            let old_indices = row_flags // Matlab line 77
-                .iter()
-                .enumerate()
-                .filter_map(|(index, flag)| {
-                    if !flag.load(Ordering::Relaxed) {
-                        Some(index)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Array1<usize>>();
+        // let sampled = rand_perm(
+        //     new_indices.len(),
+        //     (new_indices.len() as f64).round() as u64 as usize,
+        // );
 
-            // random data ids from whole data set
-            // in matlab p = randperm(n,k) returns a row vector containing k unique integers selected randomly from 1 to n
+        // sampled are random indices from new_indices - they are indices into the current row
 
-            let sampled = rand_perm(
-                new_indices.len(),
-                (new_indices.len() as f64).round() as u64 as usize,
-            );
+        // let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
+        // let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
+        // let mut neighbour_row_view: ArrayViewMut1<AtomicBool> = neighbour_is_new.row_mut(row);
+        //
+        // fill_selected(
+        //     &mut new_row_view,
+        //     &neighbourlarities.row(row),
+        //     &sampled.view(),
+        // ); // Matlab line 79
+        //
+        // fill_selected(
+        //     &mut old_row_view,
+        //     &neighbourlarities.row(row),
+        //     &old_indices.view(),
+        // );
+        //
+        // fill_false_atomic_from_selectors(&mut neighbour_row_view, &sampled.view())
+        //}
 
-            // sampled are random indices from new_indices - they are indices into the current row
-
-            let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
-            let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
-            let mut neighbour_row_view: ArrayViewMut1<AtomicBool> = neighbour_is_new.row_mut(row);
-
-            fill_selected(
-                &mut new_row_view,
-                &neighbourlarities.row(row),
-                &sampled.view(),
-            ); // Matlab line 79
-
-            fill_selected(
-                &mut old_row_view,
-                &neighbourlarities.row(row),
-                &old_indices.view(),
-            );
-
-            fill_false_atomic_from_selectors(&mut neighbour_row_view, &sampled.view())
-        }
-
-        let after = Instant::now();
-        log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
+        // let after = Instant::now();
+        // log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
 
         // phase 2  Matlab line 88
 
@@ -212,8 +218,22 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                 let this_local_id: usize = LocalAddress::as_usize(&this_local_id);
 
-                // newForwardLinks = new(thisId,:);
-                let new_forward_links = new.row(this_local_id);
+                // WAS: let new_forward_links = new.row(this_local_id);
+                let new_forward_links = previous_neighbours //take the previous neighbours
+                    .row(this_local_id)
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(column, nality)| {
+                        // and select the entries where previous_flags are set
+                        if previous_flags[[LocalAddress::as_usize(&row), column]]
+                            .load(Ordering::Relaxed)
+                        {
+                            Some(nality.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Array1<Nality>>();
 
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
                 let forward_links_dont_contain_this = !new_forward_links
@@ -274,20 +294,50 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         work_done = AtomicUsize::new(0);
 
-        old.axis_iter_mut(Axis(0)) // Get mutable rows (disjoint slices)
+        previous_neighbours
+            .rows()
+            .into_iter()
+            //.axis_iter(Axis(0)) // iterate over the rows
             .enumerate()
-            .zip(new.axis_iter_mut(Axis(0))
-            )
-            .par_bridge()
-            .map(|((row, old_row), new_row)| {
+            .map(|(row_index, nalities)| {
+                let previous_row = previous_neighbours.row(row_index);
 
-                // TODO maybe need some tests here?
-                // matlab has:
+                let new_row: Vec<_> = previous_row
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(column, nality)| previous_flags[[row_index, *column]].load(Ordering::Relaxed))
+                    .map(|x| x.1)
+                    .collect();
+
+                let old_row: Vec<_> = previous_row
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(column, nality)| ! previous_flags[[row_index, *column]].load(Ordering::Relaxed))
+                    .map(|x| x.1)
+                    .collect();
+
+            //     (row_index, old_row, new_row)
+            // })
+            // .map(|(row_index, old_row, new_row)| {
+
+                // previous_neighbours
+                //     .axis_iter(Axis(0)) // iterate over the rows
+                //     .enumerate()
+                //     .map(|(row_index, nalities)| {
+                //         let new_row: Vec<_> = nalities.iter().enumerate().filter(|(column, nality)| previous_flags[[row_index, *column]].load(Ordering::Relaxed))
+                //             .map(|x| x.1 ).collect();
+                //         let old_row: Vec<_> = nalities.iter().enumerate().filter(|(column, nality)| ! previous_flags[[row_index, *column]].load(Ordering::Relaxed))
+                //             .map(|x| x.1 ).collect();
+                //
+                //         (row_index, old_row, new_row)
+                //     })
+                //     .map(|(row_index, old_row, new_row)| {
+
+                // Matlab has this here:
                 //      oldRow = nonzeros(old(i_phase3,:));
                 //      newRow = nonzeros(new(i_phase3,:));
 
-                let binding = reverse
-                    .row(row);
+                let reversed = reverse.row(row_index);
 
                 let new_row_union: Array1<GlobalAddress> = if new_row.len() == 0 {
                     // Matlab line 130
@@ -296,34 +346,36 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     new_row
                         .iter()
                         .filter_map(|x| { if x.is_empty() { None } else { Some(x.id()) } }) //<<<<<<<<< only take real values
-                        .chain(binding
+                        .chain(reversed
                             .iter()
                             .filter(|&x| !x.is_empty())
                             .map(|x| x.id()))
                         .collect::<Array1<GlobalAddress>>()
                 };
 
+                // println!( "Old row sze = {}", old_row.len() );
+
                 // index the data using the rows indicated in old_row
                 let old_data = get_slice_using_multi_dao_selectors( // an array of evps selected from the old row
-                    &dao_manager,
-                    &old_row
-                        .iter()
-                        .map(|x| { x.id() })
-                        // TODO *** BUG HERE ***
-                        // the old data starts as zeros - flag not set.
-                        // the filter takes these all out and gives an empty array.
-                        // this mistake is in all the code - other code just gives zeros
-                        // could filter the empties but still will give an empty array
-                        // Does not happen below because these is always some new data?
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped
-                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 136
+                                                                    &dao_manager,
+                                                                    &old_row
+                                                                        .iter()
+                                                                        .map(|x| { x.id() })
+                                                                        // TODO *** BUG HERE ***
+                                                                        // the old data starts as zeros - flag not set.
+                                                                        // the filter takes these all out and gives an empty array.
+                                                                        // this mistake is in all the code - other code just gives zeros
+                                                                        // could filter the empties but still will give an empty array
+                                                                        // Does not happen below because these is always some new data?
+                                                                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row_index)) // only look at addresses that are mapped
+                                                                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 136
 
                 let new_data = get_slice_using_multi_dao_selectors(
                     &dao_manager,
                     &new_row
                         .iter()
                         .map(|x| x.id())
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row)) // only look at addresses that are mapped
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row_index)) // only look at addresses that are mapped
                         .collect::<Array1<_>>().view()); // Matlab line 137
 
                 let new_union_data =
@@ -389,15 +441,13 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                         // now do the news vs the olds, no reverse links
 
-                        let new_old_sims =
+                        let new_old_sims = if old_data.len() == 0 {
+                            Array2::zeros((0, 0))
+                        } else {
                             matrix_dot(new_data.view(),
                                        old_data.view(),
-                                       |a, b| { similarity_as_f32(a, b) },
-                            );
-
-                        if new_old_sims.shape() == &[18, 0] {
-                            println!("new data shape = {:?}, old_data shape = {:?}", new_data.shape(), old_data.shape());
-                        }
+                                       |a, b| { similarity_as_f32(a, b) })
+                        };
 
                         // and do the same for each pair of elements in the new_row/old_row
 

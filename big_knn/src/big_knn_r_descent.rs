@@ -108,8 +108,9 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
             });
 
-        neighbour_is_new =
-            Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(false));
+        // THIS IS WRONG!!!!
+        // neighbour_is_new =
+        //     Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(false));
 
         // initialise old and new inline
 
@@ -295,10 +296,9 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         work_done = AtomicUsize::new(0);
 
         previous_neighbours
-            .rows()
-            .into_iter()
-            //.axis_iter(Axis(0)) // iterate over the rows
+            .axis_iter(Axis(0)) // iterate over the rows
             .enumerate()
+            .par_bridge()
             .map(|(row_index, nalities)| {
                 let previous_row = previous_neighbours.row(row_index);
 

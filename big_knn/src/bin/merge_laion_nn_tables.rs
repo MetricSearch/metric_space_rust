@@ -54,7 +54,11 @@ pub fn main() -> anyhow::Result<()> {
     // check they are all of the expected type by extension
     for file_name in nn_file_names.iter() {
         if !file_name.ends_with(".bin") {
-            bail!("{} is not a bin file", file_name);
+            bail!(
+                "{} from  dir: {:?} is not a bin file",
+                file_name,
+                nn_tables_dir_base,
+            );
         }
     }
 

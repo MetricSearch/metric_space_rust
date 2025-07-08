@@ -78,20 +78,53 @@ pub fn main() -> anyhow::Result<()> {
         names.push(i.to_string());
     }
 
-    for pair in names.iter().combinations(2) {
+    let h5_sizes: Vec<usize> = names // sizes of each data file
+        .iter()
+        .map(|fname| {
+            let path = embeddings_path.join(&fname);
+            let file = hdf5::File::open(path).unwrap(); // open for reading
+            let h5_data = file.dataset("data").unwrap(); // the data // TODO make a parameter.
+            let data_size = h5_data.shape()[0];
+            data_size as usize
+        })
+        .collect();
+
+    let h5_starts = {
+        let mut starts = Vec::with_capacity(h5_sizes.len() + 1);
+        starts.push(0); // the first file starts at zero
+        starts.extend_from_slice(&h5_sizes);
+        starts
+    };
+
+    for pair in names.iter().enumerate().combinations(2) {
         println!("Merging data files: {:?}", pair); // message terrible
 
         // the names of the h5 files that contain the raw data
 
-        let first_part = partitions.get(extract_nn_index(pair[0]).unwrap()).unwrap();
-        let dao1: Dao<EvpBits<Simd256x2, 512>> =
-            load_h5_files::<Simd256x2, 512>(embeddings_path, first_part, NUM_VERTICES).unwrap();
+        let first_part = partitions
+            .get(extract_nn_index(pair[0].1).unwrap())
+            .unwrap();
+        let dao1: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
+            embeddings_path,
+            first_part,
+            NUM_VERTICES,
+            h5_starts[pair[0].0] as u32,
+        )
+        .unwrap();
 
-        let part1_size = dao1.num_data;
+        let part1_size = dao1.num_data; // TODO we need the start indices of each
 
-        let second_part = partitions.get(extract_nn_index(pair[1]).unwrap()).unwrap();
-        let dao2: Dao<EvpBits<Simd256x2, 512>> =
-            load_h5_files::<Simd256x2, 512>(embeddings_path, second_part, NUM_VERTICES).unwrap();
+        let second_part = partitions
+            .get(extract_nn_index(pair[1].1).unwrap())
+            .unwrap();
+        let base_address2 = 0;
+        let dao2: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
+            embeddings_path,
+            second_part,
+            NUM_VERTICES,
+            h5_starts[pair[1].0] as u32,
+        )
+        .unwrap();
 
         let part2_size = dao2.num_data;
 
@@ -102,11 +135,11 @@ pub fn main() -> anyhow::Result<()> {
         // Now get the NN tables
 
         let first_nn_table_path = Path::new(&args.output_path)
-            .join("nn_table".to_string().add(pair[0]))
+            .join("nn_table".to_string().add(pair[0].1))
             .with_added_extension("bin");
 
         let second_nn_table_path = Path::new(&args.output_path)
-            .join("nn_table".to_string().add(pair[1]))
+            .join("nn_table".to_string().add(pair[1].1))
             .with_added_extension("bin");
 
         let combined_nn_table = combine_nn_table(&first_nn_table_path, &second_nn_table_path, daos);

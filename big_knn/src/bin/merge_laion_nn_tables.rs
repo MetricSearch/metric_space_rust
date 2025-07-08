@@ -69,20 +69,9 @@ pub fn main() -> anyhow::Result<()> {
 
     let (sizes, partitions) = get_partitions(embeddings_path, 2_500_000);
 
-    if partitions.len() != nn_file_names.len() {
-        bail!(
-            "Parititions size does not match {} num nn tables {}",
-            partitions.len(),
-            nn_file_names.len()
-        );
-    }
+    let h5_file_names = get_file_names(embeddings_path).unwrap();
 
-    let mut names = vec![]; // indices of all the partitions as strings
-    for i in 0..partitions.len() {
-        names.push(i.to_string());
-    }
-
-    let h5_sizes: Vec<usize> = names // sizes of each data file
+    let h5_sizes: Vec<usize> = h5_file_names // sizes of each embeddings data file
         .iter()
         .map(|fname| {
             let path = embeddings_path.join(&fname);
@@ -93,6 +82,7 @@ pub fn main() -> anyhow::Result<()> {
         })
         .collect();
 
+    // the starting index of each of the h5 files.
     let h5_starts = {
         let mut starts = Vec::with_capacity(h5_sizes.len() + 1);
         starts.push(0); // the first file starts at zero
@@ -100,33 +90,71 @@ pub fn main() -> anyhow::Result<()> {
         starts
     };
 
-    for pair in names.iter().enumerate().combinations(2) {
-        println!("Merging data files: {:?}", pair); // message terrible
+    let h5_file_names_and_starts = h5_file_names
+        .iter()
+        .zip(h5_starts.iter())
+        .collect::<Vec<_>>();
 
+    let mut part_names = vec![]; // indices of all the partitions as strings
+    for i in 0..partitions.len() {
+        part_names.push(i.to_string());
+    }
+
+    for pair in part_names.iter().enumerate().combinations(2) {
         // the names of the h5 files that contain the raw data
 
-        let first_part = partitions
-            .get(extract_nn_index(pair[0].1).unwrap())
-            .unwrap();
+        let first_part_file_names = &partitions[pair[0].0];
+        let second_part_file_names = &partitions[pair[1].0];
+
+        println!(
+            "Merging data files from partition: {:?} and partition: {:?}",
+            first_part_file_names, second_part_file_names
+        );
+
+        let mut base_address = 0;
+
+        if let Some((_, start_addr)) = h5_file_names_and_starts
+            .iter()
+            .find(|(fname, _)| *fname == &first_part_file_names[0])
+        {
+            // first file name in first part., _)|
+            base_address = **start_addr;
+        } else {
+            bail!("Cannot find file {} in h5 files", &first_part_file_names[0],);
+        }
+
+        println!("base addr part 1 is: {}", base_address);
+
         let dao1: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
             embeddings_path,
-            first_part,
+            first_part_file_names,
             NUM_VERTICES,
-            h5_starts[pair[0].0] as u32,
+            base_address as u32, // the base address of the first h5 file in the part
         )
         .unwrap();
 
         let part1_size = dao1.num_data; // TODO we need the start indices of each
 
-        let second_part = partitions
-            .get(extract_nn_index(pair[1].1).unwrap())
-            .unwrap();
-        let base_address2 = 0;
+        if let Some((_, start_addr)) = h5_file_names_and_starts
+            .iter()
+            .find(|(fname, _)| *fname == &second_part_file_names[0])
+        {
+            // first file name in first part., _)|
+            base_address = **start_addr;
+        } else {
+            bail!(
+                "Cannot find file {} in h5 files",
+                &second_part_file_names[0],
+            );
+        }
+
+        println!("base addr part 2 is: {}", base_address);
+
         let dao2: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
             embeddings_path,
-            second_part,
+            second_part_file_names,
             NUM_VERTICES,
-            h5_starts[pair[1].0] as u32,
+            base_address as u32, // the base address of the first h5 file in the part
         )
         .unwrap();
 

@@ -225,7 +225,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
                 let forward_links_dont_contain_this = !new_forward_links
                     .iter()
-                    .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address))
+                    .filter(|nality: &&Nality| dao_manager.is_mapped(nality.id()))
                     .any(|nality| {
                         dao_manager
                             .table_addr_from_global_addr(&nality.id())

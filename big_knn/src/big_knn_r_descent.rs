@@ -478,25 +478,9 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
         let view_of_data_in_dao = &dao_holding_datum.get_data(); // the actual data indexed from zero
         let global_addr_selection = selectors[count]; // the global addr of the selection
 
-        let local_addr_selection =
+        let local_offset =
             GlobalAddress::as_usize(global_addr_selection) - dao_holding_datum.base_addr as usize;
 
-        if !dao_store.is_mapped(global_addr_selection) {
-            println!(
-                "Unmapped value global: {:?} local: {:?} ",
-                global_addr_selection, local_offset
-            );
-        }
-
-        if local_offset == 2000896 {
-            println!(
-                "view_of_data_in_dao len: {:?}, local_offset: {local_offset} s! {:?} result shape: {:?} count: {count} s! {:?} global_addr {global_addr_selection:?}",
-                view_of_data_in_dao.len(),
-                s![local_offset],
-                result.shape(),
-                s![count]
-            );
-        }
         view_of_data_in_dao
             .slice(s![local_offset]) // assign the slice of evps to slot in result
             .assign_to(result.slice_mut(s![count]));

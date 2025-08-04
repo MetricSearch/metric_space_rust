@@ -1,10 +1,11 @@
-use crate::dao_manager::{DaoManager, DaoStore};
+use crate::dao_manager::{get_ranges, DaoManager, DaoStore};
 // use crate::table_initialisation::initialise_table_bsp_randomly;
 use crate::NalityNNTable;
-use bits::container::BitsContainer;
+use bits::container::{BitsContainer, Simd256x2};
 use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
 use dao::Dao;
+use log::debug;
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1, Axis, CowArray};
 use r_descent::functions::{fill_false_atomic_from_selectors, fill_selected};
 use r_descent::initialise_table_bsp_randomly;
@@ -27,10 +28,12 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
 
     let neighbourlarities = initialise_table_bsp_randomly(num_data, num_neighbours, start_index);
 
-    check_neighbours(&neighbourlarities, &daos[0]);
+    let dao_manager = DaoStore::new(daos);
+
+    check_neighbours(&neighbourlarities, &dao_manager);
 
     make_big_knn_table2_bsp(
-        daos,
+        dao_manager,
         num_data,
         &neighbourlarities,
         num_neighbours,
@@ -46,35 +49,18 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     }
 }
 
-fn check_neighbours<C: BitsContainer, const W: usize>(
-    neebs: &Array2<Nality>,
-    dao: &Dao<EvpBits<C, { W }>>,
-) {
-    let mut count = 0;
-    println!("Checking neighbours");
-    neebs.iter().for_each(|nality| {
-        let id = GlobalAddress::as_u32(nality.id());
-        count += 1;
-        if id < dao.base_addr && id > dao.base_addr + dao.embeddings.len() as u32 {
-            println!("Unmapped nality: {:?}", &nality.id());
-        }
-    });
-    println!("Finished checking {} neighbours", count);
-}
-
 pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
-    daos: Vec<Dao<EvpBits<C, W>>>,
+    dao_manager: DaoStore<C, W>,
+    //daos: Vec<Dao<EvpBits<C, W>>>,
     num_data: usize,
     neighbourlarities: &Array2<Nality>,
     num_neighbours: usize,
     delta: f64,
     reverse_list_size: usize,
 ) {
-    log::warn!("Neighbourities length: {:?}", neighbourlarities.shape(),);
+    log::debug!("Neighbourities length: {:?}", neighbourlarities.shape(),);
 
     let start_time = Instant::now();
-
-    let dao_manager = DaoStore::new(daos);
 
     let mut iterations = 0;
 
@@ -316,27 +302,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     .map(|x| x.1)
                     .collect();
 
-            //     (row_index, old_row, new_row)
-            // })
-            // .map(|(row_index, old_row, new_row)| {
-
-                // previous_neighbours
-                //     .axis_iter(Axis(0)) // iterate over the rows
-                //     .enumerate()
-                //     .map(|(row_index, nalities)| {
-                //         let new_row: Vec<_> = nalities.iter().enumerate().filter(|(column, nality)| previous_flags[[row_index, *column]].load(Ordering::Relaxed))
-                //             .map(|x| x.1 ).collect();
-                //         let old_row: Vec<_> = nalities.iter().enumerate().filter(|(column, nality)| ! previous_flags[[row_index, *column]].load(Ordering::Relaxed))
-                //             .map(|x| x.1 ).collect();
-                //
-                //         (row_index, old_row, new_row)
-                //     })
-                //     .map(|(row_index, old_row, new_row)| {
-
-                // Matlab has this here:
-                //      oldRow = nonzeros(old(i_phase3,:));
-                //      newRow = nonzeros(new(i_phase3,:));
-
                 let reversed = reverse.row(row_index);
 
                 let new_row_union: Array1<GlobalAddress> = if new_row.len() == 0 {
@@ -353,33 +318,30 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                         .collect::<Array1<GlobalAddress>>()
                 };
 
-                // println!( "Old row sze = {}", old_row.len() );
-
                 // index the data using the rows indicated in old_row
                 let old_data = get_slice_using_multi_dao_selectors( // an array of evps selected from the old row
                                                                     &dao_manager,
                                                                     &old_row
                                                                         .iter()
                                                                         .map(|x| { x.id() })
-                                                                        // TODO *** BUG HERE ***
-                                                                        // the old data starts as zeros - flag not set.
-                                                                        // the filter takes these all out and gives an empty array.
-                                                                        // this mistake is in all the code - other code just gives zeros
-                                                                        // could filter the empties but still will give an empty array
-                                                                        // Does not happen below because these is always some new data?
-                                                                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row_index)) // only look at addresses that are mapped
-                                                                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 136
+                                                                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
+                                                                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 13
 
                 let new_data = get_slice_using_multi_dao_selectors(
                     &dao_manager,
                     &new_row
                         .iter()
                         .map(|x| x.id())
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address, row_index)) // only look at addresses that are mapped
-                        .collect::<Array1<_>>().view()); // Matlab line 137
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
+                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 137
+
+                // let new_union_data =
+                //     get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.view()); // Matlab line 137
 
                 let new_union_data =
-                    get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.view()); // Matlab line 137
+                    get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.clone().into_iter()
+                        .filter(|global_address: &GlobalAddress | dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
+                        .collect::<Array1<GlobalAddress>>().view() ); // Matlab line 137
 
                 let new_new_sims =
                     matrix_dot(new_union_data.view(), new_union_data.view(), |a, b| {
@@ -510,16 +472,51 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
     let mut result = Array1::uninit(selectors.len());
 
     for count in 0..selectors.len() {
-        let source = dao_store.get_dao(&selectors[count]).unwrap();
-        let evps = &source.get_data(); // the actual data indexed from zero
+        let dao_holding_datum = dao_store
+            .get_dao(&selectors[count])
+            .unwrap_or_else(|_| panic!("Cannot find dao for addr {:?}", &selectors[count]));
+        let view_of_data_in_dao = &dao_holding_datum.get_data(); // the actual data indexed from zero
         let global_addr_selection = selectors[count]; // the global addr of the selection
-        let local_addr_selection = dao_store
-            .table_addr_from_global_addr(&global_addr_selection)
-            .unwrap(); // the corresponding index (indexed from zero)
-        let local_addr_selection = local_addr_selection.as_usize(); // needs to be usize for index
-        evps.slice(s![local_addr_selection]) // assign the slice of evps to slot in result
+
+        let local_addr_selection =
+            GlobalAddress::as_usize(global_addr_selection) - dao_holding_datum.base_addr as usize;
+
+        if !dao_store.is_mapped(global_addr_selection) {
+            println!(
+                "Unmapped value global: {:?} local: {:?} ",
+                global_addr_selection, local_offset
+            );
+        }
+
+        if local_offset == 2000896 {
+            println!(
+                "view_of_data_in_dao len: {:?}, local_offset: {local_offset} s! {:?} result shape: {:?} count: {count} s! {:?} global_addr {global_addr_selection:?}",
+                view_of_data_in_dao.len(),
+                s![local_offset],
+                result.shape(),
+                s![count]
+            );
+        }
+        view_of_data_in_dao
+            .slice(s![local_offset]) // assign the slice of evps to slot in result
             .assign_to(result.slice_mut(s![count]));
     }
 
     unsafe { result.assume_init() }
+}
+
+pub fn check_neighbours<C: BitsContainer, const W: usize>(
+    neebs: &Array2<Nality>,
+    dao_manager: &DaoStore<C, { W }>,
+) {
+    let mut count = 0;
+    debug!("Checking neighbours");
+    neebs.iter().for_each(|nality| {
+        let global_addr: GlobalAddress = nality.id();
+        count += 1;
+        if !dao_manager.is_mapped(global_addr) {
+            debug!("Unmapped nality: {:?}", &global_addr);
+        }
+    });
+    debug!("Finished checking {} neighbours", count);
 }

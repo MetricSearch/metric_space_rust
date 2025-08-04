@@ -12,6 +12,7 @@ use bits::EvpBits;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use hdf5::File as Hdf5File;
+use log::debug;
 use ndarray::{Array2, ArrayView2};
 use r_descent::RDescent;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use utils::address::GlobalAddress;
 use utils::Nality;
 
 const ALL_RECORDS: usize = 0;
@@ -39,7 +41,7 @@ pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> anyhow::Result<()> {
 
     file.flush()?;
 
-    println!("NN table saved to bin file");
+    log::info!("NN table saved to bin file {}", f_name);
 
     Ok(())
 }
@@ -178,15 +180,16 @@ pub fn create_and_store_nn_table(
         .join(output_file)
         .with_added_extension("bin");
 
-    write_table(output_path, &nn_table);
+    write_table(&output_path, &nn_table);
 }
 
-pub fn write_table(output_path: PathBuf, descent: &NalityNNTable) {
-    log::info!("Writing to bin file {}", output_path.to_str().unwrap());
-
+pub fn write_table(output_path: &PathBuf, nn_table: &NalityNNTable) {
     let file: File = File::create(output_path).unwrap();
     let writer = BufWriter::new(file);
-    let _ = bincode::serialize_into(writer, &descent);
-
-    println!("NN table saved to bin file");
+    let result = bincode::serialize_into(writer, &nn_table);
+    if result.is_err() {
+        panic!("Fatal error saving NN table to bin file {:?}", output_path);
+    } else {
+        log::trace!("NN table saved to bin file {:?}", output_path);
+    }
 }

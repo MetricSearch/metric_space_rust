@@ -4,7 +4,7 @@
 */
 
 use anyhow::bail;
-use big_knn::big_knn_r_descent::make_big_knn_table2_bsp;
+use big_knn::big_knn_r_descent::{check_neighbours, make_big_knn_table2_bsp};
 use big_knn::dao_manager::{DaoManager, DaoStore};
 use big_knn::{get_file_names, get_partitions, write_table, NalityNNTable};
 use bits::container::{BitsContainer, Simd256x2};
@@ -14,10 +14,10 @@ use dao::hdf5_to_dao_loader::load_h5_files;
 use dao::Dao;
 use itertools::Itertools;
 use ndarray::{concatenate, s, stack, Array2, ArrayView2, Axis, ShapeError, Zip};
-use r_descent::{IntoRDescent, RDescent};
+use r_descent::{initialise_table_bsp_randomly, IntoRDescent, RDescent};
 use std::env::args;
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Seek};
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -41,6 +41,10 @@ struct Args {
 }
 
 pub fn main() -> anyhow::Result<()> {
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(log::LevelFilter::Trace)
+        .init();
+
     let start = Instant::now();
     log::info!("Establishing Source NN tables ...");
 
@@ -86,7 +90,10 @@ pub fn main() -> anyhow::Result<()> {
     let h5_starts = {
         let mut starts = Vec::with_capacity(h5_sizes.len() + 1);
         starts.push(0); // the first file starts at zero
-        starts.extend_from_slice(&h5_sizes);
+        for size in &h5_sizes {
+            let last = *starts.last().unwrap();
+            starts.push(last + size);
+        }
         starts
     };
 
@@ -106,24 +113,24 @@ pub fn main() -> anyhow::Result<()> {
         let first_part_file_names = &partitions[pair[0].0];
         let second_part_file_names = &partitions[pair[1].0];
 
-        println!(
-            "Merging data files from partition: {:?} and partition: {:?}",
-            first_part_file_names, second_part_file_names
+        log::info!(
+            "Building NN table using data files from partition: {:?} and partition: {:?}",
+            first_part_file_names,
+            second_part_file_names
         );
 
         let mut base_address = 0;
 
-        if let Some((_, start_addr)) = h5_file_names_and_starts
+        if let Some((_, start_addr)) = h5_file_names_and_starts // TODO look at this mess!!!!!
             .iter()
             .find(|(fname, _)| *fname == &first_part_file_names[0])
         {
-            // first file name in first part., _)|
             base_address = **start_addr;
         } else {
-            bail!("Cannot find file {} in h5 files", &first_part_file_names[0],);
+            bail!("Cannot find file {} in h5 files", &first_part_file_names[0]);
         }
 
-        println!("base addr part 1 is: {}", base_address);
+        log::info!("Base address of part 1 is: {}", base_address);
 
         let dao1: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
             embeddings_path,
@@ -139,7 +146,6 @@ pub fn main() -> anyhow::Result<()> {
             .iter()
             .find(|(fname, _)| *fname == &second_part_file_names[0])
         {
-            // first file name in first part., _)|
             base_address = **start_addr;
         } else {
             bail!(
@@ -148,7 +154,7 @@ pub fn main() -> anyhow::Result<()> {
             );
         }
 
-        println!("base addr part 2 is: {}", base_address);
+        log::info!("Base address of part 2 is: {}", base_address);
 
         let dao2: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
             embeddings_path,
@@ -164,13 +170,21 @@ pub fn main() -> anyhow::Result<()> {
         daos.push(dao1);
         daos.push(dao2);
 
+        for dao in &daos {
+            println!(
+                "Loading dao range: [{}..{}] (inc)",
+                dao.base_addr,
+                dao.base_addr as usize + dao.num_data - 1
+            );
+        }
+
         // Now get the NN tables
 
-        let first_nn_table_path = Path::new(&args.output_path)
+        let first_nn_table_path = Path::new(&args.nn_tables_source_dir)
             .join("nn_table".to_string().add(pair[0].1))
             .with_added_extension("bin");
 
-        let second_nn_table_path = Path::new(&args.output_path)
+        let second_nn_table_path = Path::new(&args.nn_tables_source_dir)
             .join("nn_table".to_string().add(pair[1].1))
             .with_added_extension("bin");
 
@@ -206,14 +220,14 @@ fn split_and_write_back(
         nalities: top_nalities.to_owned(),
     };
 
-    write_table(nn_table1_path, &nn_table_1);
+    write_table(&nn_table1_path, &nn_table_1);
 
     let nn_table_2 = NalityNNTable {
         // TODO More copying???
         nalities: bottom_nalities.to_owned(),
     };
 
-    write_table(nn_table2_path, &nn_table_2);
+    write_table(&nn_table2_path, &nn_table_2);
 }
 
 fn combine_nn_table(
@@ -224,47 +238,34 @@ fn combine_nn_table(
     let nn_table1 = get_nn_table(&nn_table1_path);
     let nn_table2 = get_nn_table(&nn_table2_path);
 
-    // TODO this makes a copy!
-
-    let combined_indices: Array2<usize> = concatenate(
+    let combined_nalities: Array2<Nality> = concatenate(
+        // Does this make a copy?
         Axis(0),
-        &[nn_table1.neighbours.view(), nn_table2.neighbours.view()],
-    )
-    .unwrap();
-    let combined_dists: Array2<f32> = concatenate(
-        Axis(0),
-        &[nn_table1.similarities.view(), nn_table2.similarities.view()],
+        &[nn_table1.nalities.view(), nn_table2.nalities.view()],
     )
     .unwrap();
 
-    // TODO Then this makes another copy!!
+    let dao_manager = DaoStore::new(daos);
 
-    let rows = combined_indices.nrows();
-    let cols = combined_indices.ncols();
-
-    let mut nalities: Array2<Nality> = unsafe { Array2::uninit([rows, cols]).assume_init() }; // or any suitable type
-
-    Zip::from(&combined_indices)
-        .and(&combined_dists)
-        .and(&mut nalities)
-        .for_each(|&index, &sim, nality| {
-            *nality = Nality::new(sim, GlobalAddress::into(index as u32))
-        });
+    check_neighbours(&combined_nalities, &dao_manager);
 
     make_big_knn_table2_bsp(
-        daos,
-        rows,
-        &nalities,
-        cols,
+        dao_manager,
+        combined_nalities.nrows(),
+        &combined_nalities,
+        combined_nalities.ncols(),
         DELTA,             // TODO hard code for the minute fix later
         REVERSE_LIST_SIZE, // TODO hard code for the minute fix later
     );
 
-    NalityNNTable { nalities: nalities }
+    NalityNNTable {
+        nalities: combined_nalities,
+    }
 }
 
-fn get_nn_table(nn_table_path: &PathBuf) -> RDescent {
-    let file = File::create(nn_table_path).unwrap();
+fn get_nn_table(nn_table_path: &PathBuf) -> NalityNNTable {
+    println!("Loading NN table from {:?}", nn_table_path);
+    let mut file = File::open(nn_table_path).unwrap();
     bincode::deserialize_from(file).unwrap()
 }
 

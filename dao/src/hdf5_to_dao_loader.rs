@@ -124,7 +124,7 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
         let mut bsp_data = parallel_read_dataset(num_vertices, h5_data, data_size, 5000);
         bits.append(&mut bsp_data);
         loaded += data_size;
-        println!("loaded {} data from {}", data_size, data_path);
+        log::info!("loaded {} data from {}", data_size, data_path);
     }
 
     let embeddings = Array1::from_vec(bits);

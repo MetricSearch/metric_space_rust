@@ -10,7 +10,7 @@ pub struct DaoStore<C: BitsContainer, const W: usize> {
 
 pub trait DaoManager<C: BitsContainer, const W: usize> {
     fn new(daos: Vec<Dao<EvpBits<C, W>>>) -> Self;
-    fn is_mapped(&self, addr: GlobalAddress, row: usize) -> bool;
+    fn is_mapped(&self, addr: GlobalAddress) -> bool;
     fn table_addr_from_global_addr(&self, addr: &GlobalAddress) -> anyhow::Result<LocalAddress>;
     fn global_addr_from_table_addr(&self, addr: &LocalAddress) -> anyhow::Result<GlobalAddress>;
     fn get_dao(&self, target_addr: &GlobalAddress) -> anyhow::Result<&Dao<EvpBits<C, W>>>;
@@ -18,10 +18,11 @@ pub trait DaoManager<C: BitsContainer, const W: usize> {
 
 impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
     fn new(daos: Vec<Dao<EvpBits<C, W>>>) -> Self {
+        log::debug!("Creating DaoManager from ranges: {}", get_ranges(&daos));
         Self { daos }
     }
 
-    fn is_mapped(&self, addr: GlobalAddress, row: usize) -> bool {
+    fn is_mapped(&self, addr: GlobalAddress) -> bool {
         let addr = GlobalAddress::as_u32(addr);
         let result = self
             .daos
@@ -33,12 +34,12 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
             .fold(false, |acc, x| acc || x);
 
         if result == false {
-            println!("Is mapped false for addr {} at row {}", addr, row);
+            println!("Is mapped false for addr {}", addr);
         }
         result
     }
 
-    /// Returns the global address for a local table address for data that is mapped or returns an error.
+    /// Returns the offset in the mapped table for a global address of data that is mapped or returns an error.
     fn table_addr_from_global_addr(
         &self,
         target_addr: &GlobalAddress,
@@ -46,12 +47,9 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         let mut table_index: u32 = 0;
         let target_addr = GlobalAddress::as_u32(*target_addr);
         for dao in &self.daos {
-            if target_addr >= dao.base_addr && target_addr < dao.base_addr + dao.num_data as u32 {
+            if target_addr >= dao.base_addr && target_addr < (dao.base_addr + dao.num_data as u32) {
                 // We have found it.
-                let difference_from_dao_base: u32 = (target_addr as u32 - dao.base_addr)
-                    .try_into()
-                    .unwrap_or_else(|_| panic!("cannot convert into u32 from usize"));
-                return Ok(LocalAddress::into(table_index + difference_from_dao_base));
+                return Ok(LocalAddress::into(target_addr - dao.base_addr));
             } else {
                 table_index = table_index + dao.num_data as u32;
             }
@@ -103,12 +101,12 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
     }
 }
 
-fn get_ranges<C: BitsContainer, const W: usize>(daos: &Vec<Dao<EvpBits<C, { W }>>>) -> String {
+pub fn get_ranges<C: BitsContainer, const W: usize>(daos: &Vec<Dao<EvpBits<C, { W }>>>) -> String {
     daos.iter()
         .map(|dao| {
             let start = dao.base_addr;
-            let end = start + dao.embeddings.len() as u32;
-            format!("<{}..{}>", start, end)
+            let end = start + dao.embeddings.len() as u32 - 1;
+            format!("[{}..{}] (inc)", start, end)
         })
         .collect::<Vec<_>>()
         .join(", ")

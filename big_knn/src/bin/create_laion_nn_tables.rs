@@ -13,12 +13,9 @@ use dao::Dao;
 use hdf5::File as Hdf5File;
 use ndarray::{s, Array2, ArrayView1, ArrayView2};
 use r_descent::IntoRDescent;
-use std::fs;
 use std::ops::Add;
 use std::path::Path;
-use std::rc::Rc;
 use std::time::Instant;
-use utils::arg_sort_big_to_small_2d;
 
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -45,7 +42,6 @@ pub fn main() -> Result<()> {
     let args = Args::parse();
 
     log::info!("Loading Laion-400M data...");
-    let start = Instant::now();
 
     let dir_base = Path::new(&args.source_path);
     if !dir_base.is_dir() {
@@ -54,24 +50,26 @@ pub fn main() -> Result<()> {
 
     let file_names = get_file_names(dir_base).unwrap();
     let sizes = get_file_sizes(dir_base, &file_names).unwrap();
-    let partition_boundaries = partition_into(&sizes, 1_100_000).unwrap();
+    let partition_boundaries = partition_into(&sizes, 2_200_000).unwrap();
     let partitions = make_partitions(&partition_boundaries, &file_names);
-
-    for i in 0..partitions.len() {
-        println!("Partition: {}", i);
-        let vec = &partitions[i];
-        println!("Files in part: {:?}", vec);
-    }
 
     let mut start_index = 0;
 
     for i in 0..partitions.len() {
+        let vec = &partitions[i];
+
         let part = partitions.get(i).unwrap();
 
         let dao =
             load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES, start_index).unwrap();
 
-        println!("Dao base: {} size = {} ", dao.base_addr, dao.num_data);
+        log::info!(
+            "Loaded partition: {} from: {:?} Dao base: {} size = {}",
+            i,
+            vec,
+            dao.base_addr,
+            dao.num_data
+        );
 
         let partition_data_size = dao.embeddings.len() as u32;
 

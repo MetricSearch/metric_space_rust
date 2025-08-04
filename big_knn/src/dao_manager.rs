@@ -32,10 +32,6 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
                     && addr < (dao.base_addr as usize + dao.num_data) as u32
             })
             .fold(false, |acc, x| acc || x);
-
-        if result == false {
-            println!("Is mapped false for addr {}", addr);
-        }
         result
     }
 

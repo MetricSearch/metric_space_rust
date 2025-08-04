@@ -225,7 +225,13 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
                 let forward_links_dont_contain_this = !new_forward_links
                     .iter()
-                    .any(|x| dao_manager.table_addr_from_global_addr(&x.id()).unwrap() == row);
+                    .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address))
+                    .any(|nality| {
+                        dao_manager
+                            .table_addr_from_global_addr(&nality.id())
+                            .unwrap()
+                            == row
+                    });
 
                 // if the reverse list isn't full, we will just add this one
                 // this adds to a priority queue and keeps track of max

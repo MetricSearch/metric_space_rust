@@ -179,7 +179,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         let mut reverse: Array2<Nality> =
             Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
         // reverse_ptr - how many reverse pointers for each entry in the dataset
-        // FERDIA: brings us to 18GB here
         let mut reverse_count = Array1::from_elem(num_data, 0);
 
         // loop over all current entries in neighbours; add that entry to each row in the
@@ -196,51 +195,41 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
-                let this_id = this_row_neighbourlarities[id].id();
+                let this_global_id = this_row_neighbourlarities[id].id();
                 // and how similar it is to the current id
-                let local_sim = this_row_neighbourlarities[id].sim();
+                let this_sim = this_row_neighbourlarities[id].sim();
 
-                let this_local_id: LocalAddress =
-                    dao_manager.table_addr_from_global_addr(&this_id).unwrap();
+                if dao_manager.is_mapped(this_global_id) {
+                    let this_local_id: LocalAddress = dao_manager
+                        .table_addr_from_global_addr(&this_global_id)
+                        .unwrap();
 
-                let this_local_id: usize = LocalAddress::as_usize(&this_local_id);
+                    let this_local_id: usize = LocalAddress::as_usize(&this_local_id);
 
-                // WAS: let new_forward_links = new.row(this_local_id);
-                let new_forward_links = previous_neighbours //take the previous neighbours
-                    .row(this_local_id)
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(column, nality)| {
-                        // and select the entries where previous_flags are set
-                        if previous_flags[[LocalAddress::as_usize(&row), column]]
-                            .load(Ordering::Relaxed)
-                        {
-                            Some(nality.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Array1<Nality>>();
+                    let new_forward_links = previous_neighbours //take the previous neighbours
+                        .row(this_local_id)
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(column, nality)| {
+                            // and select the entries where previous_flags are set
+                            if previous_flags[[LocalAddress::as_usize(&row), column]]
+                                .load(Ordering::Relaxed)
+                            {
+                                Some(nality.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Array1<Nality>>();
 
-                // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
-                let forward_links_dont_contain_this = !new_forward_links
-                    .iter()
-                    .filter(|nality: &&Nality| dao_manager.is_mapped(nality.id()))
-                    .any(|nality| {
-                        dao_manager
-                            .table_addr_from_global_addr(&nality.id())
-                            .unwrap()
-                            == row
+                    let forward_links_dont_contain_this = !new_forward_links.iter().any(|nality| {
+                        GlobalAddress::as_usize(nality.id())
+                            == GlobalAddress::as_usize(
+                                dao_manager.global_addr_from_table_addr(&row).unwrap(),
+                            )
+                        // safe this way around - rows are all mapped - TODO check other similar operations?
                     });
 
-                // if the reverse list isn't full, we will just add this one
-                // this adds to a priority queue and keeps track of max
-
-                // We are trying to find a set of reverse near neighbours with the
-                // biggest similarity of size reverse_list_size.
-                // first find all the forward links containing the row
-
-                if forward_links_dont_contain_this {
                     // if the reverse list isn't full, we will just add this one
                     // this adds to a priority queue and keeps track of max
 
@@ -248,30 +237,39 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     // biggest similarity of size reverse_list_size.
                     // first find all the forward links containing the row
 
-                    if reverse_count[this_local_id] < reverse_list_size {
-                        // if the list is not full
-                        // update the reverse pointer list and the similarities
+                    if forward_links_dont_contain_this {
+                        // if the reverse list isn't full, we will just add this one
+                        // this adds to a priority queue and keeps track of max
 
-                        reverse[[this_local_id, reverse_count[this_local_id]]] = Nality::new(
-                            local_sim,
-                            dao_manager.global_addr_from_table_addr(&row).unwrap(),
-                        );
-                        reverse_count[this_local_id] = reverse_count[this_local_id] + 1;
-                    // increment the count
-                    } else {
-                        // the list is full - so no need to do anything with counts
-                        // but it is, so we will only add it if it's more similar than another one already there
+                        // We are trying to find a set of reverse near neighbours with the
+                        // biggest similarity of size reverse_list_size.
+                        // first find all the forward links containing the row
 
-                        let (position, value) =
-                            min_index_and_value_neighbourlarities(&reverse.row(this_local_id)); // Matlab line 109
-                        let value = value.sim();
+                        if reverse_count[this_local_id] < reverse_list_size {
+                            // if the list is not full
+                            // update the reverse pointer list and the similarities
 
-                        if value < local_sim {
-                            // Matlab line 110  if the value in reverse_sims is less similar we over write
-                            reverse[[this_local_id, position as usize]] = Nality::new(
-                                local_sim,
+                            reverse[[this_local_id, reverse_count[this_local_id]]] = Nality::new(
+                                this_sim,
                                 dao_manager.global_addr_from_table_addr(&row).unwrap(),
                             );
+                            reverse_count[this_local_id] = reverse_count[this_local_id] + 1;
+                        // increment the count
+                        } else {
+                            // the list is full - so no need to do anything with counts
+                            // but it is, so we will only add it if it's more similar than another one already there
+
+                            let (position, value) =
+                                min_index_and_value_neighbourlarities(&reverse.row(this_local_id)); // Matlab line 109
+                            let value = value.sim();
+
+                            if value < this_sim {
+                                // Matlab line 110  if the value in reverse_sims is less similar we over write
+                                reverse[[this_local_id, position as usize]] = Nality::new(
+                                    this_sim,
+                                    dao_manager.global_addr_from_table_addr(&row).unwrap(),
+                                );
+                            }
                         }
                     }
                 }
@@ -316,10 +314,10 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 } else {
                     new_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() { None } else { Some(x.id()) } }) //<<<<<<<<< only take real values
+                        .filter_map(|x| { if x.is_empty() || ! dao_manager.is_mapped(x.id()) { None } else { Some(x.id()) } }) //<<<<<<<<< only take real values
                         .chain(reversed
                             .iter()
-                            .filter(|&x| !x.is_empty())
+                            .filter(|&x| !x.is_empty() && dao_manager.is_mapped(x.id()) )
                             .map(|x| x.id()))
                         .collect::<Array1<GlobalAddress>>()
                 };
@@ -344,7 +342,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 // let new_union_data =
                 //     get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.view()); // Matlab line 137
 
-                let new_union_data =
+                let new_union_data = // all elements of new_row_union are mapped
                     get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.clone().into_iter()
                         .filter(|global_address: &GlobalAddress | dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
                         .collect::<Array1<GlobalAddress>>().view() ); // Matlab line 137
@@ -396,14 +394,17 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                     neighbourlarities,
                                     &work_done,
                                 );
-                                check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u2_id).unwrap().as_usize(),
-                                    GlobalAddress::as_u32(u1_id),
-                                    this_sim,
-                                    &neighbour_is_new,
-                                    neighbourlarities,
-                                    &work_done,
-                                );
+                                // u1 is always mapped, u1 may not be.
+                                if dao_manager.is_mapped(u2_id) {
+                                    check_apply_update(
+                                        dao_manager.table_addr_from_global_addr(&u2_id).unwrap().as_usize(),
+                                        GlobalAddress::as_u32(u1_id),
+                                        this_sim,
+                                        &neighbour_is_new,
+                                        neighbourlarities,
+                                        &work_done,
+                                    );
+                                }
                             } // Matlab line 175
                         }
 
@@ -506,6 +507,7 @@ pub fn check_neighbours<C: BitsContainer, const W: usize>(
         count += 1;
         if !dao_manager.is_mapped(global_addr) {
             debug!("Unmapped nality: {:?}", &global_addr);
+            assert!(false);
         }
     });
     debug!("Finished checking {} neighbours", count);

@@ -71,9 +71,6 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
                 // we have found the right dao.
                 let offset_in_dao: u32 = target_addr - addresses_processed;
                 let result_index = dao.base_addr + offset_in_dao;
-                let result_index = result_index
-                    .try_into()
-                    .unwrap_or_else(|_| panic!("cannot convert into u32 from usize"));
                 return Ok(GlobalAddress::into(result_index));
             } else {
                 addresses_processed = addresses_processed + dao.num_data as u32;

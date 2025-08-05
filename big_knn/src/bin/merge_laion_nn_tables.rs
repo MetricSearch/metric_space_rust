@@ -247,8 +247,6 @@ fn combine_nn_table(
 
     let dao_manager = DaoStore::new(daos);
 
-    check_neighbours(&combined_nalities, &dao_manager);
-
     make_big_knn_table2_bsp(
         dao_manager,
         combined_nalities.nrows(),

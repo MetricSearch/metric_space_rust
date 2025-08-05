@@ -4,6 +4,7 @@
 use anyhow::Result;
 use big_knn::{
     create_and_store_nn_table, get_file_names, get_file_sizes, make_partitions, partition_into,
+    DATA_DIM,
 };
 use bits::container::Simd256x2;
 use bits::EvpBits;
@@ -27,6 +28,8 @@ struct Args {
     /// Path to HDF5 source
     source_path: String,
     output_path: String,
+    partition_size: u32,
+    data_set_label: String,
 }
 
 const NUM_NEIGHBOURS: usize = 18;
@@ -41,7 +44,7 @@ pub fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    log::info!("Loading Laion-400M data...");
+    log::info!("Loading h5 data files...");
 
     let dir_base = Path::new(&args.source_path);
     if !dir_base.is_dir() {
@@ -49,8 +52,8 @@ pub fn main() -> Result<()> {
     }
 
     let file_names = get_file_names(dir_base).unwrap();
-    let sizes = get_file_sizes(dir_base, &file_names).unwrap();
-    let partition_boundaries = partition_into(&sizes, 2_200_000).unwrap();
+    let sizes = get_file_sizes(dir_base, &file_names, &args.data_set_label).unwrap();
+    let partition_boundaries = partition_into(&sizes, args.partition_size).unwrap(); // 2_200_000
     let partitions = make_partitions(&partition_boundaries, &file_names);
 
     let mut start_index = 0;
@@ -60,8 +63,14 @@ pub fn main() -> Result<()> {
 
         let part = partitions.get(i).unwrap();
 
-        let dao =
-            load_h5_files::<Simd256x2, 512>(dir_base, part, NUM_VERTICES, start_index).unwrap();
+        let dao = load_h5_files::<Simd256x2, { DATA_DIM }>(
+            dir_base,
+            part,
+            NUM_VERTICES,
+            start_index,
+            &args.data_set_label,
+        )
+        .unwrap();
 
         log::info!(
             "Loaded partition: {} from: {:?} Dao base: {} size = {}",

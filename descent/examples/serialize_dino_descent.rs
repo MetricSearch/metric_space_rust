@@ -1,6 +1,4 @@
 use anyhow::Result;
-use bitvec_simd::BitVecSimd;
-use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use descent::Descent;
@@ -9,7 +7,6 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::rc::Rc;
 use utils::distance_f32;
-use wide::u64x4;
 
 fn main() -> Result<()> {
     println!("Hello from Serialize Descent example");
@@ -29,7 +26,7 @@ fn main() -> Result<()> {
     println!("Saving NN table to _scratch/descent_100.bin ...");
 
     let f = BufWriter::new(File::create("_scratch/nn_table_100.bin").unwrap());
-    bincode::serialize_into(f, &descent);
+    let _ = bincode::serialize_into(f, &descent);
 
     Ok(())
 }

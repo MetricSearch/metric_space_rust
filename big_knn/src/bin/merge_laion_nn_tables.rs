@@ -1,4 +1,3 @@
-#![feature(path_add_extension)]
 /*
   Program to merge NN tables from Laion-400 h5 files.
 */
@@ -6,7 +5,7 @@
 use anyhow::bail;
 use big_knn::big_knn_r_descent::{check_neighbours, make_big_knn_table2_bsp};
 use big_knn::dao_manager::{DaoManager, DaoStore};
-use big_knn::{get_file_names, get_partitions, write_table, NalityNNTable};
+use big_knn::{get_file_names, get_partitions, write_table, NalityNNTable, DATA_DIM};
 use bits::container::{BitsContainer, Simd256x2};
 use bits::EvpBits;
 use clap::Parser;
@@ -38,6 +37,8 @@ struct Args {
     nn_tables_source_dir: String,
     raw_data_source_path: String,
     output_path: String,
+    data_set_label: String,
+    partition_size: u32,
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -45,7 +46,7 @@ pub fn main() -> anyhow::Result<()> {
         .filter_level(log::LevelFilter::Trace)
         .init();
 
-    let start = Instant::now();
+    // let start = Instant::now();
     log::info!("Establishing Source NN tables ...");
 
     let args = Args::parse();
@@ -71,7 +72,8 @@ pub fn main() -> anyhow::Result<()> {
         anyhow::bail!("{} is not a directory", args.raw_data_source_path);
     }
 
-    let (sizes, partitions) = get_partitions(embeddings_path, 2_500_000);
+    let (_, partitions) =
+        get_partitions(embeddings_path, args.partition_size, &args.data_set_label);
 
     let h5_file_names = get_file_names(embeddings_path).unwrap();
 
@@ -80,7 +82,7 @@ pub fn main() -> anyhow::Result<()> {
         .map(|fname| {
             let path = embeddings_path.join(&fname);
             let file = hdf5::File::open(path).unwrap(); // open for reading
-            let h5_data = file.dataset("data").unwrap(); // the data // TODO make a parameter.
+            let h5_data = file.dataset(&args.data_set_label).unwrap();
             let data_size = h5_data.shape()[0];
             data_size as usize
         })
@@ -132,11 +134,12 @@ pub fn main() -> anyhow::Result<()> {
 
         log::info!("Base address of part 1 is: {}", base_address);
 
-        let dao1: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
+        let dao1: Dao<EvpBits<Simd256x2, { DATA_DIM }>> = load_h5_files::<Simd256x2, { DATA_DIM }>(
             embeddings_path,
             first_part_file_names,
             NUM_VERTICES,
             base_address as u32, // the base address of the first h5 file in the part
+            &args.data_set_label,
         )
         .unwrap();
 
@@ -156,17 +159,18 @@ pub fn main() -> anyhow::Result<()> {
 
         log::info!("Base address of part 2 is: {}", base_address);
 
-        let dao2: Dao<EvpBits<Simd256x2, 512>> = load_h5_files::<Simd256x2, 512>(
+        let dao2: Dao<EvpBits<Simd256x2, { DATA_DIM }>> = load_h5_files::<Simd256x2, { DATA_DIM }>(
             embeddings_path,
             second_part_file_names,
             NUM_VERTICES,
             base_address as u32, // the base address of the first h5 file in the part
+            &args.data_set_label,
         )
         .unwrap();
 
         let part2_size = dao2.num_data;
 
-        let mut daos: Vec<Dao<EvpBits<Simd256x2, 512>>> = vec![];
+        let mut daos: Vec<Dao<EvpBits<Simd256x2, { DATA_DIM }>>> = vec![];
         daos.push(dao1);
         daos.push(dao2);
 
@@ -180,13 +184,13 @@ pub fn main() -> anyhow::Result<()> {
 
         // Now get the NN tables
 
-        let first_nn_table_path = Path::new(&args.nn_tables_source_dir)
-            .join("nn_table".to_string().add(pair[0].1))
-            .with_added_extension("bin");
+        let mut first_nn_table_path =
+            Path::new(&args.nn_tables_source_dir).join("nn_table".to_string().add(pair[0].1));
+        first_nn_table_path.set_extension("bin");
 
-        let second_nn_table_path = Path::new(&args.nn_tables_source_dir)
-            .join("nn_table".to_string().add(pair[1].1))
-            .with_added_extension("bin");
+        let mut second_nn_table_path =
+            Path::new(&args.nn_tables_source_dir).join("nn_table".to_string().add(pair[1].1));
+        second_nn_table_path.set_extension("bin");
 
         let combined_nn_table = combine_nn_table(&first_nn_table_path, &second_nn_table_path, daos);
 
@@ -198,6 +202,8 @@ pub fn main() -> anyhow::Result<()> {
             part2_size,
         );
     }
+
+    // let end = Instant::now();
 
     Ok(())
 }
@@ -213,7 +219,7 @@ fn split_and_write_back(
     let nalities = nn_table.nalities;
 
     let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, ..]);
-    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part1_size.., ..]);
+    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part2_size.., ..]);
 
     let nn_table_1 = NalityNNTable {
         // TODO More copying???
@@ -233,7 +239,7 @@ fn split_and_write_back(
 fn combine_nn_table(
     nn_table1_path: &PathBuf,
     nn_table2_path: &PathBuf,
-    daos: Vec<Dao<EvpBits<Simd256x2, 512>>>,
+    daos: Vec<Dao<EvpBits<Simd256x2, { DATA_DIM }>>>,
 ) -> NalityNNTable {
     let nn_table1 = get_nn_table(&nn_table1_path);
     let nn_table2 = get_nn_table(&nn_table2_path);
@@ -263,7 +269,7 @@ fn combine_nn_table(
 
 fn get_nn_table(nn_table_path: &PathBuf) -> NalityNNTable {
     println!("Loading NN table from {:?}", nn_table_path);
-    let mut file = File::open(nn_table_path).unwrap();
+    let file = File::open(nn_table_path).unwrap();
     bincode::deserialize_from(file).unwrap()
 }
 

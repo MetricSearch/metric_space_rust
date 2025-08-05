@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bits::container::{BitsContainer, Simd256x4};
 use bits::distance;
-use bits::{similarity, EvpBits};
+use bits::EvpBits;
 use dao::laion_10_m_hdf5_dao_loader::hdf5_laion_f32_load;
 use dao::Dao;
 use metrics::euc;

@@ -297,7 +297,7 @@ mod tests {
         let mut forward_links: Array2<usize> =
             Array2::from_shape_vec((5, 3), forward_links).unwrap();
         let mut forward_sims: Array2<f32> = Array2::from_shape_vec((5, 3), forward_sims).unwrap();
-        let mut gt_links: Array2<usize> = Array2::from_shape_vec((5, 2), reverse_gt_2).unwrap();
+        let gt_links: Array2<usize> = Array2::from_shape_vec((5, 2), reverse_gt_2).unwrap();
 
         let reverse_links =
             get_reverse_links_not_in_forward(&&mut forward_links, &&mut forward_sims, 2);

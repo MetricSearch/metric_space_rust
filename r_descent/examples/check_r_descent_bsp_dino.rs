@@ -58,7 +58,6 @@ fn main() -> Result<()> {
 
     let num_neighbours = 10;
     let chunk_size = 100; // 20000;
-    let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 32;
 

@@ -1,5 +1,3 @@
-#![feature(path_add_extension)]
-
 pub mod big_knn_r_descent;
 pub mod dao_manager;
 mod table_initialisation;
@@ -27,6 +25,11 @@ use utils::Nality;
 const ALL_RECORDS: usize = 0;
 const NUM_QUERIES: usize = 0;
 
+const DINO_DATA_DIM: usize = 384;
+const LAION_DATA_DIM: usize = 512;
+
+pub const DATA_DIM: usize = DINO_DATA_DIM;
+
 #[derive(Serialize, Deserialize)]
 pub struct NalityNNTable {
     pub nalities: Array2<Nality>,
@@ -48,9 +51,13 @@ pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> anyhow::Result<()> {
 
 /// Partitions up a bunch of h5 files from the base_path directory
 /// into groups of files containing at most max_entries rows
-pub fn get_partitions<'a>(dir_base: &'a Path, max_entries: u32) -> (Vec<u32>, Vec<Vec<String>>) {
+pub fn get_partitions<'a>(
+    dir_base: &'a Path,
+    max_entries: u32,
+    data_set_label: &str,
+) -> (Vec<u32>, Vec<Vec<String>>) {
     let file_names = get_file_names(dir_base).unwrap();
-    let sizes = get_file_sizes(dir_base, &file_names).unwrap();
+    let sizes = get_file_sizes(dir_base, &file_names, data_set_label).unwrap();
     let partition_boundaries = partition_into(&sizes, max_entries).unwrap();
     let partitions = make_partitions(&partition_boundaries, &file_names);
     (sizes, partitions)
@@ -85,8 +92,8 @@ pub fn get_file_names<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
 fn extract_index(filename: &str) -> Option<u32> {
     // Extract the number between "img_emb_" and ".h5"
     filename
-        .strip_prefix("img_emb_")?
-        .strip_suffix(".h5")?
+        .strip_prefix("nn_table")?
+        .strip_suffix(".bin")?
         .parse::<u32>()
         .ok()
 }
@@ -94,14 +101,18 @@ fn extract_index(filename: &str) -> Option<u32> {
 /// Finds the sizes of all the h5 files in the directory base_path whose names are in the filenames vector
 /// returns a Vector of the same size as the filenames Vector containing the number of entries in the h5 file.
 /// Fails if any of the files are not h5 files
-pub fn get_file_sizes(base_path: &Path, filenames: &Vec<String>) -> anyhow::Result<Vec<u32>> {
+pub fn get_file_sizes(
+    base_path: &Path,
+    filenames: &Vec<String>,
+    data_set_label: &str,
+) -> anyhow::Result<Vec<u32>> {
     let mut sizes = vec![];
 
     for filename in filenames {
         let mut path = PathBuf::from(base_path);
         path.push(filename);
         let file = Hdf5File::open(path)?; // open for reading
-        let h5_data = file.dataset("data")?; // the data
+        let h5_data = file.dataset(data_set_label)?;
         sizes.push(h5_data.shape()[0] as u32); // safe as files are not that big!
     }
     Ok(sizes)
@@ -158,7 +169,7 @@ pub fn make_partitions<'a>(
 }
 
 pub fn create_and_store_nn_table(
-    dao: Dao<EvpBits<Simd256x2, 512>>,
+    dao: Dao<EvpBits<Simd256x2, DATA_DIM>>,
     num_neighbours: usize,
     reverse_list_size: usize,
     delta: f64,
@@ -166,7 +177,7 @@ pub fn create_and_store_nn_table(
     output_dir: &String,
     output_file: &String,
 ) {
-    let vec_dao: Vec<Dao<EvpBits<Simd256x2, 512>>> = vec![dao];
+    let vec_dao: Vec<Dao<EvpBits<Simd256x2, DATA_DIM>>> = vec![dao];
 
     let nn_table = into_big_knn_r_descent(
         vec_dao,
@@ -176,9 +187,8 @@ pub fn create_and_store_nn_table(
         start_index,
     );
 
-    let output_path = Path::new(&output_dir)
-        .join(output_file)
-        .with_added_extension("bin");
+    let mut output_path = Path::new(&output_dir).join(output_file);
+    output_path.set_extension("bin");
 
     write_table(&output_path, &nn_table);
 }

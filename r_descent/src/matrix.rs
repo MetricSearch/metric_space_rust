@@ -1,6 +1,5 @@
 use crate::functions::{
-    fill_false, fill_selected, get_new_reverse_links_not_in_forward, get_slice_using_selected,
-    insert_column_inplace, insert_index_at_position_1_inplace,
+    get_slice_using_selected, insert_column_inplace, insert_index_at_position_1_inplace,
 };
 use crate::updates::Updates;
 use dao::DaoMatrix;

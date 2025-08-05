@@ -37,8 +37,6 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 10;
-    let chunk_size = 200;
-    let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 32;
 

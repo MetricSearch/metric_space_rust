@@ -22,7 +22,7 @@ use hdf5::File as Hdf5File;
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
-use ndarray::{s, Array1, Array2, ArrayView, ArrayView1, Ix1};
+use ndarray::{Array1, Array2, ArrayView, ArrayView1, Ix1};
 use r_descent::{IntoRDescentWithRevNNs, RDescentWithRev, RevSearch};
 use std::rc::Rc;
 use std::time::Instant;

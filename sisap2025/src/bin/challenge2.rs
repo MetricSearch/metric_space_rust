@@ -14,9 +14,8 @@ use bits::container::Simd256x2;
 use bits::EvpBits;
 use clap::Parser;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
-use dao::Dao;
 use hdf5::File as Hdf5File;
-use ndarray::{s, Array2, ArrayView1, ArrayView2};
+use ndarray::{s, Array2, ArrayView2};
 use r_descent::IntoRDescent;
 
 use std::rc::Rc;
@@ -73,7 +72,6 @@ fn main() -> Result<()> {
     let start_post_load = Instant::now();
 
     let num_neighbours = 18;
-    let chunk_size = 1000;
     let delta = 0.01;
     let reverse_list_size = 64;
 

@@ -7,7 +7,7 @@ use crate::get_slice_using_selectors;
 use bits::container::{BitsContainer, Simd256x2};
 use bits::evp::max_bsp_similarity_as_f32;
 use bits::{evp::matrix_dot, evp::similarity_as_f32, EvpBits};
-use dao::{Dao, DaoMatrix};
+use dao::Dao;
 use ndarray::{s, Array2, Axis, Zip};
 use rand::Rng;
 use rayon::prelude::*;

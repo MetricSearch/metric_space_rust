@@ -9,13 +9,13 @@ We provide a development dataset; the evaluation phase will use an undisclosed d
 */
 
 use anyhow::Result;
-use bits::container::{Simd256p128, Simd256x2};
+use bits::container::Simd256x2;
 use bits::EvpBits;
 use clap::Parser;
 use dao::convert_f32_to_bsp::f32_dao_to_bsp;
 use dao::csv_dao_matrix_loader::dao_matrix_from_csv_dir;
 use dao::DaoMatrix;
-use ndarray::{s, ArrayView1};
+use ndarray::s;
 use r_descent::IntoRDescent;
 use std::rc::Rc;
 use std::time::Instant;
@@ -24,7 +24,6 @@ use std::time::Instant;
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 const NUM_NEIGHBOURS: usize = 18;
-const CHUNK_SIZE: usize = 200;
 const DELTA: f64 = 0.01;
 const REVERSE_LIST_SIZE: usize = 32;
 

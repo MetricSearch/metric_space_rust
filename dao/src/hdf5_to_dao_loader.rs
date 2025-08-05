@@ -110,6 +110,7 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
     filenames: &Vec<String>,
     num_vertices: usize,
     base_address: u32,
+    data_set_label: &str,
 ) -> anyhow::Result<Dao<EvpBits<C, W>>> {
     let mut loaded = 0;
 
@@ -119,7 +120,7 @@ pub fn load_h5_files<C: BitsContainer, const W: usize>(
     for data_path in filenames {
         let path = base_path.join(&data_path);
         let file = File::open(path)?; // open for reading
-        let h5_data = file.dataset("data")?; // the data // TODO make a parameter.
+        let h5_data = file.dataset(data_set_label)?; // the data
         let data_size = h5_data.shape()[0];
         let mut bsp_data = parallel_read_dataset(num_vertices, h5_data, data_size, 5000);
         bits.append(&mut bsp_data);

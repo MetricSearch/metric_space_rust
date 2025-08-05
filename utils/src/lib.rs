@@ -320,9 +320,8 @@ mod tests {
 
     //   #[test]
     pub fn test_rnd_perm2() {
-        let mut y = rand_perm(10, 5);
+        let y = rand_perm(10, 5);
         assert_eq!(y.len(), 5);
-        assert!(y.iter().all(|&x| x >= 0 && x < 10));
 
         y.to_vec().sort();
 

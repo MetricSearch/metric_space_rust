@@ -5,11 +5,8 @@ use clap::Parser;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::pubmed_hdf5_gt_loader::hdf5_pubmed_gt_load;
-use dao::Dao;
 use deepsize::DeepSizeOf;
-use ndarray::{Array1, Array2, ArrayView1};
-use r_descent::{get_nn_table2_bsp, initialise_table_bsp, IntoRDescent, RDescent};
-use std::collections::HashSet;
+use r_descent::{IntoRDescent, RDescent};
 use std::rc::Rc;
 use std::time::Instant;
 use utils::bytes_fmt;
@@ -30,7 +27,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     log::info!("Loading Pubmed data...");
-    let start = Instant::now();
+    //let start = Instant::now();
 
     let num_queries = 10_000;
     const ALL_RECORDS: usize = 0;
@@ -57,7 +54,6 @@ fn main() -> Result<()> {
 
     let num_neighbours = 10;
     let chunk_size = 200;
-    let rho = 1.0;
     let delta = 0.01;
     let reverse_list_size = 32;
 

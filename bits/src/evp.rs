@@ -4,6 +4,7 @@ use ndarray::{Array1, ArrayBase, ArrayView1, ArrayView2, Data, Ix1};
 use ndarray::{Array2, Axis};
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
+use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::sync::Arc;
@@ -24,6 +25,13 @@ impl<C: BitsContainer, const W: usize> EvpBits<C, W> {
             ones,
             negative_ones,
         }
+    }
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EvpBits")
+            .field("ones: ", &self.ones)
+            .field("negs: ", &self.negative_ones)
+            .finish()
     }
 
     pub fn from_embedding<S: Data<Elem = f32>>(

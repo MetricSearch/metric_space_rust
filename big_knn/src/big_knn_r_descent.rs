@@ -15,7 +15,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 use utils::address::{GlobalAddress, LocalAddress};
-use utils::{min_index_and_value_neighbourlarities, rand_perm, Nality};
+use utils::{min_index_and_value_neighbourlarities, minimum_in_nality, rand_perm, Nality};
 
 pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     daos: Vec<Dao<EvpBits<C, W>>>,
@@ -51,7 +51,6 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
 
 pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
     dao_manager: DaoStore<C, W>,
-    //daos: Vec<Dao<EvpBits<C, W>>>,
     num_data: usize,
     neighbourlarities: &Array2<Nality>,
     num_neighbours: usize,
@@ -94,89 +93,11 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
             });
 
-        // THIS IS WRONG!!!!
-        // neighbour_is_new =
-        //     Array2::from_shape_fn((num_data, num_neighbours), |_| AtomicBool::new(false));
-
-        // initialise old and new inline
-
-        // for row in 0..num_data {
-        //     // in Matlab line 74
-        //     let row_flags = neighbour_is_new.row_mut(row); // Matlab line 74
-        //
-        //     // new_indices are the indices in this row whose flag is set to true (columns)
-        //
-        //     let new_indices = row_flags // Matlab line 76
-        //         .iter()
-        //         .enumerate()
-        //         .filter_map(|(index, flag)| {
-        //             if flag.load(Ordering::Relaxed) {
-        //                 Some(index)
-        //             } else {
-        //                 None
-        //             }
-        //         })
-        //         .collect::<Array1<usize>>();
-
-        // old_indices are the indices in this row whose flag is set to false (intially there are none of these).
-
-        // let old_indices = row_flags // Matlab line 77
-        //     .iter()
-        //     .enumerate()
-        //     .filter_map(|(index, flag)| {
-        //         if !flag.load(Ordering::Relaxed) {
-        //             Some(index)
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .collect::<Array1<usize>>();
-
-        // random data ids from whole data set
-        // in matlab p = randperm(n,k) returns a row vector containing k unique integers selected randomly from 1 to n
-
-        // let sampled = rand_perm(
-        //     new_indices.len(),
-        //     (new_indices.len() as f64).round() as u64 as usize,
-        // );
-
-        // sampled are random indices from new_indices - they are indices into the current row
-
-        // let mut new_row_view: ArrayViewMut1<Nality> = new.row_mut(row);
-        // let mut old_row_view: ArrayViewMut1<Nality> = old.row_mut(row);
-        // let mut neighbour_row_view: ArrayViewMut1<AtomicBool> = neighbour_is_new.row_mut(row);
-        //
-        // fill_selected(
-        //     &mut new_row_view,
-        //     &neighbourlarities.row(row),
-        //     &sampled.view(),
-        // ); // Matlab line 79
-        //
-        // fill_selected(
-        //     &mut old_row_view,
-        //     &neighbourlarities.row(row),
-        //     &old_indices.view(),
-        // );
-        //
-        // fill_false_atomic_from_selectors(&mut neighbour_row_view, &sampled.view())
-        //}
-
-        // let after = Instant::now();
-        // log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
-
-        // phase 2  Matlab line 88
+        // Phase 1 (was phase 2)  Matlab line 88
 
         let now = Instant::now();
 
-        // initialise old' and new'  Matlab line 90
-
-        // // the reverse NN table  Matlab line 91
-        // let mut reverse: Array2<usize> = Array2::from_elem((num_data, reverse_list_size), 0);
-        // // all the distances from reverse NN table.
-        // let mut reverse_sims: Array2<f32> =
-        //     Array2::from_elem((num_data, reverse_list_size), -1.0f32);
-
-        let mut reverse: Array2<Nality> =
+        let mut reverse_links: Array2<Nality> =
             Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
         // reverse_ptr - how many reverse pointers for each entry in the dataset
         let mut reverse_count = Array1::from_elem(num_data, 0);
@@ -249,23 +170,25 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                             // if the list is not full
                             // update the reverse pointer list and the similarities
 
-                            reverse[[this_local_id, reverse_count[this_local_id]]] = Nality::new(
-                                this_sim,
-                                dao_manager.global_addr_from_table_addr(&row).unwrap(),
-                            );
+                            reverse_links[[this_local_id, reverse_count[this_local_id]]] =
+                                Nality::new(
+                                    this_sim,
+                                    dao_manager.global_addr_from_table_addr(&row).unwrap(),
+                                );
                             reverse_count[this_local_id] = reverse_count[this_local_id] + 1;
                         // increment the count
                         } else {
                             // the list is full - so no need to do anything with counts
                             // but it is, so we will only add it if it's more similar than another one already there
 
-                            let (position, value) =
-                                min_index_and_value_neighbourlarities(&reverse.row(this_local_id)); // Matlab line 109
+                            let (position, value) = min_index_and_value_neighbourlarities(
+                                &reverse_links.row(this_local_id),
+                            ); // Matlab line 109
                             let value = value.sim();
 
                             if value < this_sim {
                                 // Matlab line 110  if the value in reverse_sims is less similar we over write
-                                reverse[[this_local_id, position as usize]] = Nality::new(
+                                reverse_links[[this_local_id, position as usize]] = Nality::new(
                                     this_sim,
                                     dao_manager.global_addr_from_table_addr(&row).unwrap(),
                                 );
@@ -277,9 +200,9 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         }
 
         let after = Instant::now();
-        log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
 
-        // phase 3
+        // Phase 2 (was phase 3)
 
         let now = Instant::now();
 
@@ -288,7 +211,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         previous_neighbours
             .axis_iter(Axis(0)) // iterate over the rows
             .enumerate()
-            .par_bridge()
+            //.par_bridge() // TODO put back par_bridge
             .map(|(row_index, nalities)| {
                 let previous_row = previous_neighbours.row(row_index);
 
@@ -306,115 +229,114 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     .map(|x| x.1)
                     .collect();
 
-                let reversed = reverse.row(row_index);
+                let reverse_row_links = reverse_links.row(row_index); // may contain unmapped data?
 
-                let new_row_union: Array1<GlobalAddress> = if new_row.len() == 0 {
+                let new_mapped_forward_and_reverse_links: Array1<GlobalAddress> = if new_row.len() == 0 {
                     // Matlab line 130
                     Array1::from(vec![])
                 } else {
                     new_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() || ! dao_manager.is_mapped(x.id()) { None } else { Some(x.id()) } }) //<<<<<<<<< only take real values
-                        .chain(reversed
+                        .filter_map(|x| { if x.is_empty() || ! dao_manager.is_mapped(x.id()) { None } else { Some(x.id()) } }) // only take mapped values
+                        .chain(reverse_row_links
                             .iter()
-                            .filter(|&x| !x.is_empty() && dao_manager.is_mapped(x.id()) )
+                            .filter(|&x| !x.is_empty() && dao_manager.is_mapped(x.id()) ) // only take mapped values
                             .map(|x| x.id()))
                         .collect::<Array1<GlobalAddress>>()
                 };
 
                 // index the data using the rows indicated in old_row
-                let old_data = get_slice_using_multi_dao_selectors( // an array of evps selected from the old row
-                                                                    &dao_manager,
-                                                                    &old_row
+                let old_mapped_row_data = get_slice_using_multi_dao_selectors( // an array of evps selected from the old row for mapped entities
+                                                                               &dao_manager,
+                                                                               &old_row
                                                                         .iter()
                                                                         .map(|x| { x.id() })
                                                                         .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
-                                                                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 13
+                                                                        .collect::<Array1<GlobalAddress>>().view()); // Matlab line 136
 
-                let new_data = get_slice_using_multi_dao_selectors(
+                let new_mapped_row_data = get_slice_using_multi_dao_selectors(
                     &dao_manager,
-                    &new_row
+                    &new_row // may contain data that is mapped and unmapped
                         .iter()
                         .map(|x| x.id())
                         .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
                         .collect::<Array1<GlobalAddress>>().view()); // Matlab line 137
 
-                // let new_union_data =
-                //     get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.view()); // Matlab line 137
+                let new_mapped_forward_and_reverse_data = // all elements of new_row_union are mapped
+                     get_slice_using_multi_dao_selectors(&dao_manager, &new_mapped_forward_and_reverse_links.view()); // Matlab line 137
 
-                let new_union_data = // all elements of new_row_union are mapped
-                    get_slice_using_multi_dao_selectors(&dao_manager, &new_row_union.clone().into_iter()
-                        .filter(|global_address: &GlobalAddress | dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
-                        .collect::<Array1<GlobalAddress>>().view() ); // Matlab line 137
-
-                let new_new_sims =
-                    matrix_dot(new_union_data.view(), new_union_data.view(), |a, b| {
+                let new_mapped_forward_and_reverse_sims =
+                    matrix_dot(new_mapped_forward_and_reverse_data.view(), new_mapped_forward_and_reverse_data.view(), |a, b| {
                         similarity_as_f32(a, b)
                     });
 
                 (
                     new_row,
                     old_row,
-                    new_row_union,
-                    new_new_sims,
-                    new_data,
-                    old_data,
+                    new_mapped_forward_and_reverse_links,
+                    new_mapped_forward_and_reverse_sims,
+                    new_mapped_row_data,
+                    old_mapped_row_data,
                 )
             })
             .for_each(
                 |(new_row,
                      old_row,
-                     new_row_union,
-                     new_new_sims,
-                     new_data,
-                     old_data)| {
+                     new_mapped_forward_and_reverse_links,
+                     new_mapped_forward_and_reverse_sims,
+                     new_mapped_row_data,
+                     old_mapped_row_data,
+                 )| {
                     // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
                     // First iterate over new_new_sims.. upper triangular (since distance table)
 
-                    if new_row_union.len() >= 2 {
+                    if new_mapped_forward_and_reverse_links.len() >= 2 {
                         // must be at least 2 elements in the array because we are doing pair-wise comparisons.
 
-                        for new_ind1 in 0..new_row_union.len() - 1 {
+                        for new_ind1 in 0..new_mapped_forward_and_reverse_links.len() - 1 {
                             // Matlab line 144 (-1 since don't want the diagonal)
-                            let u1_id = *new_row_union.get(new_ind1).unwrap_or_else(|| panic!("Illegal index of new_row_union at {new_ind1} length is: {}", new_row_union.len()));
+                            let u1_id = *new_mapped_forward_and_reverse_links.get(new_ind1).unwrap_or_else(|| panic!("Illegal index of new_row_union at {new_ind1} length is: {}", new_mapped_forward_and_reverse_links.len()));
 
-                            for new_ind2 in new_ind1 + 1..new_row_union.len() {
+                            for new_ind2 in new_ind1 + 1..new_mapped_forward_and_reverse_links.len() {
                                 // Matlab line 147
-                                let u2_id = *new_row_union.get(new_ind2).unwrap_or_else(|| panic!("Illegal index of new_row_union at {new_ind2} length is: {}", new_row_union.len()));
+                                let u2_id = *new_mapped_forward_and_reverse_links.get(new_ind2).unwrap_or_else(|| panic!("Illegal index of new_row_union at {new_ind2} length is: {}", new_mapped_forward_and_reverse_links.len()));
                                 // then get their similarity from the matrix
-                                let this_sim = *new_new_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_new_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_new_sims.shape()));
+                                let this_sim = *new_mapped_forward_and_reverse_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_new_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_mapped_forward_and_reverse_sims.shape()));
                                 // is the current similarity greater than the biggest distance
                                 // in the row for u1_id? if it's not, then do nothing
 
-                                check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u1_id).unwrap().as_usize(),
-                                    GlobalAddress::as_u32(u2_id),
+
+                                let u1_row_id = dao_manager.table_addr_from_global_addr(&u1_id).unwrap();
+                                let u2_row_id = dao_manager.table_addr_from_global_addr(&u2_id).unwrap();
+
+
+                                check_apply_update_wrapper(
+                                    dao_manager.table_addr_from_global_addr(&u1_id).unwrap(),
+                                    u2_id,
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,
                                     &work_done,
                                 );
-                                // u1 is always mapped, u1 may not be.
-                                if dao_manager.is_mapped(u2_id) {
-                                    check_apply_update(
-                                        dao_manager.table_addr_from_global_addr(&u2_id).unwrap().as_usize(),
-                                        GlobalAddress::as_u32(u1_id),
+
+                                check_apply_update_wrapper(
+                                        dao_manager.table_addr_from_global_addr(&u2_id).unwrap(),
+                                        u1_id,
                                         this_sim,
                                         &neighbour_is_new,
                                         neighbourlarities,
                                         &work_done,
-                                    );
-                                }
+                                );
                             } // Matlab line 175
                         }
 
                         // now do the news vs the olds, no reverse links
 
-                        let new_old_sims = if old_data.len() == 0 {
+                        let new_old_sims = if old_mapped_row_data.len() == 0 {
                             Array2::zeros((0, 0))
                         } else {
-                            matrix_dot(new_data.view(),
-                                       old_data.view(),
+                            matrix_dot(new_mapped_row_data.view(),
+                                       old_mapped_row_data.view(),
                                        |a, b| { similarity_as_f32(a, b) })
                         };
 
@@ -434,7 +356,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                                 check_apply_update(
                                     dao_manager.table_addr_from_global_addr(&u1.id()).unwrap().as_usize(),   // the new row
-                                    GlobalAddress::as_u32(u2.id()),            // <<<<<<<<<< the new index to be added to row
+                                    GlobalAddress::as_u32(u2.id()),            // the new index to be added to row
                                     this_sim,           // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
@@ -456,7 +378,9 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             );
 
         let after = Instant::now();
-        log::debug!("Phase 3: {} ms", ((after - now).as_millis() as f64));
+        log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
+
+        println!("Row 0: {:?}", neighbourlarities.row(0));
     }
 
     log::debug!(
@@ -467,8 +391,26 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
     let final_time = Instant::now();
     log::debug!(
-        "Overall time 3: {} ms",
+        "Overall time: {} ms",
         ((final_time - start_time).as_millis() as f64)
+    );
+}
+
+fn check_apply_update_wrapper(
+    row_id: LocalAddress,
+    new_nality_addr: GlobalAddress,
+    new_nality_similarity: f32,
+    neighbour_is_new: &Array2<AtomicBool>,
+    neighbourlarities: &Array2<Nality>,
+    work_done: &AtomicUsize,
+) {
+    check_apply_update(
+        LocalAddress::as_usize(&row_id),
+        GlobalAddress::as_u32(new_nality_addr),
+        new_nality_similarity,
+        neighbour_is_new,
+        neighbourlarities,
+        work_done,
     );
 }
 
@@ -482,14 +424,16 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
         let dao_holding_datum = dao_store
             .get_dao(&selectors[count])
             .unwrap_or_else(|_| panic!("Cannot find dao for addr {:?}", &selectors[count]));
-        let view_of_data_in_dao = &dao_holding_datum.get_data(); // the actual data indexed from zero
+        let source = &dao_holding_datum.get_data(); // the actual data indexed from zero
         let global_addr_selection = selectors[count]; // the global addr of the selection
 
-        let local_offset =
-            GlobalAddress::as_usize(global_addr_selection) - dao_holding_datum.base_addr as usize;
+        let local_offset = dao_store
+            .table_addr_from_global_addr(&global_addr_selection)
+            .unwrap(); // TODO very inefficient - replace with below.
+                       // GlobalAddress::as_usize(global_addr_selection) - dao_holding_datum.base_addr as usize;
 
-        view_of_data_in_dao
-            .slice(s![local_offset]) // assign the slice of evps to slot in result
+        source
+            .slice(s![LocalAddress::as_usize(&local_offset)]) // assign the slice of evps to slot in result
             .assign_to(result.slice_mut(s![count]));
     }
 

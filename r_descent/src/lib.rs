@@ -330,7 +330,7 @@ impl<C: BitsContainer, const W: usize> IntoRDescentWithRevNNs for Dao<EvpBits<C,
 
 pub fn check_apply_update(
     row_id: usize,
-    new_nality_value_to_add: u32,
+    new_nality_addr: u32,
     new_nality_similarity: f32,
     neighbour_is_new: &Array2<AtomicBool>,
     neighbourlarities: &Array2<Nality>,
@@ -343,17 +343,15 @@ pub fn check_apply_update(
             if neighbourlarities
                 .row(row_id)
                 .iter()
-                .any(|x| GlobalAddress::as_u32(x.id()) == new_nality_value_to_add)
+                .any(|x| GlobalAddress::as_u32(x.id()) == new_nality_addr)
             {
                 // If we see the id we're inserting, bomb out
                 return;
             }
 
             let min_ality_before_check = min_naility.get().load(Ordering::SeqCst); // get the current min_nality as am Atomic u64
-            let new_value_to_add = Nality::new(
-                new_nality_similarity,
-                GlobalAddress::into(new_nality_value_to_add),
-            ); // this is the new Naility to add to the row
+            let new_value_to_add =
+                Nality::new(new_nality_similarity, GlobalAddress::into(new_nality_addr)); // this is the new Naility to add to the row
 
             // And try to insert the new one if it's not been changed...
             // only succeeds if the current value if the same as min_ality_before_check

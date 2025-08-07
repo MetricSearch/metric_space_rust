@@ -51,7 +51,7 @@ pub fn main() -> Result<()> {
         anyhow::bail!("{} is not a directory", args.source_path);
     }
 
-    let file_names = get_file_names(dir_base).unwrap();
+    let file_names = get_file_names(dir_base, "img_emb_", ".h5").unwrap();
     let sizes = get_file_sizes(dir_base, &file_names, &args.data_set_label).unwrap();
     let partition_boundaries = partition_into(&sizes, args.partition_size).unwrap(); // 2_200_000
     let partitions = make_partitions(&partition_boundaries, &file_names);

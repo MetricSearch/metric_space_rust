@@ -29,7 +29,7 @@ pub struct Nality(AtomicU64);
 
 impl Nality {
     pub fn new_empty() -> Self {
-        Self(AtomicU64::new(GlobalAddress::into(0).combine(-1f32))) // was u32::MAX 0
+        Self(AtomicU64::new(GlobalAddress::into(u32::MAX).combine(-1f32))) // was u32::MAX 0
     }
 
     pub fn new_empty_sim(id: GlobalAddress) -> Self {
@@ -45,7 +45,7 @@ impl Nality {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.id() == GlobalAddress::into(0) && self.sim() == -1f32 // was u32::MAX
+        self.id() == GlobalAddress::into(u32::MAX) && self.sim() == -1f32 // was u32::MAX
     }
 
     pub fn update(&self, sim: f32, id: GlobalAddress) {

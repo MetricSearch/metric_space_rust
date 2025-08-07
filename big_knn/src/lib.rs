@@ -56,14 +56,18 @@ pub fn get_partitions<'a>(
     max_entries: u32,
     data_set_label: &str,
 ) -> (Vec<u32>, Vec<Vec<String>>) {
-    let file_names = get_file_names(dir_base).unwrap();
+    let file_names = get_file_names(dir_base, "img_emb_", ".h5").unwrap();
     let sizes = get_file_sizes(dir_base, &file_names, data_set_label).unwrap();
     let partition_boundaries = partition_into(&sizes, max_entries).unwrap();
     let partitions = make_partitions(&partition_boundaries, &file_names);
     (sizes, partitions)
 }
 
-pub fn get_file_names<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
+pub fn get_file_names<P: AsRef<Path>>(
+    path: P,
+    prefix: &str,
+    suffix: &str,
+) -> anyhow::Result<Vec<String>> {
     let mut file_names = Vec::new();
 
     for entry in fs::read_dir(path)? {
@@ -73,27 +77,32 @@ pub fn get_file_names<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
         if path.is_file() {
             if let Some(name) = path.file_name() {
                 if let Some(name_str) = name.to_str() {
-                    file_names.push(name_str.to_string());
+                    if name_str.starts_with(prefix) && name_str.ends_with(suffix) {
+                        file_names.push(name_str.to_string());
+                    } else {
+                        panic!("{:?} Does not comply with the expected pattern <{prefix}>some_number<{suffix}>", name_str);
+                    }
                 }
             }
         }
     }
 
     file_names.sort_by(|a, b| {
-        extract_index(a)
+        extract_index(a, prefix, suffix)
             .unwrap_or(0)
-            .cmp(&extract_index(b).unwrap_or(0))
+            .cmp(&extract_index(b, prefix, suffix).unwrap_or(0))
     });
 
     Ok(file_names)
 }
 
 // extract the numeric index from a filename.
-fn extract_index(filename: &str) -> Option<u32> {
-    // Extract the number between "img_emb_" and ".h5"
+fn extract_index(filename: &str, prefix: &str, suffix: &str) -> Option<u32> {
+    // Extract the sortable value - a number between prefix and suffix e.g. between "img_emb_" and ".h5"
+
     filename
-        .strip_prefix("nn_table")?
-        .strip_suffix(".bin")?
+        .strip_prefix(prefix)?
+        .strip_suffix(suffix)?
         .parse::<u32>()
         .ok()
 }

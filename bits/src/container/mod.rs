@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
 
@@ -9,7 +10,7 @@ pub use wide::{
 mod stdsimd;
 mod wide;
 
-pub trait BitsContainer: Clone + Send + Sync {
+pub trait BitsContainer: Clone + Send + Sync + Debug {
     fn new() -> Self;
 
     fn count_ones(&self) -> usize;

@@ -38,7 +38,7 @@ pub fn main() -> anyhow::Result<()> {
     if !nn_tables_dir_base.is_dir() {
         bail!("{} is not a directory", args.nn_tables_source_dir);
     }
-    let nn_file_names = get_file_names(&nn_tables_dir_base).unwrap();
+    let nn_file_names = get_file_names(&nn_tables_dir_base, "nn_table", ".bin").unwrap();
 
     // check they are all of the expected type by extension
     for file_name in nn_file_names.iter() {

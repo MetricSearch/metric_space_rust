@@ -24,4 +24,7 @@ cargo run -r --bin merge_laion_nn_tables /Users/al/repos/metric_space/_scratch/m
 cargo run -r --bin create_single_table  /Users/al/repos/metric_space/_scratch/mf_dino/ /Users/al/Desktop/merged.bin
 cargo run -r --bin view_merged /Users/al/Desktop/merged.bin
 
+*******
+
+
 

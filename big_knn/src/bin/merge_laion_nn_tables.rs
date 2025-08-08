@@ -3,7 +3,7 @@
 */
 
 use anyhow::bail;
-use big_knn::big_knn_r_descent::{check_neighbours, make_big_knn_table2_bsp};
+use big_knn::big_knn_r_descent::make_big_knn_table2_bsp;
 use big_knn::dao_manager::{DaoManager, DaoStore};
 use big_knn::{get_file_names, get_partitions, write_table, NalityNNTable, DATA_DIM};
 use bits::container::{BitsContainer, Simd256x2};
@@ -37,8 +37,8 @@ struct Args {
     nn_tables_source_dir: String,
     raw_data_source_path: String,
     output_path: String,
-    data_set_label: String,
     partition_size: u32,
+    data_set_label: String,
 }
 
 pub fn main() -> anyhow::Result<()> {

@@ -447,7 +447,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
     );
 
     let final_time = Instant::now();
-    log::debug!(
+    log::trace!(
         "Overall time 3: {} ms",
         ((final_time - start_time).as_millis() as f64)
     );

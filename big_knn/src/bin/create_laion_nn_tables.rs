@@ -42,6 +42,8 @@ pub fn main() -> Result<()> {
         .filter_level(log::LevelFilter::Trace)
         .init();
 
+    let start_time = Instant::now();
+
     let args = Args::parse();
 
     log::info!("Loading h5 data files...");
@@ -96,6 +98,12 @@ pub fn main() -> Result<()> {
 
         start_index = start_index + partition_data_size;
     }
+
+    let final_time = Instant::now();
+    log::trace!(
+        "Time To create all NN tables: {} ms",
+        ((final_time - start_time).as_millis() as f64)
+    );
 
     Ok(())
 }

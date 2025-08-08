@@ -204,7 +204,7 @@ impl<C: BitsContainer, const W: usize> RevSearch<EvpBits<C, W>> for RDescentWith
                         q_sims[position] = this_sim;
                         new_flags[position] = true;
 
-                        let (pos, min) = min_index_and_value(&q_sims.view());
+                        let (_, min) = min_index_and_value(&q_sims.view());
                         current_min_sim = min;
 
                         // and log that we've done some work so we don't want to stop yet
@@ -399,7 +399,6 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
     let start_time = Instant::now();
 
     let num_data = dao.num_data;
-    let dims = dao.get_dim();
     let data = dao.get_data();
 
     // Matlab lines refer to richard_build.txt file in the matlab dir
@@ -769,7 +768,7 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
     );
 
     let final_time = Instant::now();
-    log::debug!(
+    log::trace!(
         "Overall time 3: {} ms",
         ((final_time - start_time).as_millis() as f64)
     );

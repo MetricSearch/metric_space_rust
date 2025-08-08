@@ -30,7 +30,7 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
 
     let dao_manager = DaoStore::new(daos);
 
-    check_neighbours(&neighbourlarities, &dao_manager);
+    // check_neighbours(&neighbourlarities, &dao_manager); // Debug check - not needed.
 
     make_big_knn_table2_bsp(
         dao_manager,
@@ -41,8 +41,8 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
         reverse_list_size,
     );
 
-    let ords = neighbourlarities.mapv(|x| GlobalAddress::as_usize(x.id()));
-    let dists = neighbourlarities.mapv(|x| x.sim() as f32);
+    //let ords = neighbourlarities.mapv(|x| GlobalAddress::as_usize(x.id()));
+    //let dists = neighbourlarities.mapv(|x| x.sim() as f32);
 
     NalityNNTable {
         nalities: neighbourlarities,
@@ -57,7 +57,10 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
     delta: f64,
     reverse_list_size: usize,
 ) {
-    log::debug!("Neighbourities length: {:?}", neighbourlarities.shape(),);
+    log::debug!(
+        "Making NN table with shape: {:?}",
+        neighbourlarities.shape(),
+    );
 
     let start_time = Instant::now();
 
@@ -81,7 +84,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             iterations
         );
 
-        // phase 1
+        // Phase 1 (was phase 2)  Matlab line 88
 
         let now = Instant::now();
 
@@ -92,10 +95,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 // clone the atomic flags array
                 AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
             });
-
-        // Phase 1 (was phase 2)  Matlab line 88
-
-        let now = Instant::now();
 
         let mut reverse_links: Array2<Nality> =
             Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
@@ -148,7 +147,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                             == GlobalAddress::as_usize(
                                 dao_manager.global_addr_from_table_addr(&row).unwrap(),
                             )
-                        // safe this way around - rows are all mapped - TODO check other similar operations?
                     });
 
                     // if the reverse list isn't full, we will just add this one
@@ -211,7 +209,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         previous_neighbours
             .axis_iter(Axis(0)) // iterate over the rows
             .enumerate()
-            //.par_bridge() // TODO put back par_bridge
+            .par_bridge()
             .map(|(row_index, nalities)| {
                 let previous_row = previous_neighbours.row(row_index);
 
@@ -306,9 +304,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 // in the row for u1_id? if it's not, then do nothing
 
 
-                                let u1_row_id = dao_manager.table_addr_from_global_addr(&u1_id).unwrap();
-                                let u2_row_id = dao_manager.table_addr_from_global_addr(&u2_id).unwrap();
-
 
                                 check_apply_update_wrapper(
                                     dao_manager.table_addr_from_global_addr(&u1_id).unwrap(),
@@ -379,8 +374,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         let after = Instant::now();
         log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
-
-        println!("Row 0: {:?}", neighbourlarities.row(0));
     }
 
     log::debug!(
@@ -390,8 +383,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
     );
 
     let final_time = Instant::now();
-    log::debug!(
-        "Overall time: {} ms",
+    log::trace!(
+        "Total time for NN table build: {} ms",
         ((final_time - start_time).as_millis() as f64)
     );
 }
@@ -427,10 +420,12 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
         let source = &dao_holding_datum.get_data(); // the actual data indexed from zero
         let global_addr_selection = selectors[count]; // the global addr of the selection
 
-        let local_offset = dao_store
-            .table_addr_from_global_addr(&global_addr_selection)
-            .unwrap(); // TODO very inefficient - replace with below.
-                       // GlobalAddress::as_usize(global_addr_selection) - dao_holding_datum.base_addr as usize;
+        // let local_offset = dao_store
+        //     .table_addr_from_global_addr(&global_addr_selection)
+        //     .unwrap(); //  very inefficient - have replaced with below.
+        let local_offset = LocalAddress::into(
+            GlobalAddress::as_usize(global_addr_selection) as u32 - dao_holding_datum.base_addr,
+        );
 
         source
             .slice(s![LocalAddress::as_usize(&local_offset)]) // assign the slice of evps to slot in result

@@ -23,11 +23,7 @@ fn main() {
         let row = data.nalities.row(i);
         println!("{i}: ");
         for n in row.iter() {
-            print!(
-                "id: {:?} sim: {:?}  ",
-                GlobalAddress::as_usize(n.id()),
-                n.sim()
-            );
+            print!("id: {:?} sim: {:?}  ", n.id().as_usize(), n.sim());
         }
         println!();
     }

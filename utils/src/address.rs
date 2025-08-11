@@ -8,12 +8,12 @@ impl GlobalAddress {
     pub fn into(x: u32) -> Self {
         GlobalAddress(x)
     }
-    pub fn as_u32(x: GlobalAddress) -> u32 {
-        x.0
+    pub fn as_u32(&self) -> u32 {
+        self.0
     }
 
-    pub fn as_usize(x: GlobalAddress) -> usize {
-        x.0 as usize
+    pub fn as_usize(&self) -> usize {
+        self.0 as usize
     }
 
     pub fn combine(&self, sim: f32) -> u64 {

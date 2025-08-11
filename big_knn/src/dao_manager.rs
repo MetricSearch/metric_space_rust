@@ -23,7 +23,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
     }
 
     fn is_mapped(&self, addr: GlobalAddress) -> bool {
-        let addr = GlobalAddress::as_u32(addr);
+        let addr = addr.as_u32();
         let result = self
             .daos
             .iter()
@@ -41,7 +41,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         target_addr: &GlobalAddress,
     ) -> anyhow::Result<LocalAddress> {
         let mut local_addresses_earlier: u32 = 0;
-        let target_addr = GlobalAddress::as_u32(*target_addr);
+        let target_addr = target_addr.as_u32();
         for dao in &self.daos {
             let dao_size = dao.num_data as u32;
             if target_addr >= dao.base_addr && target_addr < (dao.base_addr + dao_size) {
@@ -86,7 +86,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
     }
 
     fn get_dao(&self, target_addr: &GlobalAddress) -> anyhow::Result<&Dao<EvpBits<C, W>>> {
-        let target_addr = GlobalAddress::as_u32(*target_addr);
+        let target_addr = target_addr.as_u32();
         for dao in &self.daos {
             if target_addr >= dao.base_addr && target_addr < dao.base_addr + dao.num_data as u32 {
                 // we have found it

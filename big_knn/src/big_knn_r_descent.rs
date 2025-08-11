@@ -152,10 +152,11 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                         .collect::<Array1<Nality>>();
 
                     let forward_links_dont_contain_this = !new_forward_links.iter().any(|nality| {
-                        GlobalAddress::as_usize(nality.id())
-                            == GlobalAddress::as_usize(
-                                dao_manager.global_addr_from_table_addr(&row).unwrap(),
-                            )
+                        nality.id().as_usize()
+                            == dao_manager
+                                .global_addr_from_table_addr(&row)
+                                .unwrap()
+                                .as_usize()
                     });
 
                     // if the reverse list isn't full, we will just add this one
@@ -360,7 +361,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                                 check_apply_update(
                                     dao_manager.table_addr_from_global_addr(&u1.id()).unwrap().as_usize(),   // the new row
-                                    GlobalAddress::as_u32(u2.id()),            // the new index to be added to row
+                                    u2.id().as_u32(),            // the new index to be added to row
                                     this_sim,           // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
@@ -369,7 +370,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                                 check_apply_update(
                                     dao_manager.table_addr_from_global_addr(&u2.id()).unwrap().as_usize(),
-                                    GlobalAddress::as_u32(u1.id()),
+                                    u1.id().as_u32(),
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,
@@ -410,7 +411,7 @@ fn check_apply_update_wrapper(
 ) {
     check_apply_update(
         LocalAddress::as_usize(&row_id),
-        GlobalAddress::as_u32(new_nality_addr),
+        new_nality_addr.as_u32(),
         new_nality_similarity,
         neighbour_is_new,
         neighbourlarities,
@@ -431,9 +432,8 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
         let source = &dao_holding_datum.get_data(); // the actual data indexed from zero
         let global_addr_selection = selectors[count]; // the global addr of the selection
 
-        let pointer_to_evp_store = LocalAddress::into(
-            GlobalAddress::as_usize(global_addr_selection) as u32 - dao_holding_datum.base_addr,
-        );
+        let pointer_to_evp_store =
+            LocalAddress::into(global_addr_selection.as_u32() - dao_holding_datum.base_addr);
 
         source
             .slice(s![LocalAddress::as_usize(&pointer_to_evp_store)]) // assign the slice of evps to slot in result

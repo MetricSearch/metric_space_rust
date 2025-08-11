@@ -274,7 +274,7 @@ impl<C: BitsContainer, const W: usize> IntoRDescent for Dao<EvpBits<C, W>> {
             reverse_list_size,
         );
 
-        let ords = neighbourlarities.mapv(|x| GlobalAddress::as_u32(x.id()) as usize);
+        let ords = neighbourlarities.mapv(|x| x.id().as_usize());
         let dists = neighbourlarities.mapv(|x| x.sim());
 
         RDescent {
@@ -308,13 +308,13 @@ impl<C: BitsContainer, const W: usize> IntoRDescentWithRevNNs for Dao<EvpBits<C,
         let reverse =
             get_reverse_nality_links_not_in_forward(&neighbourlarities, nns_in_search_structure);
 
-        let neighbours = neighbourlarities.mapv(|x| GlobalAddress::as_usize(x.id()));
+        let neighbours = neighbourlarities.mapv(|x| x.id().as_usize());
         let similarities = neighbourlarities.mapv(|x| x.sim());
         let reverse_ids = reverse.mapv(|x| {
             if x.is_empty() {
                 u32::MAX as usize
             } else {
-                GlobalAddress::as_usize(x.id())
+                x.id().as_usize()
             }
         });
 
@@ -343,7 +343,7 @@ pub fn check_apply_update(
             if neighbourlarities
                 .row(row_id)
                 .iter()
-                .any(|x| GlobalAddress::as_u32(x.id()) == new_nality_addr)
+                .any(|x| x.id().as_u32() == new_nality_addr)
             {
                 // If we see the id we're inserting, bomb out
                 return;
@@ -529,7 +529,7 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
-                let this_id = GlobalAddress::as_usize(this_row_neighbourlarities[id].id());
+                let this_id = this_row_neighbourlarities[id].id().as_usize();
                 // and how similar it is to the current id
                 let local_sim = this_row_neighbourlarities[id].sim();
 
@@ -537,9 +537,8 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                 let new_forward_links = new.row(this_id);
 
                 // forwardLinksDontContainThis = sum(newForwardLinks == i_phase2) == 0;
-                let forward_links_dont_contain_this = !new_forward_links
-                    .iter()
-                    .any(|x| GlobalAddress::as_usize(x.id()) == row);
+                let forward_links_dont_contain_this =
+                    !new_forward_links.iter().any(|x| x.id().as_usize() == row);
 
                 // if the reverse list isn't full, we will just add this one
                 // this adds to a priority queue and keeps track of max
@@ -622,11 +621,11 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                 } else {
                     new_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() {None} else { Some( GlobalAddress::as_usize(x.id())) } } ) //<<<<<<<<< only take real values
+                        .filter_map(|x| { if x.is_empty() {None} else { Some( x.id().as_usize() ) } } ) //<<<<<<<<< only take real values
                         .chain(binding
                                 .iter()
                                 .filter(|&x| !x.is_empty())
-                                .map(|x| GlobalAddress::as_usize(x.id())))
+                                .map(|x| x.id().as_usize()))
                         .collect::<Array1<usize>>()
                 };
 
@@ -635,7 +634,7 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                     &data,
                     &old_row
                         .iter()
-                        .map(|x| { GlobalAddress::as_usize(x.id()) } )
+                        .map(|x| { x.id().as_usize() } )
                         .collect::<Array1<_>>().view(),
                 ); // Matlab line 136
 
@@ -643,7 +642,7 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                     &data,
                     &new_row
                         .iter()
-                        .map(|x| GlobalAddress::as_usize(x.id()) )
+                        .map(|x| x.id().as_usize() )
                         .collect::<Array1<_>>().view(),
                 ); // Matlab line 137
 
@@ -735,8 +734,8 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                                 let this_sim = *new_old_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_old_sims.shape()));
 
                                 check_apply_update(
-                                    GlobalAddress::as_usize(u1.id()),   // the new row
-                                    GlobalAddress::as_u32(u2.id()),   // <<<<<<<<<< the new index to be added to row
+                                    u1.id().as_usize(),   // the new row
+                                    u2.id().as_u32(),   // <<<<<<<<<< the new index to be added to row
                                     this_sim,           // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
@@ -744,8 +743,8 @@ pub fn get_nn_table2_bsp<C: BitsContainer, const W: usize>(
                                 );
 
                                 check_apply_update(
-                                    GlobalAddress::as_usize(u2.id()),
-                                    GlobalAddress::as_u32(u1.id()),
+                                    u2.id().as_usize(),
+                                    u1.id().as_u32(),
                                     this_sim,
                                     &neighbour_is_new,
                                     neighbourlarities,

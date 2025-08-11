@@ -203,20 +203,20 @@ pub fn get_reverse_nality_links_not_in_forward(
             // get the id
 
             let next_nality = &neighbours[[row, col]];
-            let next_id = GlobalAddress::as_u32(next_nality.id()) as usize;
+            let next_id = next_nality.id().as_usize();
             let next_sim = next_nality.sim();
 
             // 1) If ‘row’ is not already a forward‐neighbour of next_id..
             if !neighbours
                 .row(next_id) // if it is not in the neighbours of the row
                 .iter()
-                .any(|x| GlobalAddress::as_u32(x.id()) as usize == row)
+                .any(|x| x.id().as_usize() == row)
             {
-                let bind_reverse = reverse.row(next_id as usize);
+                let bind_reverse = reverse.row(next_id);
 
                 let already_in_reverse = &bind_reverse // and if it isn't in the reverse neighbours already
                     .iter()
-                    .any(|x| GlobalAddress::as_u32(x.id()) as usize == row);
+                    .any(|x| x.id().as_usize() == row);
 
                 // 2) check if we’ve already added ‘row’ into reverse[next_id]:
                 if !already_in_reverse {

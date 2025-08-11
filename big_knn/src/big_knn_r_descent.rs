@@ -112,6 +112,15 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
             let this_row_neighbourlarities = &neighbourlarities.row(LocalAddress::as_usize(&row)); // Matlab line 98
                                                                                                    // so for each one of these (there are k...):
+            if this_row_neighbourlarities[0].id()
+                != dao_manager.global_addr_from_table_addr(&row).unwrap()
+            {
+                panic!(
+                    "First element in row {:?} does not match self {:?} ",
+                    row, this_row_neighbourlarities[0]
+                );
+            }
+
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
@@ -275,6 +284,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     new_mapped_forward_and_reverse_sims,
                     new_mapped_row_data,
                     old_mapped_row_data,
+                    reverse_row_links,
                 )
             })
             .for_each(
@@ -284,6 +294,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                      new_mapped_forward_and_reverse_sims,
                      new_mapped_row_data,
                      old_mapped_row_data,
+                     reverse_row_links
                  )| {
                     // Two for loops for the two distance tables (similarities and new_old_sims) for each pair of elements in the newNew list, their original ids
                     // First iterate over new_new_sims.. upper triangular (since distance table)
@@ -302,8 +313,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 let this_sim = *new_mapped_forward_and_reverse_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_new_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_mapped_forward_and_reverse_sims.shape()));
                                 // is the current similarity greater than the biggest distance
                                 // in the row for u1_id? if it's not, then do nothing
-
-
 
                                 check_apply_update_wrapper(
                                     dao_manager.table_addr_from_global_addr(&u1_id).unwrap(),
@@ -374,6 +383,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         let after = Instant::now();
         log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
+
+        println!("Row 0: {:?}", neighbourlarities.row(0));
     }
 
     log::debug!(
@@ -420,15 +431,12 @@ fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(
         let source = &dao_holding_datum.get_data(); // the actual data indexed from zero
         let global_addr_selection = selectors[count]; // the global addr of the selection
 
-        // let local_offset = dao_store
-        //     .table_addr_from_global_addr(&global_addr_selection)
-        //     .unwrap(); //  very inefficient - have replaced with below.
-        let local_offset = LocalAddress::into(
+        let pointer_to_evp_store = LocalAddress::into(
             GlobalAddress::as_usize(global_addr_selection) as u32 - dao_holding_datum.base_addr,
         );
 
         source
-            .slice(s![LocalAddress::as_usize(&local_offset)]) // assign the slice of evps to slot in result
+            .slice(s![LocalAddress::as_usize(&pointer_to_evp_store)]) // assign the slice of evps to slot in result
             .assign_to(result.slice_mut(s![count]));
     }
 

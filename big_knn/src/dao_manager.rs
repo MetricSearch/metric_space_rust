@@ -40,14 +40,17 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         &self,
         target_addr: &GlobalAddress,
     ) -> anyhow::Result<LocalAddress> {
-        let mut table_index: u32 = 0;
+        let mut local_addresses_earlier: u32 = 0;
         let target_addr = GlobalAddress::as_u32(*target_addr);
         for dao in &self.daos {
-            if target_addr >= dao.base_addr && target_addr < (dao.base_addr + dao.num_data as u32) {
+            let dao_size = dao.num_data as u32;
+            if target_addr >= dao.base_addr && target_addr < (dao.base_addr + dao_size) {
+                let offset_in_dao = target_addr - dao.base_addr;
                 // We have found it.
-                return Ok(LocalAddress::into(target_addr - dao.base_addr));
+                let local_addr = offset_in_dao + local_addresses_earlier;
+                return Ok(LocalAddress::into(local_addr));
             } else {
-                table_index = table_index + dao.num_data as u32;
+                local_addresses_earlier = local_addresses_earlier + dao_size;
             }
         }
         Err(anyhow!(
@@ -90,7 +93,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
                 return Ok(dao);
             }
         }
-        Err(anyhow!("Didn't find the dao"))
+        Err(anyhow!("Didn't find {} in the dao", target_addr))
     }
 }
 

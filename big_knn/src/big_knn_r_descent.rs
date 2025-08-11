@@ -41,9 +41,6 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
         reverse_list_size,
     );
 
-    //let ords = neighbourlarities.mapv(|x| GlobalAddress::as_usize(x.id()));
-    //let dists = neighbourlarities.mapv(|x| x.sim() as f32);
-
     NalityNNTable {
         nalities: neighbourlarities,
     }
@@ -71,18 +68,9 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
 
-    while work_done.load(std::sync::atomic::Ordering::SeqCst) > ((num_data as f64) * delta) as usize
-    {
+    while work_done.load(Ordering::SeqCst) > ((num_data as f64) * delta) as usize {
         // Matlab line 61
         // condition is fraction of lines whose min similarity has changed when this gets low - no much work done then stop.
-        iterations += 1;
-
-        log::debug!(
-            "iterating: c: {} num_data: {} iters: {}",
-            work_done.load(std::sync::atomic::Ordering::SeqCst),
-            num_data,
-            iterations
-        );
 
         // Phase 1 (was phase 2)  Matlab line 88
 
@@ -90,15 +78,13 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         // Take a copy of the state of the world
         let mut previous_neighbours = &mut neighbourlarities.clone();
-        let previous_flags: Array2<AtomicBool> =
+        let previous_flags: Array2<AtomicBool> = // clone the atomic flags array
             Array2::from_shape_fn(neighbour_is_new.dim(), |(i, j)| {
-                // clone the atomic flags array
                 AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
             });
 
         let mut reverse_links: Array2<Nality> =
             Array2::from_elem((num_data, reverse_list_size), Nality::new_empty());
-        // reverse_ptr - how many reverse pointers for each entry in the dataset
         let mut reverse_count = Array1::from_elem(num_data, 0);
 
         // loop over all current entries in neighbours; add that entry to each row in the
@@ -112,21 +98,12 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
             let this_row_neighbourlarities = &neighbourlarities.row(LocalAddress::as_usize(&row)); // Matlab line 98
                                                                                                    // so for each one of these (there are k...):
-            if this_row_neighbourlarities[0].id()
-                != dao_manager.global_addr_from_table_addr(&row).unwrap()
-            {
-                panic!(
-                    "First element in row {:?} does not match self {:?} ",
-                    row, this_row_neighbourlarities[0]
-                );
-            }
-
             for id in 0..num_neighbours {
                 // Matlab line 99 (updated)
                 // get the id
                 let this_global_id = this_row_neighbourlarities[id].id();
                 // and how similar it is to the current id
-                let this_sim = this_row_neighbourlarities[id].sim();
+                let this_sim = this_row_neighbourlarities[id].sim(); // may or may not be mapped
 
                 if dao_manager.is_mapped(this_global_id) {
                     let this_local_id: LocalAddress = dao_manager
@@ -135,7 +112,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                     let this_local_id: usize = LocalAddress::as_usize(&this_local_id);
 
-                    let new_forward_links = previous_neighbours //take the previous neighbours
+                    let new_forward_links = previous_neighbours // take the previous neighbours - can contain unmapped data
                         .row(this_local_id)
                         .iter()
                         .enumerate()
@@ -151,13 +128,14 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                         })
                         .collect::<Array1<Nality>>();
 
-                    let forward_links_dont_contain_this = !new_forward_links.iter().any(|nality| {
-                        nality.id().as_usize()
-                            == dao_manager
-                                .global_addr_from_table_addr(&row)
-                                .unwrap()
-                                .as_usize()
-                    });
+                    let forward_links_dont_contain_this_row =
+                        !new_forward_links.iter().any(|nality| {
+                            nality.id().as_usize()          // may now be mapped.
+                                == dao_manager
+                                    .global_addr_from_table_addr(&row)
+                                    .unwrap()
+                                    .as_usize() // global address of row under consideration - mapped
+                        });
 
                     // if the reverse list isn't full, we will just add this one
                     // this adds to a priority queue and keeps track of max
@@ -166,7 +144,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     // biggest similarity of size reverse_list_size.
                     // first find all the forward links containing the row
 
-                    if forward_links_dont_contain_this {
+                    if forward_links_dont_contain_this_row {
                         // if the reverse list isn't full, we will just add this one
                         // this adds to a priority queue and keeps track of max
 
@@ -195,7 +173,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                             let value = value.sim();
 
                             if value < this_sim {
-                                // Matlab line 110  if the value in reverse_sims is less similar we over write
+                                // Matlab line 110  if the value in reverse_sims is less similar we overwrite
                                 reverse_links[[this_local_id, position as usize]] = Nality::new(
                                     this_sim,
                                     dao_manager.global_addr_from_table_addr(&row).unwrap(),
@@ -237,7 +215,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                     .map(|x| x.1)
                     .collect();
 
-                let reverse_row_links = reverse_links.row(row_index); // may contain unmapped data?
+                let reverse_row_links = reverse_links.row(row_index); // may contain unmapped data
 
                 let new_mapped_forward_and_reverse_links: Array1<GlobalAddress> = if new_row.len() == 0 {
                     // Matlab line 130
@@ -362,16 +340,16 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 check_apply_update(
                                     dao_manager.table_addr_from_global_addr(&u1.id()).unwrap().as_usize(),   // the new row
                                     u2.id().as_u32(),            // the new index to be added to row
-                                    this_sim,           // with this similarity
+                                    this_sim,                    // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
                                     &work_done,
                                 );
 
                                 check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u2.id()).unwrap().as_usize(),
-                                    u1.id().as_u32(),
-                                    this_sim,
+                                    dao_manager.table_addr_from_global_addr(&u2.id()).unwrap().as_usize(), // the new row
+                                    u1.id().as_u32(),           // the new index to be added to row
+                                    this_sim,                   // with this similarity
                                     &neighbour_is_new,
                                     neighbourlarities,
                                     &work_done,
@@ -383,16 +361,16 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             );
 
         let after = Instant::now();
+        iterations += 1;
+
+        log::debug!(
+            "work done: {} num_data: {} iters: {}",
+            work_done.load(std::sync::atomic::Ordering::SeqCst),
+            num_data,
+            iterations
+        );
         log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
-
-        println!("Row 0: {:?}", neighbourlarities.row(0));
     }
-
-    log::debug!(
-        "Final iteration: c: {} iters: {}",
-        work_done.load(std::sync::atomic::Ordering::SeqCst),
-        iterations
-    );
 
     let final_time = Instant::now();
     log::trace!(

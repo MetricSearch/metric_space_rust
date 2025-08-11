@@ -50,7 +50,7 @@ pub fn main() -> anyhow::Result<()> {
         .row(0)
         .slice(s![0..10])
         .iter()
-        .for_each(|x| println!("{}, {}", GlobalAddress::as_u32(x.id()), x.sim()));
+        .for_each(|x| println!("{}, {}", x.id().as_u32(), x.sim()));
 
     Ok(())
 }

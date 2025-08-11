@@ -1,30 +1,21 @@
 use anyhow::Result;
-use bitvec_simd::BitVecSimd;
-use metrics::euc;
-use ndarray::{s, Array1, ArrayView1};
-//use rayon::prelude::*;
-use dao::convert_f32_to_cubic::to_cubic_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use descent::Descent;
+use ndarray::Array1;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
 use std::time::Instant;
 use utils::non_nan::NonNan;
 use utils::pair::Pair;
-use utils::{arg_sort_2d, distance_f32, ndcg};
-use wide::u64x4;
-//use divan::Bencher;
+use utils::{distance_f32, ndcg};
 
 fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
-    let num_queries = 10_000;
-    let num_data = 1_000_000 - num_queries;
 
     let data_file_name = "/Volumes/Data/RUST_META/mf_dino2_csv/";
     let descent_file_name = "_scratch/nn_table_100.bin";
-    let rng_star_file_name = "_scratch/rng_table_100.bin";
 
     println!("f32 search");
     println!("Serde load of Descent");

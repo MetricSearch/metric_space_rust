@@ -90,7 +90,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         iterations += 1;
 
         log::debug!(
-            "iterating: c: {} num_data: {} iters: {}",
+           "work done: {} num_data: {} iters: {}",
             work_done.load(std::sync::atomic::Ordering::SeqCst),
             num_data,
             iterations
@@ -441,7 +441,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
     }
 
     log::debug!(
-        "Final iteration: c: {} iters: {}",
+        "Final iteration: work done: {} iters: {}",
         work_done.load(std::sync::atomic::Ordering::SeqCst),
         iterations
     );

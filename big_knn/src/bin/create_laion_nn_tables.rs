@@ -7,13 +7,8 @@ use big_knn::{
     DATA_DIM,
 };
 use bits::container::Simd256x2;
-use bits::EvpBits;
 use clap::Parser;
 use dao::hdf5_to_dao_loader::load_h5_files;
-use dao::Dao;
-use hdf5::File as Hdf5File;
-use ndarray::{s, Array2, ArrayView1, ArrayView2};
-use r_descent::IntoRDescent;
 use std::ops::Add;
 use std::path::Path;
 use std::time::Instant;

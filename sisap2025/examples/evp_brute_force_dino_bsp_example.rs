@@ -4,7 +4,7 @@ use bits::{distance, EvpBits};
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use metrics::euc;
-use ndarray::{Array1, ArrayRef1, ArrayView1, Axis};
+use ndarray::{Array1, ArrayView1, Axis};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;

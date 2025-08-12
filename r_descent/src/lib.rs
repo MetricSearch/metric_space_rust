@@ -36,7 +36,10 @@ pub use functions::{get_selectors_from_flags, get_slice_using_selectors};
 use crate::table_initialisation_bsp::*;
 
 pub use crate::matrix::initialise_table_m;
-pub use table_initialisation_bsp::{initialise_table_bsp, initialise_table_bsp_randomly};
+pub use table_initialisation_bsp::{
+    initialise_table_bsp, initialise_table_bsp_randomly_overwrite_row_0,
+    only_initialise_table_bsp_randomly,
+};
 use utils::address::{GlobalAddress, LocalAddress};
 
 #[derive(Serialize, Deserialize)]
@@ -263,8 +266,11 @@ impl<C: BitsContainer, const W: usize> IntoRDescent for Dao<EvpBits<C, W>> {
         delta: f64,
     ) -> RDescent {
         //let rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142);
-        let neighbourlarities =
-            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours, ZERO);
+        let neighbourlarities = initialise_table_bsp_randomly_overwrite_row_0(
+            self.clone().num_data,
+            num_neighbours,
+            ZERO,
+        );
 
         get_nn_table2_bsp(
             self.clone(),
@@ -294,8 +300,11 @@ impl<C: BitsContainer, const W: usize> IntoRDescentWithRevNNs for Dao<EvpBits<C,
     ) -> RDescentWithRev {
         // let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(324 * 142); TODO delete me
 
-        let neighbourlarities =
-            initialise_table_bsp_randomly(self.clone().num_data, num_neighbours_in_nn_table, ZERO);
+        let neighbourlarities = initialise_table_bsp_randomly_overwrite_row_0(
+            self.clone().num_data,
+            num_neighbours_in_nn_table,
+            ZERO,
+        );
 
         get_nn_table2_bsp(
             self.clone(),

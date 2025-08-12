@@ -55,8 +55,6 @@ pub fn main() -> anyhow::Result<()> {
     let mut output_writer = BufWriter::new(output_file);
 
     for file_name in nn_file_names.iter() {
-        log::info!("Merging NN table {file_name}");
-
         let mut nn_table_path = Path::new(&args.nn_tables_source_dir).join(file_name);
         nn_table_path.set_extension("bin");
 

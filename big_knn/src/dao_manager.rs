@@ -65,14 +65,14 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         &self,
         target_addr: &LocalAddress,
     ) -> anyhow::Result<GlobalAddress> {
-        let target_addr = LocalAddress::as_u32(target_addr);
+        let local_target_addr = LocalAddress::as_u32(target_addr);
         let mut addresses_processed = 0;
         for dao in &self.daos {
-            if target_addr >= addresses_processed
-                && target_addr < addresses_processed + dao.num_data as u32
+            if local_target_addr >= addresses_processed
+                && local_target_addr < addresses_processed + dao.num_data as u32
             {
                 // we have found the right dao.
-                let offset_in_dao: u32 = target_addr - addresses_processed;
+                let offset_in_dao: u32 = local_target_addr - addresses_processed;
                 let result_index = dao.base_addr + offset_in_dao;
                 return Ok(GlobalAddress::into(result_index));
             } else {
@@ -81,7 +81,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         }
         Err(anyhow!(
             "Global Address {} not found in mapping table",
-            target_addr
+            local_target_addr
         ))
     }
 

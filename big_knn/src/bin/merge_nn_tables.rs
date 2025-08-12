@@ -13,7 +13,7 @@ use dao::hdf5_to_dao_loader::load_h5_files;
 use dao::Dao;
 use itertools::Itertools;
 use ndarray::{concatenate, s, stack, Array2, ArrayView2, Axis, ShapeError, Zip};
-use r_descent::{initialise_table_bsp_randomly, IntoRDescent, RDescent};
+use r_descent::{only_initialise_table_bsp_randomly, IntoRDescent, RDescent};
 use std::env::args;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Seek};
@@ -208,6 +208,18 @@ pub fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+// TODO make 0 copy!
+fn sort_table(mut table: Array2<Nality>) -> Array2<Nality> {
+    let mut cont_table = table.as_standard_layout();
+
+    for mut row in cont_table.axis_iter_mut(ndarray::Axis(0)) {
+        let slice: &mut [Nality] = row.as_slice_mut().unwrap();
+        slice.sort_by(|a, b| b.sim().total_cmp(&a.sim()));
+    }
+
+    cont_table.to_owned()
+}
+
 /// Split up the combined table and write back to the orginal NN files.
 fn split_and_write_back(
     nn_table: NalityNNTable,
@@ -216,10 +228,15 @@ fn split_and_write_back(
     nn_table2_path: PathBuf,
     part2_size: usize,
 ) {
-    let nalities = nn_table.nalities;
+    let mut nalities = nn_table.nalities;
 
-    let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, ..]);
-    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part2_size.., ..]);
+    let original_table_width = nalities.shape()[1] / 2;
+    println!("Splitting best {}", original_table_width);
+
+    let nalities = sort_table(nalities);
+
+    let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, 0..original_table_width]);
+    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part2_size.., 0..original_table_width]);
 
     let nn_table_1 = NalityNNTable {
         // TODO More copying???
@@ -244,6 +261,15 @@ fn combine_nn_table(
     let nn_table1 = get_nn_table(&nn_table1_path);
     let nn_table2 = get_nn_table(&nn_table2_path);
 
+    if nn_table1
+        .nalities
+        .iter()
+        .map(|x| x.id().as_usize() == 200001)
+        .fold(false, |acc, x| acc || x)
+    {
+        println!("Zoinks! 200,001 spotten in combined_nalities.");
+    }
+
     let combined_nalities: Array2<Nality> = concatenate(
         // Does this make a copy?
         Axis(0),
@@ -252,6 +278,61 @@ fn combine_nn_table(
     .unwrap();
 
     let dao_manager = DaoStore::new(daos);
+
+    let loaded_daos = &dao_manager.daos;
+    let num_neighbours = nn_table1.nalities.ncols();
+
+    // let mapped_daos = dao_manager.daos;
+    let glue_0 = only_initialise_table_bsp_randomly(
+        dao_manager.daos[0].num_data,
+        num_neighbours,
+        dao_manager.daos[0].base_addr,
+    );
+
+    if glue_0
+        .iter()
+        .map(|x| x.id().as_usize() == 200001)
+        .fold(false, |acc, x| acc || x)
+    {
+        println!("Zoinks! 200,001 spotten in glue_0.");
+    }
+
+    let glue_1 = only_initialise_table_bsp_randomly(
+        dao_manager.daos[1].num_data,
+        num_neighbours,
+        dao_manager.daos[1].base_addr,
+    );
+
+    if glue_1
+        .iter()
+        .map(|x| x.id().as_usize() == 200001)
+        .fold(false, |acc, x| acc || x)
+    {
+        println!("Zoinks! 200,001 spotten in glue_1.");
+    }
+
+    // TODO look at copy-free. Ferdia!
+    let glue = concatenate![Axis(0), glue_1.view(), glue_0.view()];
+
+    if glue
+        .iter()
+        .map(|x| x.id().as_usize() == 200001)
+        .fold(false, |acc, x| acc || x)
+    {
+        println!("Zoinks! 200,001 spotten in combined glue.");
+    }
+
+    let combined_nalities = concatenate![Axis(1), combined_nalities.view(), glue.view()];
+
+    if combined_nalities
+        .iter()
+        .map(|x| x.id().as_usize() == 200001)
+        .fold(false, |acc, x| acc || x)
+    {
+        println!("Zoinks! 200,001 spotten in combined_nalities.");
+    }
+
+    let num_neighbours = num_neighbours * 2;
 
     make_big_knn_table2_bsp(
         dao_manager,

@@ -1,6 +1,5 @@
 pub mod big_knn_r_descent;
 pub mod dao_manager;
-mod table_initialisation;
 
 use crate::big_knn_r_descent::into_big_knn_r_descent;
 use anyhow::anyhow;

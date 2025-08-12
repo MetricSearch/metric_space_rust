@@ -16,7 +16,7 @@ use std::time::Instant;
 use utils::address::GlobalAddress;
 use utils::{arg_sort_big_to_small_2d, bytes_fmt, rand_perm, Nality};
 
-pub fn initialise_table_bsp_randomly(
+pub fn initialise_table_bsp_randomly_overwrite_row_0(
     rows: usize,
     columns: usize,
     start_index: u32,
@@ -47,6 +47,35 @@ pub fn initialise_table_bsp_randomly(
             ),
         );
     }
+
+    let end_time = Instant::now();
+    log::debug!(
+        "Initialistion in {:?}ms",
+        ((end_time - start_time).as_millis() as f64)
+    );
+
+    nalities
+}
+
+pub fn only_initialise_table_bsp_randomly(
+    rows: usize,
+    columns: usize,
+    start_index: u32,
+) -> Array2<Nality> {
+    log::info!("Randomly initializing table bsp, rows: {rows} neighbours: {columns}");
+    let start_time = Instant::now();
+
+    let mut rng = rand::rng();
+    let nalities: Vec<Nality> = (0..rows * columns)
+        .map(|_| {
+            let rand_index = rng.random_range(0..rows); // pick random row index
+            Nality::new_empty_sim(GlobalAddress::into(rand_index as u32 + start_index))
+            // safe as range is bounded in previous line
+        })
+        .collect();
+
+    let mut nalities = Array2::from_shape_vec((rows, columns), nalities)
+        .expect("Shape mismatch during initialisation");
 
     let end_time = Instant::now();
     log::debug!(

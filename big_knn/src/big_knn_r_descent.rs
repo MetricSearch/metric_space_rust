@@ -68,7 +68,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
     let mut work_done: AtomicUsize = AtomicUsize::new(num_data); // a count of the number of times a similarity minimum of row has changed - measure of flux
 
-    while work_done.load(Ordering::SeqCst) > ((num_data as f64) * delta) as usize {
+    while work_done.load(Ordering::SeqCst) > ((num_data as f64) * delta) as usize || iterations < 15
+    {
         // Matlab line 61
         // condition is fraction of lines whose min similarity has changed when this gets low - no much work done then stop.
 
@@ -77,8 +78,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         let now = Instant::now();
 
         // Take a copy of the state of the world
-        let mut previous_neighbours = &mut neighbourlarities.clone();
-        let previous_flags: Array2<AtomicBool> = // clone the atomic flags array
+        let mut old_neighbour_state = &mut neighbourlarities.clone();
+        let old_flags: Array2<AtomicBool> = // clone the atomic flags array
             Array2::from_shape_fn(neighbour_is_new.dim(), |(i, j)| {
                 AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
             });
@@ -105,20 +106,20 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 // and how similar it is to the current id
                 let this_sim = this_row_neighbourlarities[id].sim(); // may or may not be mapped
 
-                if dao_manager.is_mapped(this_global_id) {
+                if dao_manager.is_mapped(&this_global_id) {
                     let this_local_id: LocalAddress = dao_manager
                         .table_addr_from_global_addr(&this_global_id)
                         .unwrap();
 
                     let this_local_id: usize = LocalAddress::as_usize(&this_local_id);
 
-                    let new_forward_links = previous_neighbours // take the previous neighbours - can contain unmapped data
+                    let new_forward_links = old_neighbour_state // take the previous neighbours - can contain unmapped data
                         .row(this_local_id)
                         .iter()
                         .enumerate()
                         .filter_map(|(column, nality)| {
                             // and select the entries where previous_flags are set
-                            if previous_flags[[LocalAddress::as_usize(&row), column]]
+                            if old_flags[[LocalAddress::as_usize(&row), column]]
                                 .load(Ordering::Relaxed)
                             {
                                 Some(nality.clone())
@@ -194,39 +195,39 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
         work_done = AtomicUsize::new(0);
 
-        previous_neighbours
+        old_neighbour_state
             .axis_iter(Axis(0)) // iterate over the rows
             .enumerate()
             .par_bridge()
             .map(|(row_index, nalities)| {
-                let previous_row = previous_neighbours.row(row_index);
+                let previous_row = old_neighbour_state.row(row_index);
 
                 let new_row: Vec<_> = previous_row
                     .into_iter()
                     .enumerate()
-                    .filter(|(column, nality)| previous_flags[[row_index, *column]].load(Ordering::Relaxed))
+                    .filter(|(column, nality)| old_flags[[row_index, *column]].load(Ordering::Relaxed))
                     .map(|x| x.1)
                     .collect();
 
                 let old_row: Vec<_> = previous_row
                     .into_iter()
                     .enumerate()
-                    .filter(|(column, nality)| ! previous_flags[[row_index, *column]].load(Ordering::Relaxed))
+                    .filter(|(column, nality)| ! old_flags[[row_index, *column]].load(Ordering::Relaxed))
                     .map(|x| x.1)
                     .collect();
 
                 let reverse_row_links = reverse_links.row(row_index); // may contain unmapped data
 
-                let new_mapped_forward_and_reverse_links: Array1<GlobalAddress> = if new_row.len() == 0 {
+                let forward_and_reverse_links: Array1<GlobalAddress> = if new_row.len() == 0 {
                     // Matlab line 130
                     Array1::from(vec![])
                 } else {
                     new_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() || ! dao_manager.is_mapped(x.id()) { None } else { Some(x.id()) } }) // only take mapped values
+                        .filter_map(|x| { if x.is_empty() { None } else { Some(x.id()) } }) // only take mapped values
                         .chain(reverse_row_links
                             .iter()
-                            .filter(|&x| !x.is_empty() && dao_manager.is_mapped(x.id()) ) // only take mapped values
+                            .filter(|&x| ! x.is_empty() ) // only take mapped values
                             .map(|x| x.id()))
                         .collect::<Array1<GlobalAddress>>()
                 };
@@ -237,19 +238,25 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                                                                &old_row
                                                                         .iter()
                                                                         .map(|x| { x.id() })
-                                                                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
+                                                                                   .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(global_address)) // only look at addresses that are mapped
                                                                         .collect::<Array1<GlobalAddress>>().view()); // Matlab line 136
 
-                let new_mapped_row_data = get_slice_using_multi_dao_selectors(
+                let new_mapped_row_data = //can only slice mapped data
+                    get_slice_using_multi_dao_selectors(
                     &dao_manager,
                     &new_row // may contain data that is mapped and unmapped
                         .iter()
                         .map(|x| x.id())
-                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(*global_address)) // only look at addresses that are mapped
+                        .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(global_address)) // only look at addresses that are mapped
                         .collect::<Array1<GlobalAddress>>().view()); // Matlab line 137
 
-                let new_mapped_forward_and_reverse_data = // all elements of new_row_union are mapped
-                     get_slice_using_multi_dao_selectors(&dao_manager, &new_mapped_forward_and_reverse_links.view()); // Matlab line 137
+                let new_mapped_forward_and_reverse_data = //can only slice mapped data
+                     get_slice_using_multi_dao_selectors(&dao_manager,
+                                                         &forward_and_reverse_links // may contain data that is mapped and unmapped
+                                                             .iter()
+                                                             .map(|x| *x )
+                                                             .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(&global_address)) // only look at addresses that are mapped
+                                                             .collect::<Array1<GlobalAddress>>().view() ); // Matlab line 137
 
                 let new_mapped_forward_and_reverse_sims =
                     matrix_dot(new_mapped_forward_and_reverse_data.view(), new_mapped_forward_and_reverse_data.view(), |a, b| {
@@ -259,7 +266,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 (
                     new_row,
                     old_row,
-                    new_mapped_forward_and_reverse_links,
+                    forward_and_reverse_links,
                     new_mapped_forward_and_reverse_sims,
                     new_mapped_row_data,
                     old_mapped_row_data,
@@ -322,6 +329,8 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                        old_mapped_row_data.view(),
                                        |a, b| { similarity_as_f32(a, b) })
                         };
+
+                        // Re-insert unmapped nalities into new_old_sims
 
                         // and do the same for each pair of elements in the new_row/old_row
 
@@ -430,7 +439,7 @@ pub fn check_neighbours<C: BitsContainer, const W: usize>(
     neebs.iter().for_each(|nality| {
         let global_addr: GlobalAddress = nality.id();
         count += 1;
-        if !dao_manager.is_mapped(global_addr) {
+        if !dao_manager.is_mapped(&global_addr) {
             debug!("Unmapped nality: {:?}", &global_addr);
             assert!(false);
         }

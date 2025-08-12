@@ -12,16 +12,18 @@ use utils::address::GlobalAddress;
 struct Args {
     /// Path to HDF5 source
     file_path: String,
+    num_rows: usize,
 }
 
 fn main() {
     let args = Args::parse();
     let data: NalityNNTable = get_nn_table(Path::new(&args.file_path));
+    let num_rows = args.num_rows;
 
-    println!("First 5 rows:");
-    for i in 0..5 {
-        let row = data.nalities.row(i);
+    for i in 0..num_rows {
+        let mut row = data.nalities.row(i).to_vec();
         println!("{i}: ");
+        row.sort_by(|a, b| b.sim().total_cmp(&a.sim()));
         for n in row.iter() {
             print!("id: {:?} sim: {:?}  ", n.id().as_usize(), n.sim());
         }

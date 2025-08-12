@@ -10,7 +10,7 @@ pub struct DaoStore<C: BitsContainer, const W: usize> {
 
 pub trait DaoManager<C: BitsContainer, const W: usize> {
     fn new(daos: Vec<Dao<EvpBits<C, W>>>) -> Self;
-    fn is_mapped(&self, addr: GlobalAddress) -> bool;
+    fn is_mapped(&self, addr: &GlobalAddress) -> bool;
     fn table_addr_from_global_addr(&self, addr: &GlobalAddress) -> anyhow::Result<LocalAddress>;
     fn global_addr_from_table_addr(&self, addr: &LocalAddress) -> anyhow::Result<GlobalAddress>;
     fn get_dao(&self, target_addr: &GlobalAddress) -> anyhow::Result<&Dao<EvpBits<C, W>>>;
@@ -22,7 +22,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
         Self { daos }
     }
 
-    fn is_mapped(&self, addr: GlobalAddress) -> bool {
+    fn is_mapped(&self, addr: &GlobalAddress) -> bool {
         let addr = addr.as_u32();
         let result = self
             .daos

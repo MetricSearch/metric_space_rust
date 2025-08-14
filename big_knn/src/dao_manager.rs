@@ -54,7 +54,7 @@ impl<C: BitsContainer, const W: usize> DaoManager<C, W> for DaoStore<C, W> {
             }
         }
         Err(anyhow!(
-            "Local Address {} not found in mapping table mapped range: {}",
+            "Global Address {} not found in mapping table mapped range: {}",
             target_addr,
             get_ranges(&self.daos)
         ))

@@ -71,14 +71,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         neighbourlarities.shape(),
     );
 
-    if neighbourlarities
-        .iter()
-        .map(|x| x.id().as_usize() == 200001)
-        .fold(false, |acc, x| acc || x)
-    {
-        println!("Zoinks! 200,001 spotten in original neighbouralities.");
-    }
-
     let start_time = Instant::now();
 
     let mut iterations = 0;
@@ -114,14 +106,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             &old_flags.view(),
         );
 
-        if old_neighbour_state
-            .iter()
-            .map(|x| x.id().as_usize() == 200001)
-            .fold(false, |acc, x| acc || x)
-        {
-            println!("Zoinks! 200,001 spotten in old_neighbour_state at the end of phase 1.");
-        }
-
         let after = Instant::now();
         log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
 
@@ -137,10 +121,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             .par_bridge()
             .map(|(row_index, nalities)| {
                 let old_row_state = old_neighbour_state.row(row_index);
-
-                if old_row_state.iter().map(|x| x.id().as_usize() == 200001).fold(false, |acc, x| acc || x) {
-                    println!("Zoinks! 200,001 spotten in old_row_state");
-                }
 
                 let newly_updated_nailities_in_row: Vec<_> = old_row_state // may contain unmapped data
                     .into_iter()
@@ -158,20 +138,16 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                 let reverse_row_links = reverse_links.row(row_index); // may contain unmapped data
 
-                if newly_updated_nailities_in_row.iter().map(|x| x.id().as_usize() == 200001).fold(false, |acc, x| acc || x) {
-                    println!("Zoinks! 200,001 spotten in newly_updated_nailities_in_row");
-                }
-
-                let newly_updated_forward_and_reverse_links: Array1<GlobalAddress> = if newly_updated_nailities_in_row.len() == 0 { // may contain unmapped data
+                let new_mapped_updated_forward_and_reverse_links: Array1<GlobalAddress> = if newly_updated_nailities_in_row.len() == 0 { // may contain unmapped data
                     // Matlab line 130
                     Array1::from(vec![])
                 } else {
                     newly_updated_nailities_in_row
                         .iter()
-                        .filter_map(|x| { if x.is_empty() { None } else { Some(x.id()) } })
+                        .filter_map(|x| { if ! dao_manager.is_mapped(&x.id()) || x.is_empty() { None } else { Some(x.id()) } })
                         .chain(reverse_row_links
                             .iter()
-                            .filter(|&x| !x.is_empty())
+                            .filter(|&x| dao_manager.is_mapped(&x.id()) || !x.is_empty())
                             .map(|x| x.id()))
                         .collect::<Array1<GlobalAddress>>()
                 };
@@ -196,10 +172,10 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                 let new_mapped_forward_and_reverse_data = //can only slice mapped data
                     get_slice_using_multi_dao_selectors(&dao_manager,
-                                                        &newly_updated_forward_and_reverse_links // may contain data that is mapped and unmapped
+                                                        &new_mapped_updated_forward_and_reverse_links // may contain data that is mapped and unmapped
                                                             .iter()
                                                             .map(|x| *x)
-                                                            .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(&global_address)) // only look at addresses that are mapped
+                                                            .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(&global_address)) // only look at addresses that are mapped //<< TODO DELETE ME
                                                             .collect::<Array1<GlobalAddress>>().view()); // Matlab line 137
 
                 let new_mapped_forward_and_reverse_sims =
@@ -210,7 +186,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 (
                     newly_updated_nailities_in_row,
                     not_updated_nalities_in_row,
-                    newly_updated_forward_and_reverse_links,
+                    new_mapped_updated_forward_and_reverse_links,
                     new_mapped_forward_and_reverse_sims,
                     new_mapped_row_data,
                     not_updated_mapped_row_data,
@@ -234,44 +210,46 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
 
                         for new_ind1 in 0..newly_updated_forward_and_reverse_links.len() - 1 {
                             // Matlab line 144 (-1 since don't want the diagonal)
-                            let u1_id = *newly_updated_forward_and_reverse_links.get(new_ind1).unwrap_or_else(|| panic!("Illegal index of new_row_union at {new_ind1} length is: {}", newly_updated_forward_and_reverse_links.len()));
+                            let u1_id = *newly_updated_forward_and_reverse_links.get(new_ind1).unwrap_or_else(|| panic!("Illegal index of newly_updated_forward_and_reverse_links at {new_ind1} length is: {}", newly_updated_forward_and_reverse_links.len()));
 
                             for new_ind2 in new_ind1 + 1..newly_updated_forward_and_reverse_links.len() {
                                 // Matlab line 147
-                                let u2_id = *newly_updated_forward_and_reverse_links.get(new_ind2).unwrap_or_else(|| panic!("Illegal index of new_row_union at {new_ind2} length is: {}", newly_updated_forward_and_reverse_links.len()));
+                                let u2_id = *newly_updated_forward_and_reverse_links.get(new_ind2).unwrap_or_else(|| panic!("Illegal index of newly_updated_forward_and_reverse_links at {new_ind2} length is: {}", newly_updated_forward_and_reverse_links.len()));
                                 // then get their similarity from the matrix
-                                let this_sim = *new_mapped_forward_and_reverse_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_new_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_mapped_forward_and_reverse_sims.shape()));
+                                let this_sim = *new_mapped_forward_and_reverse_sims.get((new_ind1, new_ind2)).unwrap_or_else(|| panic!("Illegal index of new_mapped_forward_and_reverse_sims at {new_ind1},{new_ind2} Shape is: {:?}", new_mapped_forward_and_reverse_sims.shape()));
                                 // is the current similarity greater than the biggest distance
                                 // in the row for u1_id? if it's not, then do nothing
 
-                                if (u2_id.as_usize() == 200001) {
-                                    println!("new_ind2 {new_ind2} U1 ID: global: {:?} local: {} | U2 ID global: {:?} local: {}  | Sim: {} | Current Row {:?}",
-                                             u1_id,
-                                             u1_id.as_usize(),
-                                             u2_id,
-                                             u2_id.as_usize(),
-                                             this_sim,
-                                             neighbourlarities.row(1));
-                                    println!("newly_updated_forward_and_reverse_links {:?}", newly_updated_forward_and_reverse_links);
-                                    println!("reverse_row_links {:?},", reverse_row_links);
-                                }
+                                // if (u2_id.as_usize() == 200001) {
+                                //     println!("new_ind2 {new_ind2} U1 ID: global: {:?} local: {} | U2 ID global: {:?} local: {}  | Sim: {} | Current Row {:?}",
+                                //              u1_id,
+                                //              u1_id.as_usize(),
+                                //              u2_id,
+                                //              u2_id.as_usize(),
+                                //              this_sim,
+                                //              neighbourlarities.row(1));
+                                //     println!("newly_updated_forward_and_reverse_links {:?}", newly_updated_forward_and_reverse_links);
+                                //     println!("reverse_row_links {:?},", reverse_row_links);
+                                // }
 
                                 check_apply_update_wrapper(
-                                    dao_manager.table_addr_from_global_addr(&u1_id).unwrap(),
+                                    u1_id,
                                     u2_id,
                                     this_sim,
                                     &neighbour_is_new,
                                     &neighbourlarities,
                                     &work_done,
+                                    &dao_manager,
                                 );
 
                                 check_apply_update_wrapper(
-                                    dao_manager.table_addr_from_global_addr(&u2_id).unwrap(),
+                                    u2_id,
                                     u1_id,
                                     this_sim,
                                     &neighbour_is_new,
                                     &neighbourlarities,
                                     &work_done,
+                                    &dao_manager,
                                 );
                             } // Matlab line 175
                         }
@@ -301,35 +279,36 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 let this_sim = *new_old_sims.get((new_row_index_1, new_row_index_2))
                                     .unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_row_index_1},{new_row_index_2} Shape is: {:?}", new_old_sims.shape()));
 
-                                // ********
-                                if (u2.id().as_usize() == 200001) {
-                                    println!("new_row_index_2 {new_row_index_2} U1 ID: global: {:?} local: {} | U2 ID global: {:?} local: {}  | Sim: {} | Current Row {:?}",
-                                             u1.id(),
-                                             u1.id().as_usize(),
-                                             u2.id(),
-                                             u2.id().as_usize(),
-                                             this_sim,
-                                             neighbourlarities.row(1));
-                                    println!("newly_updated_forward_and_reverse_links {:?}", newly_updated_forward_and_reverse_links);
-                                    println!("reverse_row_links {:?},", reverse_row_links);
-                                }
+                                // if (u2.id().as_usize() == 200001) {
+                                //     println!("new_row_index_2 {new_row_index_2} U1 ID: global: {:?} local: {} | U2 ID global: {:?} local: {}  | Sim: {} | Current Row {:?}",
+                                //              u1.id(),
+                                //              u1.id().as_usize(),
+                                //              u2.id(),
+                                //              u2.id().as_usize(),
+                                //              this_sim,
+                                //              neighbourlarities.row(1));
+                                //     println!("newly_updated_forward_and_reverse_links {:?}", newly_updated_forward_and_reverse_links);
+                                //     println!("reverse_row_links {:?},", reverse_row_links);
+                                // }
 
-                                check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u1.id()).unwrap().as_usize(),   // the new row
-                                    u2.id().as_u32(),            // the new index to be added to row
+                                check_apply_update_wrapper(
+                                    u1.id(),   // the new row
+                                    u2.id(),            // the new index to be added to row
                                     this_sim,                    // with this similarity
                                     &neighbour_is_new,
                                     &neighbourlarities,
                                     &work_done,
+                                    &dao_manager,
                                 );
 
-                                check_apply_update(
-                                    dao_manager.table_addr_from_global_addr(&u2.id()).unwrap().as_usize(), // the new row
-                                    u1.id().as_u32(),           // the new index to be added to row
+                                check_apply_update_wrapper(
+                                    u2.id(), // the new row
+                                    u1.id(),           // the new index to be added to row
                                     this_sim,                   // with this similarity
                                     &neighbour_is_new,
                                     &neighbourlarities,
                                     &work_done,
+                                    &dao_manager,
                                 );
                             }
                         }
@@ -469,22 +448,27 @@ fn create_reverse_links<C: BitsContainer, const W: usize>(
     (reverse_links, reverse_count)
 }
 
-fn check_apply_update_wrapper(
-    row_id: LocalAddress,
+fn check_apply_update_wrapper<C: BitsContainer, const W: usize>(
+    row_id: GlobalAddress,
     new_nality_addr: GlobalAddress,
     new_nality_similarity: f32,
     neighbour_is_new: &Array2<AtomicBool>,
     neighbourlarities: &Array2<Nality>,
     work_done: &AtomicUsize,
+    dao_manager: &DaoStore<C, W>,
 ) {
-    check_apply_update(
-        LocalAddress::as_usize(&row_id),
-        new_nality_addr.as_u32(),
-        new_nality_similarity,
-        neighbour_is_new,
-        neighbourlarities,
-        work_done,
-    );
+    match dao_manager.table_addr_from_global_addr(&row_id) {
+        // Only do the operation if the row is mapped
+        Ok(row_id) => check_apply_update(
+            LocalAddress::as_usize(&row_id),
+            new_nality_addr.as_u32(),
+            new_nality_similarity,
+            neighbour_is_new,
+            neighbourlarities,
+            work_done,
+        ),
+        Err(_) => {}
+    }
 }
 
 fn get_slice_using_multi_dao_selectors<C: BitsContainer, const W: usize>(

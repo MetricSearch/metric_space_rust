@@ -261,15 +261,6 @@ fn combine_nn_table(
     let nn_table1 = get_nn_table(&nn_table1_path);
     let nn_table2 = get_nn_table(&nn_table2_path);
 
-    if nn_table1
-        .nalities
-        .iter()
-        .map(|x| x.id().as_usize() == 200001)
-        .fold(false, |acc, x| acc || x)
-    {
-        println!("Zoinks! 200,001 spotten in combined_nalities.");
-    }
-
     let combined_nalities: Array2<Nality> = concatenate(
         // Does this make a copy?
         Axis(0),
@@ -289,48 +280,16 @@ fn combine_nn_table(
         dao_manager.daos[0].base_addr,
     );
 
-    if glue_0
-        .iter()
-        .map(|x| x.id().as_usize() == 200001)
-        .fold(false, |acc, x| acc || x)
-    {
-        println!("Zoinks! 200,001 spotten in glue_0.");
-    }
-
     let glue_1 = only_initialise_table_bsp_randomly(
         dao_manager.daos[1].num_data,
         num_neighbours,
         dao_manager.daos[1].base_addr,
     );
 
-    if glue_1
-        .iter()
-        .map(|x| x.id().as_usize() == 200001)
-        .fold(false, |acc, x| acc || x)
-    {
-        println!("Zoinks! 200,001 spotten in glue_1.");
-    }
-
     // TODO look at copy-free. Ferdia!
     let glue = concatenate![Axis(0), glue_1.view(), glue_0.view()];
 
-    if glue
-        .iter()
-        .map(|x| x.id().as_usize() == 200001)
-        .fold(false, |acc, x| acc || x)
-    {
-        println!("Zoinks! 200,001 spotten in combined glue.");
-    }
-
     let combined_nalities = concatenate![Axis(1), combined_nalities.view(), glue.view()];
-
-    if combined_nalities
-        .iter()
-        .map(|x| x.id().as_usize() == 200001)
-        .fold(false, |acc, x| acc || x)
-    {
-        println!("Zoinks! 200,001 spotten in combined_nalities.");
-    }
 
     let num_neighbours = num_neighbours * 2;
 

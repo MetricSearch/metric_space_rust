@@ -202,6 +202,20 @@ pub fn create_and_store_nn_table(
 }
 
 pub fn write_table(output_path: &PathBuf, nn_table: &NalityNNTable) {
+    log::trace!("Saving NN table to bin file {:?}", output_path);
+    let file: File = File::create(output_path).unwrap();
+    let writer = BufWriter::new(file);
+    let result = bincode::serialize_into(writer, &nn_table);
+    if result.is_err() {
+        panic!("Fatal error saving NN table to bin file {:?}", output_path);
+    } else {
+        log::trace!("NN table saved to bin file {:?}", output_path);
+    }
+}
+
+// This is better than above - consider using this version everywhere.
+pub fn write_nalities(output_path: &PathBuf, nn_table: &ArrayView2<Nality>) {
+    log::trace!("Saving NN table to bin file {:?}", output_path);
     let file: File = File::create(output_path).unwrap();
     let writer = BufWriter::new(file);
     let result = bincode::serialize_into(writer, &nn_table);

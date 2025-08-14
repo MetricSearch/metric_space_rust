@@ -7,7 +7,7 @@ use big_knn::big_knn_r_descent::{into_big_knn_r_descent, make_big_knn_table2_bsp
 use big_knn::dao_manager::{DaoManager, DaoStore};
 use big_knn::{
     create_and_store_nn_table, get_file_names, get_file_sizes, get_partitions, make_partitions,
-    partition_into, write_table, NalityNNTable, DATA_DIM,
+    partition_into, write_nalities, write_table, NalityNNTable, DATA_DIM,
 };
 use bits::container::{BitsContainer, Simd256x2};
 use bits::EvpBits;
@@ -22,6 +22,7 @@ use r_descent::{
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use std::env::args;
+use std::fs;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Seek};
 use std::ops::Add;
@@ -40,10 +41,8 @@ const REVERSE_LIST_SIZE: usize = 32; // TODO this is copied - shouldn't be!
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Path to HDF5 source
-    nn_tables_dest_dir: String,
     embeddings_path: String,
-    output_path: String,
+    nn_tables_dest_dir: String,
     partition_size: u32,
     data_set_label: String,
 }
@@ -187,14 +186,22 @@ fn create_nn_table_from_pair(
         REVERSE_LIST_SIZE,
     );
 
-    let first_dir_name = "nn_table".to_string().add(pair[0].1);
-    let mut first_nn_table_path =
-        Path::new(&first_dir_name.add("/").add(&random_file_name(8))).to_path_buf();
+    let first_dir = Path::new(&nn_tables_dest_dir)
+        .join("nn_table".to_string())
+        .join(pair[0].1);
+
+    check_dir_exists(&first_dir);
+
+    let mut first_nn_table_path = first_dir.join(&random_file_name(8));
     first_nn_table_path.set_extension("bin");
 
-    let second_dir_name = "nn_table".to_string().add(pair[1].1);
-    let mut second_nn_table_path =
-        Path::new(&second_dir_name.add("/").add(&random_file_name(8))).to_path_buf();
+    let second_dir = Path::new(&nn_tables_dest_dir)
+        .join("nn_table".to_string())
+        .join(pair[1].1);
+
+    check_dir_exists(&second_dir);
+
+    let mut second_nn_table_path = second_dir.join(&random_file_name(8));
     second_nn_table_path.set_extension("bin");
 
     split_and_write_back(
@@ -204,6 +211,20 @@ fn create_nn_table_from_pair(
         second_nn_table_path,
         part2_size,
     );
+}
+
+fn check_dir_exists(path: &Path) {
+    if !path.exists() || !path.is_dir() {
+        match fs::create_dir_all(path) {
+            Ok(_) => log::trace!("Created directory: {}", path.display()),
+            Err(_) => panic!("Directory for path {} could not be created", path.display()),
+        }
+    } else if !path.is_dir() {
+        panic!(
+            "Path {} already exists but is not a directory: ",
+            path.display()
+        );
+    }
 }
 
 fn random_file_name(len: usize) -> String {
@@ -272,25 +293,11 @@ fn split_and_write_back(
     nn_table2_path: PathBuf,
     part2_size: usize,
 ) {
-    let original_table_width = nalities.shape()[1] / 2;
-    println!("Splitting best {}", original_table_width);
+    let nalities = sort_table(nalities); // TODO Still copies - stop it.
 
-    let nalities = sort_table(nalities);
+    let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, 0..]);
+    write_nalities(&nn_table1_path, &top_nalities);
 
-    let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, 0..original_table_width]);
-    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part2_size.., 0..original_table_width]);
-
-    let nn_table_1 = NalityNNTable {
-        // TODO More copying???
-        nalities: top_nalities.to_owned(),
-    };
-
-    write_table(&nn_table1_path, &nn_table_1);
-
-    let nn_table_2 = NalityNNTable {
-        // TODO More copying???
-        nalities: bottom_nalities.to_owned(),
-    };
-
-    write_table(&nn_table2_path, &nn_table_2);
+    let bottom_nalities: ArrayView2<_> = nalities.slice(s![part2_size.., 0..]);
+    write_nalities(&nn_table2_path, &bottom_nalities);
 }

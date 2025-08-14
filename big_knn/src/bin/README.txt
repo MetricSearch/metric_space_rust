@@ -19,5 +19,6 @@ cargo run -r --bin cat_nn_table /Users/al/repos/metric_space/_scratch/mf_dino/nn
 
 *******
 
+only_merge:
 
-
+cargo run -r --bin only_merge_nn_tables /Volumes/Data/mf_dino2_h5_batched /Users/al/repos/metric_space/_scratch/mf_dino 200000 embeddings

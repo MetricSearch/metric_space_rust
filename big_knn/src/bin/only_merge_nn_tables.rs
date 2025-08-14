@@ -188,11 +188,13 @@ fn create_nn_table_from_pair(
     );
 
     let first_dir_name = "nn_table".to_string().add(pair[0].1);
-    let mut first_nn_table_path = Path::new(&first_dir_name.add("/").add(&random_file_name(8)));
+    let mut first_nn_table_path =
+        Path::new(&first_dir_name.add("/").add(&random_file_name(8))).to_path_buf();
     first_nn_table_path.set_extension("bin");
 
     let second_dir_name = "nn_table".to_string().add(pair[1].1);
-    let mut second_nn_table_path = Path::new(second_dir_name.add("/").add(&random_file_name(8)));
+    let mut second_nn_table_path =
+        Path::new(&second_dir_name.add("/").add(&random_file_name(8))).to_path_buf();
     second_nn_table_path.set_extension("bin");
 
     split_and_write_back(
@@ -239,7 +241,7 @@ fn get_base_addr(
 ) -> anyhow::Result<usize> {
     if let Some((_, &start)) = h5_file_names_and_starts
         .iter()
-        .find(|(fname, _)| fname == &second_part_file_names[0])
+        .find(|(fname, _)| *fname == &second_part_file_names[0])
     {
         Ok(start)
     } else {

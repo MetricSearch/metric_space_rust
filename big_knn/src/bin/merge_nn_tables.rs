@@ -46,7 +46,7 @@ pub fn main() -> anyhow::Result<()> {
         .filter_level(log::LevelFilter::Trace)
         .init();
 
-    // let start = Instant::now();
+    let start_time = Instant::now();
     log::info!("Establishing Source NN tables ...");
 
     let args = Args::parse();
@@ -203,7 +203,13 @@ pub fn main() -> anyhow::Result<()> {
         );
     }
 
-    // let end = Instant::now();
+    let end = Instant::now();
+
+    let final_time = Instant::now();
+    log::trace!(
+        "Time To merge all NN tables: {} ms",
+        ((final_time - start_time).as_millis() as f64)
+    );
 
     Ok(())
 }

@@ -1,5 +1,4 @@
 use crate::dao_manager::{get_ranges, DaoManager, DaoStore};
-// use crate::table_initialisation::initialise_table_bsp_randomly;
 use crate::NalityNNTable;
 use bits::container::{BitsContainer, Simd256x2};
 use bits::evp::{matrix_dot, similarity_as_f32};

@@ -38,6 +38,7 @@ use crate::table_initialisation_bsp::*;
 pub use crate::matrix::initialise_table_m;
 pub use table_initialisation_bsp::{
     initialise_table_bsp, initialise_table_bsp_randomly_overwrite_row_0,
+    initialise_table_bsp_randomly_overwrite_row_0_with_coin_toss,
     only_initialise_table_bsp_randomly,
 };
 use utils::address::{GlobalAddress, LocalAddress};

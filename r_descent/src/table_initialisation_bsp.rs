@@ -57,6 +57,67 @@ pub fn initialise_table_bsp_randomly_overwrite_row_0(
     nalities
 }
 
+pub fn initialise_table_bsp_randomly_overwrite_row_0_with_coin_toss(
+    columns: usize,
+    start_index1: usize,
+    partition1_size: usize,
+    start_index2: usize,
+    partition2_size: usize,
+) -> Array2<Nality> {
+    let start_time = Instant::now();
+
+    let rows = partition1_size + partition2_size;
+    log::info!("Randomly initializing table bsp, rows: {rows} neighbours: {columns}");
+    let mut rng = rand::rng();
+    let nalities: Vec<Nality> = (0..rows * columns)
+        .map(|_| {
+            let rand_index = rng.random_range(0..rows); // pick random row index
+            let one_or_two_base_index = coin_toss(start_index1, start_index2);
+            Nality::new_empty_sim(GlobalAddress::into(
+                rand_index as u32 + one_or_two_base_index as u32,
+            ))
+            // safe as range is bounded in previous line
+        })
+        .collect();
+
+    let mut nalities = Array2::from_shape_vec((rows, columns), nalities)
+        .expect("Shape mismatch during initialisation");
+
+    // overwrite first entry with a new nality of itself and 0
+    for row in 0..nalities.nrows() {
+        let start_index: u32 = if row < partition1_size {
+            start_index1 as u32
+        } else {
+            start_index2 as u32
+        };
+        nalities[[row, 0]] = Nality::new(
+            max_bsp_similarity_as_f32::<Simd256x2, 512>(),
+            GlobalAddress::into(
+                (row as u32 + start_index)
+                    .try_into()
+                    .unwrap_or_else(|_| panic!("Cannot convert usize to u32")),
+            ),
+        );
+    }
+
+    let end_time = Instant::now();
+    log::debug!(
+        "Initialistion in {:?}ms",
+        ((end_time - start_time).as_millis() as f64)
+    );
+
+    nalities
+}
+
+fn coin_toss<T: Copy>(a: T, b: T) -> T {
+    let mut rng = rand::rng();
+    if rng.random_bool(0.5) {
+        a
+    } else {
+        b
+    }
+}
+
 pub fn only_initialise_table_bsp_randomly(
     rows: usize,
     columns: usize,

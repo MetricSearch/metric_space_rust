@@ -10,14 +10,14 @@ use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
 use dao::Dao;
 use hdf5::File as Hdf5File;
 use log::debug;
-use ndarray::{Array2, ArrayView2};
+use ndarray::{Array1, Array2, ArrayView2};
 use r_descent::RDescent;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::{fs, io};
 use utils::address::GlobalAddress;
 use utils::Nality;
 
@@ -214,14 +214,116 @@ pub fn write_table(output_path: &PathBuf, nn_table: &NalityNNTable) {
 }
 
 // This is better than above - consider using this version everywhere.
-pub fn write_nalities(output_path: &PathBuf, nn_table: &ArrayView2<Nality>) {
-    log::trace!("Saving NN table to bin file {:?}", output_path);
-    let file: File = File::create(output_path).unwrap();
-    let writer = BufWriter::new(file);
-    let result = bincode::serialize_into(writer, &nn_table);
-    if result.is_err() {
-        panic!("Fatal error saving NN table to bin file {:?}", output_path);
-    } else {
-        log::trace!("NN table saved to bin file {:?}", output_path);
+pub fn write_nalities_as_json_V1(output_path: &PathBuf, nn_table: &ArrayView2<Nality>) {
+    log::trace!("Saving NN table to JSON file {:?}", output_path);
+    let mut file: File = File::create(output_path).unwrap();
+
+    file.write_all(serde_json::to_string(nn_table).unwrap().as_bytes())
+        .expect("Cannot write to the JSON file");
+
+    log::trace!("NN table saved to JSON file {:?}", output_path);
+}
+
+pub fn write_nalities_as_json(output_path: &PathBuf, nn_table: &ArrayView2<Nality>) {
+    let mut file: File = File::create(output_path).unwrap();
+
+    let wrapped = Rows { view: *nn_table }; // to force custom serialisation below
+
+    file.write_all(serde_json::to_string(&wrapped).unwrap().as_bytes())
+        .unwrap_or_else(|x| panic!("Cannot write to the JSON file {:?}", output_path));
+
+    log::trace!("NN table saved to JSON file {:?}", output_path);
+}
+
+#[derive(Serialize)]
+struct Rows<'a, T: Serialize> {
+    #[serde(with = "serde_rows")]
+    view: ArrayView2<'a, T>,
+}
+
+// custom serializer that flattens rows
+mod serde_rows {
+    use super::*;
+    use ndarray::ArrayView1;
+    use serde::ser::{SerializeSeq, Serializer};
+    use serde::Deserializer;
+
+    pub fn serialize<S, T>(view: &ArrayView2<'_, T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        let mut seq = serializer.serialize_seq(Some(view.nrows()))?;
+        for row in view.rows() {
+            let row_view: ArrayView1<'_, T> = row;
+            seq.serialize_element(&row_view)?;
+        }
+        seq.end()
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct Row {
+    v: u32,
+    dim: Vec<usize>,
+    data: Vec<Nality>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RowContainer {
+    view: Vec<Row>,
+}
+
+/// Iterator type that streams rows from file
+pub struct RowIter {
+    reader: BufReader<File>,
+    buffer: String,
+    current: std::vec::IntoIter<Row>,
+}
+
+impl RowIter {
+    fn new(path: &str) -> io::Result<Self> {
+        let file = File::open(path)?;
+        Ok(RowIter {
+            reader: BufReader::new(file),
+            buffer: String::new(),
+            current: Vec::new().into_iter(),
+        })
+    }
+}
+
+impl Iterator for RowIter {
+    type Item = Array1<Nality>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            // If we still have unconsumed rows from last line
+            if let Some(row) = self.current.next() {
+                return Some(Array1::from(row.data));
+            }
+
+            // Otherwise, read next line
+            self.buffer.clear();
+            let bytes = self.reader.read_line(&mut self.buffer).ok()?;
+            if bytes == 0 {
+                return None; // EOF
+            }
+
+            let container: RowContainer = match serde_json::from_str(&self.buffer) {
+                Ok(c) => c,
+                Err(e) => {
+                    println!("JSON parse error: {e}");
+                    continue;
+                }
+            };
+
+            self.current = container.view.into_iter();
+            // loop again, so we can immediately yield one if available
+        }
+    }
+}
+
+pub fn get_row_iterator(filename: &str) -> RowIter {
+    RowIter::new(filename)
+        .unwrap_or_else(|_| panic!("cannot get row iterator for  file {filename}"))
 }

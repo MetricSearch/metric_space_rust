@@ -7,7 +7,7 @@ use rand::seq::index::sample;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Display;
 use std::{
     fmt::Debug,
@@ -53,7 +53,6 @@ impl Nality {
     }
 
     pub fn sim(&self) -> f32 {
-        // (self.0.load(Ordering::Relaxed) & LOW_32_BITS) as f32
         f32::from_bits(self.0.load(Ordering::Relaxed) as u32)
     }
 

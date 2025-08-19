@@ -22,7 +22,7 @@ fn main() {
 
     for i in 0..num_rows {
         let mut row = data.nalities.row(i).to_vec();
-        println!("{i}: ");
+        print!("{i}: ");
         row.sort_by(|a, b| b.sim().total_cmp(&a.sim()));
         for n in row.iter() {
             print!("id: {:?} sim: {:?}  ", n.id().as_usize(), n.sim());
@@ -33,7 +33,8 @@ fn main() {
 
 pub fn get_nn_table(nn_table_path: &Path) -> NalityNNTable {
     log::info!("Loading NN table from {:?}", nn_table_path);
-    let file = File::open(nn_table_path).unwrap();
+    let file =
+        File::open(nn_table_path).unwrap_or_else(|_| panic!("Failed to open {:?}", nn_table_path));
     let reader = BufReader::new(file);
     let nn_table: NalityNNTable = bincode::deserialize_from(reader).unwrap();
     nn_table

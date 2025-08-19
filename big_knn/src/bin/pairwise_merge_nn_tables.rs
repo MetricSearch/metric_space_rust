@@ -7,7 +7,7 @@ use big_knn::big_knn_r_descent::{into_big_knn_r_descent, make_big_knn_table2_bsp
 use big_knn::dao_manager::{DaoManager, DaoStore};
 use big_knn::{
     create_and_store_nn_table, get_file_names, get_file_sizes, get_partitions, make_partitions,
-    partition_into, write_nalities, write_table, NalityNNTable, DATA_DIM,
+    partition_into, write_nalities_as_json, write_table, NalityNNTable, DATA_DIM,
 };
 use bits::container::{BitsContainer, Simd256x2};
 use bits::EvpBits;
@@ -193,7 +193,7 @@ fn create_nn_table_from_pair(
     check_dir_exists(&first_dir);
 
     let mut first_nn_table_path = first_dir.join(&random_file_name(8));
-    first_nn_table_path.set_extension("bin");
+    first_nn_table_path.set_extension("json");
 
     let second_dir = Path::new(&nn_tables_dest_dir)
         .join("nn_table".to_string())
@@ -202,7 +202,7 @@ fn create_nn_table_from_pair(
     check_dir_exists(&second_dir);
 
     let mut second_nn_table_path = second_dir.join(&random_file_name(8));
-    second_nn_table_path.set_extension("bin");
+    second_nn_table_path.set_extension("json");
 
     split_and_write_back(
         neighbourlarities,
@@ -296,8 +296,8 @@ fn split_and_write_back(
     let nalities = sort_table(nalities); // TODO Still copies - stop it.
 
     let top_nalities: ArrayView2<_> = nalities.slice(s![0..part1_size, 0..]);
-    write_nalities(&nn_table1_path, &top_nalities);
+    write_nalities_as_json(&nn_table1_path, &top_nalities);
 
     let bottom_nalities: ArrayView2<_> = nalities.slice(s![part2_size.., 0..]);
-    write_nalities(&nn_table2_path, &bottom_nalities);
+    write_nalities_as_json(&nn_table2_path, &bottom_nalities);
 }

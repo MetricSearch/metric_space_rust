@@ -174,7 +174,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                                         &new_mapped_updated_forward_and_reverse_links // may contain data that is mapped and unmapped
                                                             .iter()
                                                             .map(|x| *x)
-                                                            .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(&global_address)) // only look at addresses that are mapped //<< TODO DELETE ME
+                                                            .filter(|global_address: &GlobalAddress| dao_manager.is_mapped(&global_address)) // only look at addresses that are mapped
                                                             .collect::<Array1<GlobalAddress>>().view()); // Matlab line 137
 
                 let new_mapped_forward_and_reverse_sims =

@@ -95,7 +95,7 @@ fn main() -> std::io::Result<()> {
 }
 
 fn merge_files_rowwise(filenames: &Vec<PathBuf>, output_path: &PathBuf) -> io::Result<()> {
-    println!("Iterating over files: {:?}", filenames);
+    log::trace!("Iterating over files: {:?}", filenames);
 
     let mut vec_of_iterators: Vec<RowIter> = filenames // iterators over each of the nn_tables that have been created already
         .iter()

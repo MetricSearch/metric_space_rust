@@ -4,7 +4,7 @@ use bits::container::{BitsContainer, Simd256x2};
 use bits::evp::{matrix_dot, similarity_as_f32};
 use bits::EvpBits;
 use dao::Dao;
-use log::debug;
+use log::trace;
 use ndarray::{
     concatenate, s, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1,
     ArrayViewMut2, Axis, CowArray, Ix2, OwnedRepr,
@@ -26,15 +26,7 @@ pub fn into_big_knn_r_descent<C: BitsContainer, const W: usize>(
     delta: f64,
     start_index: u32,
 ) -> NalityNNTable {
-    let num_data = daos
-        .iter()
-        .map(|dao| {
-            println!("xxxxx {}", dao.num_data);
-            dao.num_data
-        })
-        .sum();
-
-    println!("Num Data: {}", num_data);
+    let num_data = daos.iter().map(|dao| dao.num_data).sum();
 
     let neighbourlarities =
         initialise_table_bsp_randomly_overwrite_row_0(num_data, num_neighbours, start_index);
@@ -65,7 +57,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
     delta: f64,
     reverse_list_size: usize,
 ) {
-    log::debug!(
+    log::trace!(
         "Making NN table with shape: {:?}",
         neighbourlarities.shape(),
     );
@@ -95,7 +87,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                 AtomicBool::new(neighbour_is_new[(i, j)].load(Ordering::Relaxed))
             });
 
-        let (reverse_links, reverse_count) = create_reverse_links(
+        let (reverse_links, _) = create_reverse_links(
             &dao_manager,
             num_data,
             &neighbourlarities.view(),
@@ -106,7 +98,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         );
 
         let after = Instant::now();
-        log::debug!("Phase 1: {} ms", ((after - now).as_millis() as f64));
+        log::trace!("Phase 1: {} ms", ((after - now).as_millis() as f64));
 
         // Phase 2 (was phase 3)
 
@@ -318,13 +310,13 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
         let after = Instant::now();
         iterations += 1;
 
-        log::debug!(
+        log::trace!(
             "work done: {} num_data: {} iters: {}",
             work_done.load(std::sync::atomic::Ordering::SeqCst),
             num_data,
             iterations
         );
-        log::debug!("Phase 2: {} ms", ((after - now).as_millis() as f64));
+        log::trace!("Phase 2: {} ms", ((after - now).as_millis() as f64));
     }
 
     let final_time = Instant::now();
@@ -499,14 +491,14 @@ pub fn check_neighbours<C: BitsContainer, const W: usize>(
     dao_manager: &DaoStore<C, { W }>,
 ) {
     let mut count = 0;
-    debug!("Checking neighbours");
+    log::debug!("Checking neighbours");
     neebs.iter().for_each(|nality| {
         let global_addr: GlobalAddress = nality.id();
         count += 1;
         if !dao_manager.is_mapped(&global_addr) {
-            debug!("Unmapped nality: {:?}", &global_addr);
+            log::debug!("Unmapped nality: {:?}", &global_addr);
             assert!(false);
         }
     });
-    debug!("Finished checking {} neighbours", count);
+    log::trace!("Finished checking {} neighbours", count);
 }

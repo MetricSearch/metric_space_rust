@@ -213,24 +213,13 @@ pub fn write_table(output_path: &PathBuf, nn_table: &NalityNNTable) {
     }
 }
 
-// This is better than above - consider using this version everywhere.
-pub fn write_nalities_as_json_V1(output_path: &PathBuf, nn_table: &ArrayView2<Nality>) {
-    log::trace!("Saving NN table to JSON file {:?}", output_path);
-    let mut file: File = File::create(output_path).unwrap();
-
-    file.write_all(serde_json::to_string(nn_table).unwrap().as_bytes())
-        .expect("Cannot write to the JSON file");
-
-    log::trace!("NN table saved to JSON file {:?}", output_path);
-}
-
 pub fn write_nalities_as_json(output_path: &PathBuf, nn_table: &ArrayView2<Nality>) {
     let mut file: File = File::create(output_path).unwrap();
 
     let wrapped = Rows { view: *nn_table }; // to force custom serialisation below
 
     file.write_all(serde_json::to_string(&wrapped).unwrap().as_bytes())
-        .unwrap_or_else(|x| panic!("Cannot write to the JSON file {:?}", output_path));
+        .unwrap_or_else(|_| panic!("Cannot write to the JSON file {:?}", output_path));
 
     log::trace!("NN table saved to JSON file {:?}", output_path);
 }

@@ -88,6 +88,7 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
             });
 
         let (reverse_links, _) = create_reverse_links(
+            // TODO Why does this return counts - are they used elsewhere?
             &dao_manager,
             num_data,
             &neighbourlarities.view(),
@@ -211,18 +212,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 // is the current similarity greater than the biggest distance
                                 // in the row for u1_id? if it's not, then do nothing
 
-                                // if (u2_id.as_usize() == 200001) {
-                                //     println!("new_ind2 {new_ind2} U1 ID: global: {:?} local: {} | U2 ID global: {:?} local: {}  | Sim: {} | Current Row {:?}",
-                                //              u1_id,
-                                //              u1_id.as_usize(),
-                                //              u2_id,
-                                //              u2_id.as_usize(),
-                                //              this_sim,
-                                //              neighbourlarities.row(1));
-                                //     println!("newly_updated_forward_and_reverse_links {:?}", newly_updated_forward_and_reverse_links);
-                                //     println!("reverse_row_links {:?},", reverse_row_links);
-                                // }
-
                                 check_apply_update_wrapper(
                                     u1_id,
                                     u2_id,
@@ -255,8 +244,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                        |a, b| { similarity_as_f32(a, b) })
                         };
 
-                        // Ben's suggestion - Re-insert unmapped nalities into new_old_sims
-
                         // and do the same for each pair of elements in the new_row/old_row
 
                         for new_row_index_1 in 0..newly_updated_nailities_in_row.len() {
@@ -269,18 +256,6 @@ pub fn make_big_knn_table2_bsp<C: BitsContainer, const W: usize>(
                                 // then get their distance from the matrix
                                 let this_sim = *new_old_sims.get((new_row_index_1, new_row_index_2))
                                     .unwrap_or_else(|| panic!("Illegal index of new_old_sims at {new_row_index_1},{new_row_index_2} Shape is: {:?}", new_old_sims.shape()));
-
-                                // if (u2.id().as_usize() == 200001) {
-                                //     println!("new_row_index_2 {new_row_index_2} U1 ID: global: {:?} local: {} | U2 ID global: {:?} local: {}  | Sim: {} | Current Row {:?}",
-                                //              u1.id(),
-                                //              u1.id().as_usize(),
-                                //              u2.id(),
-                                //              u2.id().as_usize(),
-                                //              this_sim,
-                                //              neighbourlarities.row(1));
-                                //     println!("newly_updated_forward_and_reverse_links {:?}", newly_updated_forward_and_reverse_links);
-                                //     println!("reverse_row_links {:?},", reverse_row_links);
-                                // }
 
                                 check_apply_update_wrapper(
                                     u1.id(),   // the new row

@@ -136,6 +136,105 @@ pub fn similarity<C: BitsContainer, const W: usize>(a: &EvpBits<C, W>, b: &EvpBi
 }
 
 #[inline(always)]
+pub fn masked_addition_al<C: BitsContainer, const W: usize>(
+    embedding: ArrayView1<f32>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    let mut pos_sum = 0.0;
+    let mut neg_sum = 0.0;
+
+    for (i, (pos, neg)) in b
+        .ones
+        .into_u64_iter()
+        .zip(b.negative_ones.into_u64_iter())
+        .enumerate()
+    {
+        // Equivalent to conditional addition, but without branching
+        pos_sum += embedding[i] * (pos != 0) as u8 as f32;
+        neg_sum += embedding[i] * (neg != 0) as u8 as f32;
+    }
+
+    pos_sum - neg_sum
+}
+
+#[inline(always)]
+pub fn masked_addition_gpt<C: BitsContainer, const W: usize>(
+    embedding: ArrayView1<f32>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    let mut pos_sum = 0.0;
+    let mut neg_sum = 0.0;
+    let mut idx = 0;
+
+    for (pos_block, neg_block) in b.ones.into_u64_iter().zip(b.negative_ones.into_u64_iter()) {
+        let mut mask = pos_block | neg_block;
+
+        // Fast skip for empty blocks
+        if mask == 0 {
+            idx += 64;
+            continue;
+        }
+
+        while mask != 0 {
+            let bit = mask.trailing_zeros() as usize;
+            let bit_mask = 1u64 << bit;
+            let val = embedding[idx + bit];
+
+            // Branchless masked accumulation
+            pos_sum += val * ((pos_block & bit_mask) != 0) as u8 as f32;
+            neg_sum += val * ((neg_block & bit_mask) != 0) as u8 as f32;
+
+            mask &= !bit_mask;
+        }
+
+        idx += 64;
+    }
+
+    pos_sum - neg_sum
+}
+
+// fn count_ones(&self) -> usize {
+//     self.as_array_ref()
+//         .iter()
+//         .map(|e| e.count_ones() as usize)
+//         .sum()
+// }
+
+pub fn masked_add_selectors<C: BitsContainer, const W: usize>(
+    // TODO write a vectorised version of this.
+    embedding: ArrayView1<f32>,
+    b: &EvpBits<C, W>,
+) -> f32 {
+    // let ones = b.ones.into_u64_iter().position(|r| r == 1).unwrap();
+
+    let ones: Vec<usize> = b
+        .ones
+        .into_u64_iter()
+        .enumerate()
+        .filter_map(|(index, value)| if value == 1 { Some(index) } else { None })
+        .collect();
+
+    let negs: Vec<usize> = b
+        .negative_ones
+        .into_u64_iter()
+        .enumerate()
+        .filter_map(|(index, value)| if value == 1 { Some(index) } else { None })
+        .collect();
+
+    let mut count = 0.0;
+
+    for i in ones {
+        count = count + embedding[i];
+    }
+
+    for i in negs {
+        count = count - embedding[i];
+    }
+
+    count
+}
+
+#[inline(always)]
 pub fn similarity_as_f32<C: BitsContainer, const W: usize>(
     a: &EvpBits<C, W>,
     b: &EvpBits<C, W>,

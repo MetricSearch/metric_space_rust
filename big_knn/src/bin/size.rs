@@ -24,13 +24,16 @@ fn main() -> Result<()> {
         .filter_level(log::LevelFilter::Trace)
         .init();
 
-    let dada_mem_size: i64 = 263748056 * 1024; // bytes // TODO parameter
+    const GIG: usize = 1024 * 1024 * 1024;
+    const MIL: usize = 1_000_000;
 
-    log::debug!("Dada memory: {} bytes", dada_mem_size);
+    let dada_mem_size: usize = 263748056 * 1024; // bytes // TODO parameter
+
+    log::debug!("Dada memory: {} GB", dada_mem_size / GIG);
 
     let dada_75_pc = dada_mem_size * 3 / 4;
 
-    log::debug!("75% Dada memory: {} bytes", dada_75_pc);
+    log::debug!("75% Dada memory: {} GB", dada_75_pc / GIG);
 
     let num_neighbours = 18; // TODO make a parameter
     let reverse_list_size = 0; // TODO make a parameter
@@ -65,7 +68,22 @@ fn main() -> Result<()> {
 
     log::debug!("Structural space used per datum: {} ", mem_per_datum);
 
-    log::debug!("Total space used per datum: {} ", mem_per_datum + evp_size);
+    log::debug!(
+        "Total space used per datum: {} bytes ",
+        mem_per_datum + evp_size
+    );
+
+    let total_number_of_entries_loadable = dada_75_pc / mem_per_datum;
+
+    log::debug!(
+        "Number of (millions) of elements loadable at once: {} million entries",
+        total_number_of_entries_loadable / MIL
+    );
+
+    log::debug!(
+        "Max partitiion size (need 2 loaded): {} million entries",
+        (total_number_of_entries_loadable) / (2 * MIL)
+    );
 
     Ok(())
 }

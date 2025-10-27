@@ -11,6 +11,10 @@ harness = false
 name = "euc_distance"
 harness = false
 
+[[bench]]
+name = "masked_addition"
+harness = false
+
 [dependencies]
 dao.workspace = true
 bits.workspace = true

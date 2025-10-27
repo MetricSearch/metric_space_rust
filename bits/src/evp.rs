@@ -205,21 +205,9 @@ pub fn masked_add_selectors<C: BitsContainer, const W: usize>(
     embedding: ArrayView1<f32>,
     b: &EvpBits<C, W>,
 ) -> f32 {
-    // let ones = b.ones.into_u64_iter().position(|r| r == 1).unwrap();
+    let ones = b.ones.set_bits_indices();
 
-    let ones: Vec<usize> = b
-        .ones
-        .into_u64_iter()
-        .enumerate()
-        .filter_map(|(index, value)| if value == 1 { Some(index) } else { None })
-        .collect();
-
-    let negs: Vec<usize> = b
-        .negative_ones
-        .into_u64_iter()
-        .enumerate()
-        .filter_map(|(index, value)| if value == 1 { Some(index) } else { None })
-        .collect();
+    let negs = b.negative_ones.set_bits_indices();
 
     let mut count = 0.0;
 

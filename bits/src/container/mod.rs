@@ -30,7 +30,7 @@ pub trait BitsContainer: Clone + Send + Sync + Debug {
     fn into_u64_iter(&self) -> impl Iterator<Item = u64>;
 
     // Gets the indices of the set bits within the container
-    fn set_bits_indices(&self) -> impl Iterator<Item = usize> {
+    fn get_bits_indices(&self) -> impl Iterator<Item = usize> {
         self.into_u64_iter()
             .enumerate()
             // for each u64...

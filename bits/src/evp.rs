@@ -145,7 +145,7 @@ pub fn masked_addition_al<C: BitsContainer, const W: usize>(
 
     for (i, (pos, neg)) in b
         .ones
-        .into_u64_iter()
+        .get_bits_indices()
         .zip(b.negative_ones.into_u64_iter())
         .enumerate()
     {
@@ -205,9 +205,8 @@ pub fn masked_add_selectors<C: BitsContainer, const W: usize>(
     embedding: ArrayView1<f32>,
     b: &EvpBits<C, W>,
 ) -> f32 {
-    let ones = b.ones.set_bits_indices();
-
-    let negs = b.negative_ones.set_bits_indices();
+    let ones = b.ones.get_bits_indices();
+    let negs = b.negative_ones.get_bits_indices();
 
     let mut count = 0.0;
 

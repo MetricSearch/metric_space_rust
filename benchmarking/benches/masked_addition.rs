@@ -1,4 +1,4 @@
-use bits::evp::{masked_add_selectors, masked_addition_al, masked_addition_gpt};
+use bits::evp::{masked_add_selectors, masked_addition_gpt};
 use bits::{container::Simd256x2, similarity, EvpBits};
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
@@ -57,21 +57,6 @@ fn bench_evp_similarity(bencher: Bencher) {
 
     bencher.bench(|| {
         let res = similarity::<Simd256x2, 384>(black_box(&evp_query), black_box(&evp_data));
-        black_box(res);
-    });
-}
-
-#[divan::bench]
-fn bench_masked_al(bencher: Bencher) {
-    let dao: Rc<Dao<Array1<f32>>> =
-        Rc::new(dao_from_csv_dir(CSV_DIR, NUM_DATA, NUM_QUERIES).unwrap());
-
-    let query = dao.get_query(0).view();
-    let data = dao.get_datum(0).view();
-    let evp_data = EvpBits::<Simd256x2, 384>::from_embedding(data, 200);
-
-    bencher.bench(|| {
-        let res = masked_addition_al::<Simd256x2, 384>(black_box(query), black_box(&evp_data));
         black_box(res);
     });
 }

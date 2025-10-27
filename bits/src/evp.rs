@@ -136,28 +136,6 @@ pub fn similarity<C: BitsContainer, const W: usize>(a: &EvpBits<C, W>, b: &EvpBi
 }
 
 #[inline(always)]
-pub fn masked_addition_al<C: BitsContainer, const W: usize>(
-    embedding: ArrayView1<f32>,
-    b: &EvpBits<C, W>,
-) -> f32 {
-    let mut pos_sum = 0.0;
-    let mut neg_sum = 0.0;
-
-    for (i, (pos, neg)) in b
-        .ones
-        .get_bits_indices()
-        .zip(b.negative_ones.into_u64_iter())
-        .enumerate()
-    {
-        // Equivalent to conditional addition, but without branching
-        pos_sum += embedding[i] * (pos != 0) as u8 as f32;
-        neg_sum += embedding[i] * (neg != 0) as u8 as f32;
-    }
-
-    pos_sum - neg_sum
-}
-
-#[inline(always)]
 pub fn masked_addition_gpt<C: BitsContainer, const W: usize>(
     embedding: ArrayView1<f32>,
     b: &EvpBits<C, W>,
@@ -192,13 +170,6 @@ pub fn masked_addition_gpt<C: BitsContainer, const W: usize>(
 
     pos_sum - neg_sum
 }
-
-// fn count_ones(&self) -> usize {
-//     self.as_array_ref()
-//         .iter()
-//         .map(|e| e.count_ones() as usize)
-//         .sum()
-// }
 
 pub fn masked_add_selectors<C: BitsContainer, const W: usize>(
     // TODO write a vectorised version of this.

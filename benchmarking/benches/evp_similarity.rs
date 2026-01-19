@@ -27,9 +27,7 @@ fn bench(bencher: Bencher) {
     let data = EvpBits::<Simd256x2, 384>::from_embedding(dao.get_datum(0).view(), 200);
 
     bencher.bench(|| {
-        for _ in 0..1_000_000 {
-            let res = similarity::<Simd256x2, 384>(black_box(&query), black_box(&data));
-            black_box(res);
-        }
+        let res = similarity::<Simd256x2, 384>(black_box(&query), black_box(&data));
+        black_box(res);
     });
 }

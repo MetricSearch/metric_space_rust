@@ -30,9 +30,7 @@ fn bench(bencher: Bencher) {
     let data = dao.get_datum(0);
 
     bencher.bench(|| {
-        for _ in 0..1_000_000 {
-            let res = euc(black_box(query), black_box(data));
-            black_box(res);
-        }
+        let res = euc(black_box(query), black_box(data));
+        black_box(res);
     });
 }

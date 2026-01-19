@@ -12,6 +12,22 @@ name = "euc_distance"
 harness = false
 
 [[bench]]
+name = "euc_distance_4bit"
+harness = false
+
+[[bench]]
+name = "euc_distance_8bit"
+harness = false
+
+[[bench]]
+name = "euc_distance_16bit"
+harness = false
+
+[[bench]]
+name = "euc_distance_32bit"
+harness = false
+
+[[bench]]
 name = "masked_addition"
 harness = false
 

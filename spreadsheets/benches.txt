@@ -1,0 +1,26 @@
+384 D dino data:
+
+Timer precision: 41 ns
+evp_similarity  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench        4.397 ns      │ 4.519 ns      │ 4.438 ns      │ 4.45 ns       │ 100     │ 102400
+
+Timer precision: 41 ns
+euc_distance  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench      249.7 ns      │ 366.9 ns      │ 252.3 ns      │ 258.8 ns      │ 100     │ 1600
+
+euc_distance_32bit  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench            248.4 ns      │ 253.6 ns      │ 251 ns        │ 250.6 ns      │ 100     │ 3200
+
+euc_distance_16bit  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench            288.8 ns      │ 629.9 ns      │ 312.2 ns      │ 307.8 ns      │ 100     │ 1600
+
+
+euc_distance_4bit  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench           353.8 ns      │ 663.8 ns      │ 382.5 ns      │ 381.3 ns      │ 100     │ 1600
+
+
+euc_distance_8bit  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench           288.8 ns      │ 387.7 ns      │ 291.4 ns      │ 298.1 ns      │ 100     │ 1600
+
+
+

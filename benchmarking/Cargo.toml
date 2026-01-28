@@ -8,6 +8,14 @@ name = "evp_similarity"
 harness = false
 
 [[bench]]
+name = "evp_different_x"
+harness = false
+
+[[bench]]
+name = "pca"
+harness = false
+
+[[bench]]
 name = "euc_distance"
 harness = false
 
@@ -31,11 +39,17 @@ harness = false
 name = "masked_addition"
 harness = false
 
+[[bench]]
+name = "one_bit"
+harness = false
+
 [dependencies]
 dao.workspace = true
 bits.workspace = true
 metrics.workspace = true
 ndarray.workspace = true
+criterion = "0.8.1"
 
 [dev-dependencies]
 divan.workspace = true
+criterion = "0.8.1"

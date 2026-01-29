@@ -21,7 +21,16 @@ fn bench_pca(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("bench_pca");
 
-    for size in [dims / 2, dims / 4, dims / 32, dims / 64] {
+    for size in [
+        dims / 2,  // 192 for 384
+        dims / 4,  // 96 fpr 384
+        dims / 8,  // 48 for 384
+        dims / 16, // 24 for 384
+        dims / 32, // 12 for 384
+        dims / 64, // 6 for 384
+        64,
+        32,
+    ] {
         group.bench_with_input(
             BenchmarkId::from_parameter(size),
             &size,

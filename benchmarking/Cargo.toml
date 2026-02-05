@@ -12,6 +12,14 @@ name = "evp_different_x"
 harness = false
 
 [[bench]]
+name = "scalar_product_distance"
+harness = false
+
+[[bench]]
+name = "multiple_eucs"
+harness = false
+
+[[bench]]
 name = "pca"
 harness = false
 
@@ -49,6 +57,7 @@ bits.workspace = true
 metrics.workspace = true
 ndarray.workspace = true
 criterion = "0.8.1"
+rand = "0.9.2"
 
 [dev-dependencies]
 divan.workspace = true

@@ -136,6 +136,7 @@ dependencies = [
  "divan",
  "metrics",
  "ndarray",
+ "rand",
 ]
 
 [[package]]

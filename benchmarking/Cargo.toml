@@ -8,6 +8,22 @@ name = "evp_similarity"
 harness = false
 
 [[bench]]
+name = "evp_100dim"
+harness = false
+
+[[bench]]
+name = "evp_384dim"
+harness = false
+
+[[bench]]
+name = "evp_500dim"
+harness = false
+
+[[bench]]
+name = "evp_768dim"
+harness = false
+
+[[bench]]
 name = "evp_different_x"
 harness = false
 

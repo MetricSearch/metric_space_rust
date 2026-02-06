@@ -1,13 +1,12 @@
 use anyhow::Result;
 use bitvec_simd::BitVecSimd;
-use metrics::euc;
-use ndarray::{Array1, ArrayView1};
 //use rayon::prelude::*;
 use dao::convert_f32_to_cube_oct::to_cube_oct_dao;
 use dao::csv_dao_loader::dao_from_csv_dir;
 use dao::Dao;
 use descent::Descent;
-use serde::__private::de::borrow_cow_bytes;
+use metrics::euc;
+use ndarray::{Array1, ArrayView1};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::rc::Rc;
@@ -20,12 +19,10 @@ use wide::u64x4;
 
 fn main() -> Result<()> {
     tracing::info!("Loading mf dino data...");
-    let num_queries = 10_000;
-    let num_data = 1_000_000 - num_queries;
 
     let data_file_name = "/Volumes/Data/RUST_META/mf_dino2_csv/";
     let descent_file_name = "_scratch/nn_table_100.bin";
-    let rng_star_file_name = "_scratch/rng_table_100.bin";
+    // let rng_star_file_name = "_scratch/rng_table_100.bin";
 
     println!("cube-oct search:");
     println!("Serde load of Descent");
@@ -45,7 +42,7 @@ fn main() -> Result<()> {
 
     let dao_cube_oct = to_cube_oct_dao(dao_f32.clone());
 
-    let num_neighbours = 100;
+    // let num_neighbours = 100;
     // let descent = Descent::new(dao_f32.clone(), num_neighbours, true);
 
     let queries = dao_cube_oct.get_queries().to_vec();

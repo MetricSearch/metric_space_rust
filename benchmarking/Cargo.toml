@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [[bench]]
+name = "multiple_bit_eucs"
+harness = false
+
+[[bench]]
 name = "evp_similarity"
 harness = false
 
@@ -64,7 +68,7 @@ name = "masked_addition"
 harness = false
 
 [[bench]]
-name = "one_bit"
+name = "multiple_one_bit"
 harness = false
 
 [dependencies]

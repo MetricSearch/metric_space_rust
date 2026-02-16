@@ -136,11 +136,8 @@ pub fn euc_4bit(a: &Array1I4View, b: Array1I4View) -> f32 {
     a.iter()
         .zip(b.iter())
         .map(|(a, b)| (a - b).pow(2) as f32)
-        .sum()
-}
-
-pub fn get_max(data: &Array1<f32>) -> f32 {
-    return data.iter().cloned().reduce(f32::max).unwrap();
+        .sum::<f32>()
+        .sqrt()
 }
 
 pub fn to_i8_array(array: &Array1<f32>, max_f32: f32) -> Array1<i8> {
@@ -175,7 +172,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let queries_f32 = Array1::from_iter((0..dims * num_queries).map(|_| random::<f32>()));
     let data_f32 = Array1::from_iter((0..dims * num_data).map(|_| random::<f32>()));
 
-    let max_f32 = data_f32.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let max_f32 = data_f32.iter().copied().map(|x| x.abs()).fold(f32::NEG_INFINITY, f32::max);
 
     let queries: Array1I4 = Array1I4::from_i8(&to_i8_array(&queries_f32, max_f32));
     let data = Array1I4::from_i8(&to_i8_array(&data_f32, max_f32));
@@ -183,10 +180,11 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let now = Instant::now();
 
     // Do a brute force of queries against the data
-
     let four_bit_distances = generate_4bit_dists(queries, data, num_queries, num_data, dims);
 
     let after = Instant::now();
+    println!("Sum of distances is {:?}", four_bit_distances.iter().flatten().sum::<f32>());
+
 
     println!(
         "Time per 4bit {} dim query 1_000_000 dists: {} ns",

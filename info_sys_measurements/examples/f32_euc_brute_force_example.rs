@@ -26,6 +26,8 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     let after = Instant::now();
 
+    println!("Sum of distances is {:?}", distances.iter().flatten().sum::<f32>());
+
     println!(
         "Time per pca {} dim query 1_000_000 dists: {} ns",
         dims,
@@ -35,7 +37,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
 pub fn euc_view(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     // f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-    a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum()
+    a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
 }
 
 fn generate_euc_dists(

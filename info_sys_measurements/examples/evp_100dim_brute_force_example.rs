@@ -31,6 +31,9 @@ fn main() -> Result<()> {
 
     let after = Instant::now();
 
+    println!("Sum of distances is {:?}", bsp_distances.iter().flatten().sum::<usize>());
+
+
     println!(
         "Time per BSP 100 dim query 1_000_000 dists: {} ns",
         ((after - now).as_nanos() as f64) / num_queries as f64
@@ -44,7 +47,7 @@ fn generate_bsp_dists(
     data: Array1<EvpBits<Simd128, 100>>,
 ) -> Vec<Vec<usize>> {
     queries
-        .par_iter()
+        .iter()
         .map(|query| {
             data.iter()
                 .map(|data| distance(&query, &data))

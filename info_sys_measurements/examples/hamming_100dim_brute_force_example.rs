@@ -51,6 +51,9 @@ fn main() -> Result<()> {
 
     let after = Instant::now();
 
+    println!("Sum of distances is {:?}", bsp_distances.iter().flatten().sum::<usize>());
+
+
     println!(
         "Time per Hamming 100 dim query 1_000_000 dists: {} ns",
         ((after - now).as_nanos() as f64) / num_queries as f64
@@ -61,7 +64,7 @@ fn main() -> Result<()> {
 
 fn generate_hamming_dists(queries: Array1<Simd128>, data: Array1<Simd128>) -> Vec<Vec<u32>> {
     queries
-        .par_iter()
+        .iter()
         .map(|query| {
             data.iter()
                 .map(|data| one_bit_similarity_128(&query, &data))

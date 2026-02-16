@@ -1,12 +1,12 @@
 use anyhow::Result;
 use bits::container::BitsContainer;
-use bits::container::Simd128;
+use bits::container::Simd256x4;
 use ndarray::Array1;
 use rand::random;
 use rayon::prelude::*;
 use std::time::Instant;
 
-fn one_bit_similarity_128(a: &Simd128, b: &Simd128) -> u32 {
+fn one_bit_similarity_128(a: &Simd256x4, b: &Simd256x4) -> u32 {
     // a.into_u64_iter()
     //     .zip(b.into_u64_iter())
     //     .map(|(x, y)| (x ^ y).count_ones())
@@ -15,8 +15,8 @@ fn one_bit_similarity_128(a: &Simd128, b: &Simd128) -> u32 {
     a.xor(b).count_ones() as u32
 }
 
-fn to_one_bit_128(embedding: Array1<f32>) -> Simd128 {
-    let mut bits = Simd128::default();
+fn to_one_bit_128(embedding: Array1<f32>) -> Simd256x4 {
+    let mut bits = Simd256x4::default();
     (0..embedding.len()).for_each(|index| {
         if embedding[index] > 0.0 {
             bits.set_bit(index, true);
@@ -33,12 +33,12 @@ fn main() -> Result<()> {
 
     let dims = 768; // can't use everywhere needs to ne manifest?
 
-    let queries: Array1<Simd128> = Array1::from_iter((0..num_queries).map(|_| {
+    let queries: Array1<Simd256x4> = Array1::from_iter((0..num_queries).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
         to_one_bit_128(embedding)
     }));
 
-    let data: Array1<Simd128> = Array1::from_iter((0..num_data).map(|_| {
+    let data: Array1<Simd256x4> = Array1::from_iter((0..num_data).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
         to_one_bit_128(embedding)
     }));
@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn generate_hamming_dists(queries: Array1<Simd128>, data: Array1<Simd128>) -> Vec<Vec<u32>> {
+fn generate_hamming_dists(queries: Array1<Simd256x4>, data: Array1<Simd256x4>) -> Vec<Vec<u32>> {
     queries
         .par_iter()
         .map(|query| {

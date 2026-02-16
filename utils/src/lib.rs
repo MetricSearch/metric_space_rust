@@ -7,7 +7,7 @@ use rand::seq::index::sample;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rand_distr::num_traits::Pow;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::{
     fmt::Debug,

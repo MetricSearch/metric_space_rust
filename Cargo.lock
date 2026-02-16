@@ -777,6 +777,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "info_sys_measurements"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bits",
+ "bitvec_simd",
+ "clap",
+ "dao",
+ "descent",
+ "hdf5-metno",
+ "jemallocator",
+ "log",
+ "metrics",
+ "ndarray",
+ "pretty_env_logger",
+ "r_descent",
+ "rand",
+ "rayon",
+ "tracing",
+ "tracing-subscriber",
+ "utils",
+ "wide",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"

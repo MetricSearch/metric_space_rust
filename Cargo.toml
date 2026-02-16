@@ -10,8 +10,9 @@ members = [
     "utils",
     "r_descent",
     "sisap2025",
+    "info_sys_measurements",
     "big_knn"
-]
+    , "info_sys_measurements"]
 
 [workspace.dependencies]
 utils = { path = "utils" }

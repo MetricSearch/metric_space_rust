@@ -1,7 +1,7 @@
 use anyhow::Result;
 //use std::random::random;
 use bits::container::Simd256x4;
-use bits::{distance, EvpBits};
+use bits::{EvpBits, distance};
 use ndarray::Array1;
 use rand::random;
 use rayon::prelude::*;

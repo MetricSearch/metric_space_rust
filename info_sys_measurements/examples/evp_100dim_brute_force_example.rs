@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bits::{container::Simd128, distance, EvpBits};
+use bits::{EvpBits, container::Simd128, distance};
 use ndarray::Array1;
 use rand::random;
 use rayon::prelude::*;

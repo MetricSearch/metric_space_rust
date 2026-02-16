@@ -55,15 +55,16 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     let after = Instant::now();
 
-    println!("Sum of distances is {:?}", eight_bit_distances.iter().flatten().sum::<f32>());
+    println!(
+        "Sum of distances is {:?}",
+        eight_bit_distances.iter().flatten().sum::<f32>()
+    );
 
     println!(
         "Time per 8bit {} dim query 1_000_000 dists: {} ns",
         dims,
         ((after - now).as_nanos() as f64) / num_queries as f64
     );
-
-    
 }
 
 fn generate_8bit_dists(

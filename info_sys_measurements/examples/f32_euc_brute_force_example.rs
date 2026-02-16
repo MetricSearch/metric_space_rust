@@ -1,40 +1,13 @@
 use anyhow::Result;
-use ndarray::{Array1, ArrayView1, s};
+use ndarray::{s, Array1, ArrayView1};
 use rand::random;
-use rayon::prelude::*;
 use std::time::Instant;
-
-pub fn euc_16bit(a: &ArrayView1<i16>, b: &ArrayView1<i16>) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(a, b)| (a - b).pow(2) as f32)
-        .sum()
-}
-
-pub fn get_max(data: &Array1<f32>) -> f32 {
-    return data.iter().cloned().reduce(f32::max).unwrap();
-}
-
-pub fn to_i16_array(array: &Array1<f32>, max_f32: f32) -> Array1<i16> {
-    array.mapv(|x| {
-        let value = x / max_f32;
-
-        if value.is_nan() {
-            // this will never happen
-            0
-        } else {
-            (value * i16::MAX as f32)
-                .round()
-                .clamp(i16::MIN as f32, i16::MAX as f32) as i16
-        }
-    })
-}
 
 fn main() -> Result<()> {
     let num_queries = 100;
     let num_data = 1_000_000;
 
-    for dims in (192, 96, 48, 24, 12, 6) {
+    for dims in [100, 384, 500, 768] {
         do_experiment(num_queries, num_data, dims)
     }
 
@@ -49,7 +22,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     // Do a brute force of queries against the data
 
-    let eight_bit_distances = generate_sp_dists(queries, data, num_queries, num_data, dims);
+    let distances = generate_euc_dists(queries, data, num_queries, num_data, dims);
 
     let after = Instant::now();
 
@@ -65,7 +38,7 @@ pub fn euc_view(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum()
 }
 
-fn generate_sp_dists(
+fn generate_euc_dists(
     queries: Array1<f32>,
     data: Array1<f32>,
     num_queries: usize,

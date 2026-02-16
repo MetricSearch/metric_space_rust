@@ -64,7 +64,7 @@ fn main() -> Result<()> {
 
 fn generate_hamming_dists(queries: Array1<Simd128>, data: Array1<Simd128>) -> Vec<Vec<u32>> {
     queries
-        .iter()
+        .par_iter()
         .map(|query| {
             data.iter()
                 .map(|data| one_bit_similarity_128(&query, &data))

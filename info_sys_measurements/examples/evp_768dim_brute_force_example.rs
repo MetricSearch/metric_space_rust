@@ -49,7 +49,7 @@ fn generate_bsp_dists(
     data: Array1<EvpBits<Simd256x4, 768>>,
 ) -> Vec<Vec<usize>> {
     queries
-        .iter()
+        .par_iter()
         .map(|query| {
             data.iter()
                 .map(|data| distance(&query, &data))

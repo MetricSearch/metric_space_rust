@@ -33,6 +33,9 @@ fn main() -> Result<()> {
 
     let after = Instant::now();
 
+    println!("Sum of distances is {:?}", bsp_distances.iter().flatten().sum::<usize>());
+
+
     println!(
         "Time per BSP 384 dim query 1_000_000 dists: {} ns",
         ((after - now).as_nanos() as f64) / num_queries as f64

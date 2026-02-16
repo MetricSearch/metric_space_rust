@@ -72,6 +72,7 @@ fn generate_16bit_dists(
     dims: usize,
 ) -> Vec<Vec<f32>> {
     (0..num_queries)
+        .par_bridge()
         .map(|q_index| {
             (0..num_data)
                 .map(|data_index| {

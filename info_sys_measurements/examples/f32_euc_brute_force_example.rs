@@ -1,6 +1,7 @@
 use anyhow::Result;
 use ndarray::{Array1, ArrayView1, s};
 use rand::random;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -48,6 +49,7 @@ fn generate_euc_dists(
     dims: usize,
 ) -> Vec<Vec<f32>> {
     (0..num_queries)
+        .par_bridge()
         .map(|q_index| {
             (0..num_data)
                 .map(|data_index| {

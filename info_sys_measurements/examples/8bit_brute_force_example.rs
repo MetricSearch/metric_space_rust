@@ -1,6 +1,7 @@
 use anyhow::Result;
 use ndarray::{Array1, ArrayView1, s};
 use rand::random;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::time::Instant;
 
 // Changed to sqrt
@@ -74,6 +75,7 @@ fn generate_8bit_dists(
     dims: usize,
 ) -> Vec<Vec<f32>> {
     (0..num_queries)
+        .par_bridge()
         .map(|q_index| {
             (0..num_data)
                 .map(|data_index| {

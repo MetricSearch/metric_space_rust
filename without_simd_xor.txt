@@ -1,0 +1,29 @@
+bench_multiple_one_bit/100
+                        time:   [1.7889 ns 1.8155 ns 1.8414 ns]
+                        change: [+67.298% +77.297% +87.312%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+bench_multiple_one_bit/384
+                        time:   [1.6179 ns 1.6192 ns 1.6206 ns]
+                        change: [+7.7086% +7.9849% +8.2303%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+bench_multiple_one_bit/500
+                        time:   [1.6184 ns 1.6195 ns 1.6206 ns]
+                        change: [+7.9873% +8.1656% +8.3413%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  2 (2.00%) low mild
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+bench_multiple_one_bit/768
+                        time:   [13.173 ns 13.189 ns 13.206 ns]
+                        change: [+290.87% +293.93% +295.88%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  3 (3.00%) low mild
+  4 (4.00%) high mild
+

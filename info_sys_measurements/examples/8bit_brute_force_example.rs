@@ -1,18 +1,15 @@
 use anyhow::Result;
 use ndarray::{Array1, ArrayView1, s};
 use rand::random;
-use rayon::prelude::*;
 use std::time::Instant;
 
+// Changed to sqrt
 pub fn euc_8bit(a: &ArrayView1<i8>, b: &ArrayView1<i8>) -> f32 {
     a.iter()
         .zip(b.iter())
         .map(|(a, b)| (a - b).pow(2) as f32)
-        .sum()
-}
-
-pub fn get_max(data: &Array1<f32>) -> f32 {
-    return data.iter().cloned().reduce(f32::max).unwrap();
+        .sum::<f32>()
+        .sqrt()
 }
 
 pub fn to_i8_array(array: &Array1<f32>, max_f32: f32) -> Array1<i8> {
@@ -58,11 +55,15 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     let after = Instant::now();
 
+    println!("Sum of distances is {:?}", eight_bit_distances.iter().flatten().sum::<f32>());
+
     println!(
         "Time per 8bit {} dim query 1_000_000 dists: {} ns",
         dims,
         ((after - now).as_nanos() as f64) / num_queries as f64
     );
+
+    
 }
 
 fn generate_8bit_dists(

@@ -9,7 +9,6 @@ pub fn euc_16bit(a: &ArrayView1<i16>, b: &ArrayView1<i16>) -> f32 {
         .zip(b.iter())
         .map(|(a, b)| (a - b).pow(2) as f32)
         .sum::<f32>()
-        .sqrt()
 }
 
 pub fn to_i16_array(array: &Array1<f32>, max_f32: f32) -> Array1<i16> {

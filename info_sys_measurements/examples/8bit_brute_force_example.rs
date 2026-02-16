@@ -10,7 +10,6 @@ pub fn euc_8bit(a: &ArrayView1<i8>, b: &ArrayView1<i8>) -> f32 {
         .zip(b.iter())
         .map(|(a, b)| (a - b).pow(2) as f32)
         .sum::<f32>()
-        .sqrt()
 }
 
 pub fn to_i8_array(array: &Array1<f32>, max_f32: f32) -> Array1<i8> {

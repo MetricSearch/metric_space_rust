@@ -60,7 +60,8 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     println!(
         "Time per 8bit {} dim query 1_000_000 dists: {} ns",
-        dims((after - now).as_nanos() as f64) / num_queries as f64
+        dims,
+        ((after - now).as_nanos() as f64) / num_queries as f64
     );
 }
 

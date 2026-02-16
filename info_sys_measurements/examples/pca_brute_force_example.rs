@@ -42,8 +42,8 @@ fn main() -> Result<()> {
 }
 
 fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
-    let queries_f32 = Array1::from_iter((0..dims * num_queries).map(|_| random::<f32>()));
-    let data_f32 = Array1::from_iter((0..dims * num_data).map(|_| random::<f32>()));
+    let queries = Array1::from_iter((0..dims * num_queries).map(|_| random::<f32>()));
+    let data = Array1::from_iter((0..dims * num_data).map(|_| random::<f32>()));
 
     let now = Instant::now();
 
@@ -54,7 +54,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let after = Instant::now();
 
     println!(
-        "Time per 8bit {}} dim query 1_000_000 dists: {} ns",
+        "Time per 8bit {} dim query 1_000_000 dists: {} ns",
         dims,
         ((after - now).as_nanos() as f64) / num_queries as f64
     );

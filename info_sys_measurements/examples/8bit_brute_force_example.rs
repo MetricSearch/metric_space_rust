@@ -55,10 +55,8 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     let after = Instant::now();
 
-    println!(
-        "Sum of distances is {:?}",
-        eight_bit_distances.iter().flatten().sum::<f32>()
-    );
+    println!("Last distance is {:?}", eight_bit_distances.iter().flatten().last());
+
 
     println!(
         "Time per 8bit {} dim query 1_000_000 dists: {} ns",

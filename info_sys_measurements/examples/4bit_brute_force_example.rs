@@ -183,7 +183,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let four_bit_distances = generate_4bit_dists(queries, data, num_queries, num_data, dims);
 
     let after = Instant::now();
-    println!("Sum of distances is {:?}", four_bit_distances.iter().flatten().sum::<f32>());
+    println!("Last distance is {:?}", four_bit_distances.iter().flatten().last());
 
 
     println!(

@@ -33,7 +33,7 @@ fn main() -> Result<()> {
 
     let after = Instant::now();
 
-    println!("Sum of distances is {:?}", bsp_distances.iter().flatten().sum::<usize>());
+    println!("Last distance is {:?}", bsp_distances.iter().flatten().last());
 
 
     println!(

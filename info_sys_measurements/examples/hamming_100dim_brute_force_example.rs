@@ -51,8 +51,7 @@ fn main() -> Result<()> {
 
     let after = Instant::now();
 
-    println!("Sum of distances is {:?}", distances.iter().flatten().sum::<u32>());
-
+    println!("Last distance is {:?}", distances.iter().flatten().last());
 
     println!(
         "Time per Hamming 100 dim query 1_000_000 dists: {} ns",

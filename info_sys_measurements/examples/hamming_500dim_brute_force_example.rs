@@ -18,7 +18,7 @@ fn one_bit_similarity_128(a: &Simd256x2, b: &Simd256x2) -> u32 {
 fn to_one_bit_128(embedding: Array1<f32>) -> Simd256x2 {
     let mut bits = Simd256x2::default();
     (0..embedding.len()).for_each(|index| {
-        if embedding[index] > 0.0 {
+        if embedding[index] > 0.5 {
             bits.set_bit(index, true);
         }
     });

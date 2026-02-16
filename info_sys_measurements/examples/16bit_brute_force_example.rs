@@ -4,14 +4,14 @@ use rand::random;
 use rayon::prelude::*;
 use std::time::Instant;
 
-pub fn euc_16bit(a: &ArrayView1<i16>, b: &ArrayView1<i16>) -> f32 {
+pub fn euc_16bit(a: &ArrayView1<u16>, b: &ArrayView1<u16>) -> f32 {
     a.iter()
         .zip(b.iter())
         .map(|(a, b)| (a - b).pow(2) as f32)
         .sum::<f32>()
 }
 
-pub fn to_i16_array(array: &Array1<f32>, max_f32: f32) -> Array1<i16> {
+pub fn to_u16_array(array: &Array1<f32>, max_f32: f32) -> Array1<u16> {
     array.mapv(|x| {
         let value = x / max_f32;
 
@@ -19,9 +19,9 @@ pub fn to_i16_array(array: &Array1<f32>, max_f32: f32) -> Array1<i16> {
             // this will never happen
             0
         } else {
-            (value * i16::MAX as f32)
+            (value * u16::MAX as f32)
                 .round()
-                .clamp(i16::MIN as f32, i16::MAX as f32) as i16
+                .clamp(u16::MIN as f32, u16::MAX as f32) as u16
         }
     })
 }
@@ -43,8 +43,8 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     let max_f32 = data_f32.iter().copied().map(|x| x.abs()).fold(f32::NEG_INFINITY, f32::max);
 
-    let queries = to_i16_array(&queries_f32, max_f32);
-    let data = to_i16_array(&data_f32, max_f32);
+    let queries = to_u16_array(&queries_f32, max_f32);
+    let data = to_u16_array(&data_f32, max_f32);
 
     let now = Instant::now();
 
@@ -64,8 +64,8 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 }
 
 fn generate_16bit_dists(
-    queries: Array1<i16>,
-    data: Array1<i16>,
+    queries: Array1<u16>,
+    data: Array1<u16>,
     num_queries: usize,
     num_data: usize,
     dims: usize,

@@ -5,21 +5,21 @@ use rayon::prelude::*;
 use std::time::Instant;
 
 #[inline]
-fn clamp_i4(x: i8) -> i8 {
-    x.clamp(-8, 7)
+fn clamp_i4(x: u8) -> u8 {
+    x.clamp(0, 15)
 }
 
 #[inline]
-fn pack_i4_pair(a: i8, b: i8) -> u8 {
+fn pack_i4_pair(a: u8, b: u8) -> u8 {
     let a = (clamp_i4(a) & 0x0F) as u8;
     let b = (clamp_i4(b) & 0x0F) as u8;
     (b << 4) | a
 }
 
 #[inline]
-fn unpack_i4(x: u8) -> (i8, i8) {
-    let lo = (x & 0x0F) as i8;
-    let hi = ((x >> 4) & 0x0F) as i8;
+fn unpack_i4(x: u8) -> (u8, u8) {
+    let lo = (x & 0x0F) as u8;
+    let hi = ((x >> 4) & 0x0F) as u8;
 
     // sign extend
     let lo = if lo & 0x08 != 0 { lo | !0x0F } else { lo };
@@ -47,7 +47,7 @@ impl<'a> Array1I4View<'a> {
 }
 
 impl<'a> Array1I4View<'a> {
-    pub fn get(&self, idx: usize) -> i8 {
+    pub fn get(&self, idx: usize) -> u8 {
         assert!(idx < self.len);
 
         let byte = self.parent.data[idx / 2];
@@ -58,8 +58,8 @@ impl<'a> Array1I4View<'a> {
             (byte >> 4) & 0x0F
         };
 
-        // sign extend 4-bit value to i8
-        ((val as i8) << 4) >> 4
+        // sign extend 4-bit value to u8
+        ((val as u8) << 4) >> 4
     }
 }
 
@@ -69,7 +69,7 @@ pub struct Array1I4Iter<'a> {
 }
 
 impl<'a> Iterator for Array1I4Iter<'a> {
-    type Item = i8;
+    type Item = u8;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= self.view.len {
@@ -96,7 +96,7 @@ impl Array1I4 {
 }
 
 impl Array1I4 {
-    pub fn from_i8(src: &Array1<i8>) -> Self {
+    pub fn from_u8(src: &Array1<u8>) -> Self {
         let len = src.len();
         let packed_len = (len + 1) / 2;
 
@@ -114,7 +114,7 @@ impl Array1I4 {
 
 impl Array1I4 {
     #[inline]
-    pub fn get(&self, idx: usize) -> i8 {
+    pub fn get(&self, idx: usize) -> u8 {
         assert!(idx < self.len);
         let byte = self.data[idx / 2];
         let (a, b) = unpack_i4(byte);
@@ -123,8 +123,8 @@ impl Array1I4 {
 }
 
 impl Array1I4 {
-    pub fn to_i8(&self) -> Array1<i8> {
-        let mut out = Array1::<i8>::zeros(self.len);
+    pub fn to_u8(&self) -> Array1<u8> {
+        let mut out = Array1::<u8>::zeros(self.len);
         for i in 0..self.len {
             out[i] = self.get(i);
         }
@@ -139,7 +139,7 @@ pub fn euc_4bit(a: &Array1I4View, b: Array1I4View) -> f32 {
         .sum::<f32>()
 }
 
-pub fn to_i8_array(array: &Array1<f32>, max_f32: f32) -> Array1<i8> {
+pub fn to_u8_array(array: &Array1<f32>, max_f32: f32) -> Array1<u8> {
     array.mapv(|x| {
         let value = x / max_f32;
 
@@ -147,9 +147,9 @@ pub fn to_i8_array(array: &Array1<f32>, max_f32: f32) -> Array1<i8> {
             // this will never happen
             0
         } else {
-            (value * i8::MAX as f32)
+            (value * u8::MAX as f32)
                 .round()
-                .clamp(i8::MIN as f32, i8::MAX as f32) as i8
+                .clamp(u8::MIN as f32, u8::MAX as f32) as u8
         }
     })
 }
@@ -173,8 +173,8 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
     let max_f32 = data_f32.iter().copied().map(|x| x.abs()).fold(f32::NEG_INFINITY, f32::max);
 
-    let queries: Array1I4 = Array1I4::from_i8(&to_i8_array(&queries_f32, max_f32));
-    let data = Array1I4::from_i8(&to_i8_array(&data_f32, max_f32));
+    let queries: Array1I4 = Array1I4::from_u8(&to_u8_array(&queries_f32, max_f32));
+    let data = Array1I4::from_u8(&to_u8_array(&data_f32, max_f32));
 
     let now = Instant::now();
 

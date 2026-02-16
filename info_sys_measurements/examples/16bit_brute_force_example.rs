@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ndarray::{Array1, ArrayView1, s};
+use ndarray::{s, Array1, ArrayView1};
 use rand::random;
 use rayon::prelude::*;
 use std::time::Instant;
@@ -34,7 +34,7 @@ fn main() -> Result<()> {
     let num_queries = 100;
     let num_data = 1_000_000;
 
-    for dims in (100, 384, 500, 768) {
+    for dims in [100, 384, 500, 768] {
         do_experiment(num_queries, num_data, dims)
     }
 
@@ -59,7 +59,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let after = Instant::now();
 
     println!(
-        "Time per 8bit {} dim query 1_000_000 dists: {} ns",
+        "Time per 16bit {} dim query 1_000_000 dists: {} ns",
         dims,
         ((after - now).as_nanos() as f64) / num_queries as f64
     );

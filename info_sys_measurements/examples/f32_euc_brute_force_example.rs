@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ndarray::{Array1, ArrayView1, s};
+use ndarray::{s, Array1, ArrayView1};
 use rand::random;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::time::Instant;
@@ -30,7 +30,7 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     println!("Last distance is {:?}", distances.iter().flatten().last());
 
     println!(
-        "Time per pca {} dim query 1_000_000 dists: {} ns",
+        "Time per f32 euc {} dim query 1_000_000 dists: {} ns",
         dims,
         ((after - now).as_nanos() as f64) / num_queries as f64
     );
@@ -38,7 +38,11 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
 
 pub fn euc_view(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     // f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-    a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
+    a.iter()
+        .zip(b.iter())
+        .map(|(a, b)| (a - b).powi(2))
+        .sum::<f32>()
+        .sqrt()
 }
 
 fn generate_euc_dists(

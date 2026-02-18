@@ -1,11 +1,12 @@
 #!/bin/bash
 
-OUT_DIR = "infosys_raw_data"
+OUT_DIR="$PWD/infosys_raw_data"
+echo $OUT_DIR
 
 # Make the output dir if not there
 mkdir -p $OUT_DIR
 
-for LOOP in {1..10}
+for LOOP in {0..9}
 do
     {
     cargo run -r --example evp_100dim_brute_force_example 

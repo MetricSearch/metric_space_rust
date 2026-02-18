@@ -1,7 +1,7 @@
 use anyhow::Result;
 //use std::random::random;
 use bits::container::Simd256x2;
-use bits::{EvpBits, distance};
+use bits::{distance, EvpBits};
 use ndarray::Array1;
 use rand::random;
 use rayon::prelude::*;
@@ -17,12 +17,12 @@ fn main() -> Result<()> {
 
     let queries: Array1<EvpBits<Simd256x2, 500>> = Array1::from_iter((0..num_queries).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-        EvpBits::<Simd256x2, 500>::from_embedding(embedding, 333)
+        EvpBits::<Simd256x2, 500>::from_embedding(embedding, 200)
     }));
 
     let data: Array1<EvpBits<Simd256x2, 500>> = Array1::from_iter((0..num_data).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-        EvpBits::<Simd256x2, 500>::from_embedding(embedding, 333)
+        EvpBits::<Simd256x2, 500>::from_embedding(embedding, 200)
     }));
 
     let now = Instant::now();
@@ -33,8 +33,10 @@ fn main() -> Result<()> {
 
     let after = Instant::now();
 
-    println!("Last distance is {:?}", bsp_distances.iter().flatten().last());
-
+    println!(
+        "Last distance is {:?}",
+        bsp_distances.iter().flatten().last()
+    );
 
     println!(
         "Time per BSP 384 dim query 1_000_000 dists: {} ns",

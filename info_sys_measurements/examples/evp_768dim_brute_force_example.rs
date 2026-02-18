@@ -1,61 +1,46 @@
 use anyhow::Result;
 //use std::random::random;
-use bits::container::Simd256x4;
-use bits::{EvpBits, distance};
+use bits::container::Simd256x2;
+use bits::{distance, EvpBits};
 use ndarray::Array1;
 use rand::random;
-use rayon::prelude::*;
 use std::time::Instant;
 
 fn main() -> Result<()> {
-    let num_queries = 100;
     let num_data = 1_000_000;
 
     //----------------
 
-    let dims = 768; // can't use everywhere needs to ne manifest?
+    let dims = 768;
 
-    let queries: Array1<EvpBits<Simd256x4, 768>> = Array1::from_iter((0..num_queries).map(|_| {
-        let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-        EvpBits::<Simd256x4, 768>::from_embedding(embedding, 420)
-    }));
+    let query_f32 = Array1::from_iter((0..dims).map(|_| random::<f32>()));
+    let query: EvpBits<Simd256x2, 768> = EvpBits::<Simd256x2, 768>::from_embedding(query_f32, 420);
 
-    let data: Array1<EvpBits<Simd256x4, 768>> = Array1::from_iter((0..num_data).map(|_| {
+    let data: Array1<EvpBits<Simd256x2, 768>> = Array1::from_iter((0..num_data).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-        EvpBits::<Simd256x4, 768>::from_embedding(embedding, 420)
+        EvpBits::<Simd256x2, 768>::from_embedding(embedding, 420)
     }));
 
     let now = Instant::now();
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let bsp_distances = generate_bsp_dists(queries, data);
+    let bsp_distances = generate_bsp_dists(query, data);
 
     let after = Instant::now();
 
-    println!(
-        "Last distance is {:?}",
-        bsp_distances.iter().flatten().last()
-    );
+    eprintln!("Last distance is {:?}", bsp_distances.iter().last());
 
-    println!(
-        "Time per BSP 500 dim query 1_000_000 dists: {} ns",
-        ((after - now).as_nanos() as f64) / num_queries as f64
-    );
+    println!("BSP 768:\t{}", ((after - now).as_nanos() as f64));
 
     Ok(())
 }
 
 fn generate_bsp_dists(
-    queries: Array1<EvpBits<Simd256x4, 768>>,
-    data: Array1<EvpBits<Simd256x4, 768>>,
-) -> Vec<Vec<usize>> {
-    queries
-        .par_iter()
-        .map(|query| {
-            data.iter()
-                .map(|data| distance(&query, &data))
-                .collect::<Vec<usize>>()
-        })
-        .collect::<Vec<Vec<usize>>>()
+    query: EvpBits<Simd256x2, 768>,
+    data: Array1<EvpBits<Simd256x2, 768>>,
+) -> Vec<usize> {
+    data.iter()
+        .map(|datum| distance(&query, &datum))
+        .collect::<Vec<usize>>()
 }

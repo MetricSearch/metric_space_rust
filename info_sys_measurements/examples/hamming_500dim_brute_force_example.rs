@@ -3,7 +3,6 @@ use bits::container::BitsContainer;
 use bits::container::Simd256x2;
 use ndarray::Array1;
 use rand::random;
-use rayon::prelude::*;
 use std::time::Instant;
 
 fn one_bit_similarity_128(a: &Simd256x2, b: &Simd256x2) -> u32 {
@@ -26,17 +25,16 @@ fn to_one_bit_128(embedding: Array1<f32>) -> Simd256x2 {
 }
 
 fn main() -> Result<()> {
-    let num_queries = 100;
     let num_data = 1_000_000;
 
     //----------------
 
     let dims = 500; // can't use everywhere needs to ne manifest?
 
-    let queries: Array1<Simd256x2> = Array1::from_iter((0..num_queries).map(|_| {
+    let query: Simd256x2 = {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
         to_one_bit_128(embedding)
-    }));
+    };
 
     let data: Array1<Simd256x2> = Array1::from_iter((0..num_data).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
@@ -47,27 +45,22 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let distances = generate_hamming_dists(queries, data);
+    let distances = generate_hamming_dists(query, data);
 
     let after = Instant::now();
 
-    println!("Last distance is {:?}", distances.iter().flatten().last());
+    eprintln!("Last distance is {:?}", distances.iter().last());
 
     println!(
-        "Time per Hamming 500 dim query 1_000_000 dists: {} ns",
-        ((after - now).as_nanos() as f64) / num_queries as f64
+        "Hamming 500:\t{} ns",
+        ((after - now).as_nanos() as f64) as f64
     );
 
     Ok(())
 }
 
-fn generate_hamming_dists(queries: Array1<Simd256x2>, data: Array1<Simd256x2>) -> Vec<Vec<u32>> {
-    queries
-        .par_iter()
-        .map(|query| {
-            data.iter()
-                .map(|data| one_bit_similarity_128(&query, &data))
-                .collect::<Vec<u32>>()
-        })
-        .collect::<Vec<Vec<u32>>>()
+fn generate_hamming_dists(query: Simd256x2, data: Array1<Simd256x2>) -> Vec<u32> {
+    data.iter()
+        .map(|d| one_bit_similarity_128(&query, d))
+        .collect::<Vec<u32>>()
 }

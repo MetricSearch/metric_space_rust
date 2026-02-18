@@ -73,9 +73,10 @@ fn generate_16bit_dists(
     num_data: usize,
     dims: usize,
 ) -> Vec<f32> {
+    let q = query.slice(s![0..dims]);
+
     (0..num_data)
         .map(|data_index| {
-            let q = query.slice(s![0..dims]);
             let d = data.slice(s![data_index * dims..(data_index * dims) + dims]);
             euc_16bit(&q, &d)
         })

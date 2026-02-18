@@ -204,11 +204,10 @@ fn generate_4bit_dists(
     num_data: usize,
     dims: usize,
 ) -> Vec<f32> {
-
+    let q = queries.slice(0, dims);
     (0..num_data)
         .map(|data_index| {
-            // let q = queries.slice(q_index * dims, (q_index * dims) + dims);
             let d = data.slice(data_index * dims, (data_index * dims) + dims);
-            euc_4bit(&queries.slice(0, dims), d)
+            euc_4bit(&q, d)
         }).collect::<Vec<f32>>()
 }

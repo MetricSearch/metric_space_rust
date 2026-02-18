@@ -1,6 +1,6 @@
 use anyhow::Result;
 //use std::random::random;
-use bits::container::Simd256x2;
+use bits::container::Simd128;
 use bits::{distance, EvpBits};
 use ndarray::Array1;
 use rand::random;
@@ -14,11 +14,11 @@ fn main() -> Result<()> {
     let dims = 100;
 
     let query_f32 = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-    let query: EvpBits<Simd256x2, 100> = EvpBits::<Simd256x2, 100>::from_embedding(query_f32, 66);
+    let query: EvpBits<Simd128, 100> = EvpBits::<Simd128, 100>::from_embedding(query_f32, 66);
 
-    let data: Array1<EvpBits<Simd256x2, 100>> = Array1::from_iter((0..num_data).map(|_| {
+    let data: Array1<EvpBits<Simd128, 100>> = Array1::from_iter((0..num_data).map(|_| {
         let embedding = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-        EvpBits::<Simd256x2, 100>::from_embedding(embedding, 66)
+        EvpBits::<Simd128, 100>::from_embedding(embedding, 66)
     }));
 
     let now = Instant::now();
@@ -37,8 +37,8 @@ fn main() -> Result<()> {
 }
 
 fn generate_bsp_dists(
-    query: EvpBits<Simd256x2, 100>,
-    data: Array1<EvpBits<Simd256x2, 100>>,
+    query: EvpBits<Simd128, 100>,
+    data: Array1<EvpBits<Simd128, 100>>,
 ) -> Vec<usize> {
     data.iter()
         .map(|datum| distance(&query, &datum))

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+OUT_DIR = "infosys_raw_data"
+
+# Make the output dir if not there
+mkdir -p $OUT_DIR
+
 for LOOP in {1..10}
 do
     {
@@ -18,5 +23,5 @@ do
     cargo run -r --example hamming_384dim_brute_force_example
     cargo run -r --example hamming_500dim_brute_force_example
     cargo run -r --example hamming_768dim_brute_force_example
-    } > infosys_raw_data/$LOOP.txt
+    } > $OUT_DIR/$LOOP.txt
 done

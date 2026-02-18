@@ -115,7 +115,7 @@ pub fn distance<C: BitsContainer, const W: usize>(a: &EvpBits<C, W>, b: &EvpBits
 
 pub fn max_bsp_similarity_as_f32<C: BitsContainer, const W: usize>() -> f32 {
     let embedding = Array1::ones(W);
-    let a = EvpBits::<C, W>::from_embedding(embedding, 333);
+    let a = EvpBits::<C, W>::from_embedding(embedding, 200);
     similarity_as_f32(&a, &a)
 }
 

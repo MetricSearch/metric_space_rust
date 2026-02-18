@@ -53,7 +53,6 @@ fn main() -> Result<()> {
 
     println!("Last distance is {:?}", distances.iter().flatten().last());
 
-
     println!(
         "Time per Hamming 768 dim query 1_000_000 dists: {} ns",
         ((after - now).as_nanos() as f64) / num_queries as f64

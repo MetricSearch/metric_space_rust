@@ -171,7 +171,11 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let queries_f32 = Array1::from_iter((0..dims * num_queries).map(|_| random::<f32>()));
     let data_f32 = Array1::from_iter((0..dims * num_data).map(|_| random::<f32>()));
 
-    let max_f32 = data_f32.iter().copied().map(|x| x.abs()).fold(f32::NEG_INFINITY, f32::max);
+    let max_f32 = data_f32
+        .iter()
+        .copied()
+        .map(|x| x.abs())
+        .fold(f32::NEG_INFINITY, f32::max);
 
     let queries: Array1I4 = Array1I4::from_u8(&to_u8_array(&queries_f32, max_f32));
     let data = Array1I4::from_u8(&to_u8_array(&data_f32, max_f32));
@@ -182,8 +186,10 @@ fn do_experiment(num_queries: usize, num_data: usize, dims: usize) {
     let four_bit_distances = generate_4bit_dists(queries, data, num_queries, num_data, dims);
 
     let after = Instant::now();
-    println!("Last distance is {:?}", four_bit_distances.iter().flatten().last());
-
+    println!(
+        "Last distance is {:?}",
+        four_bit_distances.iter().flatten().last()
+    );
 
     println!(
         "Time per 4bit {} dim query 1_000_000 dists: {} ns",

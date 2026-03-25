@@ -11,8 +11,8 @@ members = [
     "r_descent",
     "sisap2025",
     "info_sys_measurements",
-    "big_knn"
-    , "info_sys_measurements"]
+    "big_knn",
+]
 
 [workspace.dependencies]
 utils = { path = "utils" }
@@ -39,6 +39,7 @@ divan = "0.1.21"
 hdf5 = { version = "0.10.1", package = "hdf5-metno", features = [
     "blosc",
     "static",
+    "f16",
 ] }
 itertools = "0.14.0"
 log = "0.4.27"
@@ -62,6 +63,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 twox-hash = "2.1.0"
 wide = "0.7.32"
+half = "2.7.1"
 
 [patch.crates-io]
 ndarray = { git = "https://github.com/fmckeogh/ndarray" }
@@ -76,4 +78,3 @@ lto = "fat"
 panic = 'unwind'
 incremental = false
 codegen-units = 1
-

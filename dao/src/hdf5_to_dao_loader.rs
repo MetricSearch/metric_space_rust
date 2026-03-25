@@ -39,7 +39,6 @@ pub fn hdf5_f32_to_bsp_load<C: BitsContainer, const W: usize>(
     // Read in the file in parallel.
     // The hdf5 crate (https://docs.rs/hdf5) is not fully thread-safe when using a single handle.
     // The recommended approach in Rust is to reopen the dataset or file handle in each thread for reading.
-
     let mut bsp_data = parallel_read_dataset(num_vertices, h5_data, num_records, rows_at_a_time);
 
     log::error!("{}", bytes_fmt(bsp_data.deep_size_of()));
@@ -173,7 +172,8 @@ fn parallel_read_dataset<C: BitsContainer, const W: usize>(
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
             let data: Array2<f32> = h5_data
                 .read_slice(s![start..end, ..])
-                .expect("Failed to read slice");
+                .expect("Failed to read slice")
+                .mapv(|f: half::f16| f32::from(f));
 
             data.rows()
                 .into_iter()

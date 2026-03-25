@@ -1546,6 +1546,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "sisap2026"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bits",
+ "bitvec_simd",
+ "clap",
+ "dao",
+ "descent",
+ "hdf5-metno",
+ "jemallocator",
+ "log",
+ "metrics",
+ "ndarray",
+ "pretty_env_logger",
+ "r_descent",
+ "rayon",
+ "tracing",
+ "tracing-subscriber",
+ "utils",
+ "wide",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

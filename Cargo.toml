@@ -10,6 +10,7 @@ members = [
     "utils",
     "r_descent",
     "sisap2025",
+    "sisap2026",
     "info_sys_measurements",
     "big_knn",
 ]

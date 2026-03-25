@@ -10,10 +10,9 @@ We provide a development dataset; the evaluation phase will use an undisclosed d
 */
 
 use anyhow::Result;
-use bits::container::Simd256x2;
-use bits::EvpBits;
+use bits::container::Simd256x4;
 use clap::Parser;
-use dao::hdf5_to_dao_loader::hdf5_f32_to_bsp_load;
+use dao::hdf5_to_dao_loader::hdf5_f16_to_bsp_load;
 use hdf5::File as Hdf5File;
 use ndarray::{s, Array2, ArrayView2};
 use r_descent::IntoRDescent;
@@ -42,19 +41,20 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    log::info!("Loading GOOAQ data...");
+    log::info!("Loading Wikipedia data...");
     let start = Instant::now();
 
     const ALL_RECORDS: usize = 0;
-    const NUM_VERTICES: usize = 256;
+    const NUM_VERTICES: usize = 512;
     const NUM_QUERIES: usize = 0;
 
     let dao_bsp = Rc::new(
-        hdf5_f32_to_bsp_load::<Simd256x2, 384>(
+        hdf5_f16_to_bsp_load::<Simd256x4, 1024>(
             &args.source_path,
             ALL_RECORDS,
             NUM_QUERIES,
             NUM_VERTICES,
+            1024,
         )
         .unwrap(),
     );
@@ -64,7 +64,7 @@ fn main() -> Result<()> {
     let num_data = data.len();
 
     log::info!(
-        "GOOAQ data size: {} | num data: {}",
+        "Wikipedia data size: {} | num data: {}",
         data.len(),
         dao_bsp.num_data,
     );

@@ -172,8 +172,7 @@ fn parallel_read_dataset<C: BitsContainer, const W: usize>(
             // Read slice – safe if ds_data supports concurrent reads, or re-open handle here
             let data: Array2<f32> = h5_data
                 .read_slice(s![start..end, ..])
-                .expect("Failed to read slice")
-                .mapv(|f: half::f16| f32::from(f));
+                .expect("Failed to read slice");
 
             data.rows()
                 .into_iter()

@@ -18,6 +18,7 @@ pub mod convert_f32_to_cubic;
 pub mod csv_dao_loader;
 pub mod csv_dao_matrix_loader;
 mod csv_nn_table_loader;
+pub mod generic_loader;
 pub mod glove100_hdf5_dao_loader;
 pub mod hdf5_dao_loader;
 mod hdf5_dao_matrix_loader;

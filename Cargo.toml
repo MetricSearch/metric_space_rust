@@ -13,6 +13,7 @@ members = [
     "sisap2026",
     "info_sys_measurements",
     "big_knn",
+    "hamiltonians",
 ]
 
 [workspace.dependencies]
@@ -23,6 +24,7 @@ descent = { path = "descent" }
 r_descent = { path = "r_descent" }
 bits = { path = "bits" }
 dao = { path = "dao" }
+hamiltonians = { path = "hamiltonians" }
 
 anndists = "0.1.2"
 anyhow = "1.0.98"

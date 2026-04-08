@@ -10,13 +10,14 @@ We provide a development dataset; the evaluation phase will use an undisclosed d
 */
 
 use anyhow::Result;
-use bits::container::Simd256x4;
+use bits::container::{BitsContainer, Simd256x4};
 use clap::Parser;
-use dao::hdf5_to_dao_loader::hdf5_f16_to_bsp_load;
 use hdf5::File as Hdf5File;
-use ndarray::{s, Array2, ArrayView2};
+use ndarray::{s, Array1, Array2, ArrayView2};
 use r_descent::IntoRDescent;
 
+use bits::EvpBits;
+use dao::{Dao, DaoMetaData, Normed};
 use std::rc::Rc;
 use std::time::Instant;
 use utils::arg_sort_big_to_small_2d;
@@ -34,6 +35,34 @@ struct Args {
     output_path: String,
 }
 
+fn dao_from_data<C: BitsContainer, const W: usize>(
+    data: Vec<EvpBits<C, W>>,
+    name: String,
+    description: String,
+) -> anyhow::Result<Dao<EvpBits<C, W>>> {
+    let dao_meta = DaoMetaData {
+        name: name,
+        description: description,
+        data_disk_format: "".to_string(),
+        path_to_data: "".to_string(),
+        normed: Normed::L2,
+        num_records: data.len(),
+        dim: 1024, //<<<<<<<<<<<<<<<<<<<<, Hard wired for now.
+    };
+
+    let data = Array1::from(data); //<<<<<<<<<<<<<<< copy here
+
+    let dao = Dao {
+        meta: dao_meta,
+        num_data: data.len(),
+        base_addr: 0,
+        num_queries: 0,
+        embeddings: data,
+    };
+
+    Ok(dao)
+}
+
 fn main() -> Result<()> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Trace)
@@ -45,28 +74,36 @@ fn main() -> Result<()> {
     let start = Instant::now();
 
     const ALL_RECORDS: usize = 0;
-    const NUM_VERTICES: usize = 512;
     const NUM_QUERIES: usize = 0;
+    const CHUNK_SIZE: usize = 8192;
+    const NON_ZEROS: usize = 512;
 
-    let dao_bsp = Rc::new(
-        hdf5_f16_to_bsp_load::<Simd256x4, 1024>(
-            &args.source_path,
-            ALL_RECORDS,
-            NUM_QUERIES,
-            NUM_VERTICES,
-            1024,
-        )
-        .unwrap(),
-    );
+    let data_f16 = dao::generic_loader::par_load::<_, half::f16, _, _>(
+        &args.source_path,
+        "train",
+        None,
+        CHUNK_SIZE,
+        |embedding| embedding.mapv(|f| f),
+    )
+    .unwrap();
 
-    let data = dao_bsp.get_data();
+    log::info!("First row of Wikipedia data : {}", data_f16[0],); // Note 0.0335, -0.0056 first and second numbers in small and large datasets
+
+    let data = dao::generic_loader::par_load::<_, f32, _, _>(
+        &args.source_path,
+        "train",
+        None,
+        CHUNK_SIZE,
+        |embedding| EvpBits::<Simd256x4, 1024>::from_embedding(embedding, NON_ZEROS),
+    )
+    .unwrap();
 
     let num_data = data.len();
 
     log::info!(
         "Wikipedia data size: {} | num data: {}",
         data.len(),
-        dao_bsp.num_data,
+        num_data,
     );
 
     let start_post_load = Instant::now();
@@ -75,11 +112,14 @@ fn main() -> Result<()> {
     let delta = 0.01;
     let reverse_list_size = 64;
 
-    log::info!("Getting NN table");
+    log::info!("Creating NN table");
 
-    let descent = dao_bsp
-        .clone()
-        .into_rdescent(num_neighbours, reverse_list_size, delta);
+    let dao_bsp: Rc<Dao<EvpBits<Simd256x4, 1024>>> = Rc::new(
+        dao_from_data::<Simd256x4, 1024>(data, "Wikipedia".to_string(), "Wikipedia".to_string())
+            .unwrap(),
+    );
+
+    let descent = dao_bsp.into_rdescent(num_neighbours, reverse_list_size, delta);
 
     let end = Instant::now();
 

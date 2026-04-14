@@ -1,29 +1,14 @@
-/*
-In this task, participants are asked to develop memory-efficient indexing solutions that will be used to compute an approximation of the k-nearest neighbor graph for k=15. Each solution will be run in a Linux container with limited memory and storage resources.
-Container specifications: 8 virtual CPUs, 16 GB of RAM, the dataset will be mounted read-only into the container.
-Wall clock time for the entire task: 12 hours.
-Minimum average recall to be considered in the final ranking: 0.8.
-Dataset: WIkipedia (6.5 million vectors (1024 dimensions) ).
-The goal is to compute the k-nearest neighbor graph (without self-references), i.e., find the k-nearest neighbors using all objects in the dataset as queries.
-We will measure graph’s quality as the recall against a provided gold standard and the full computation time (i.e., including preprocessing, indexing, and search, and postprocessing)
-We provide a development dataset; the evaluation phase will use an undisclosed dataset of similar size computed with the same neural model.
-*/
+/* A copy of challenge1 to test the Hamiltonians */
 
 use anyhow::Result;
-use bits::container::{BitsContainer, Simd256x4};
 use clap::Parser;
-use hdf5::File as Hdf5File;
-use ndarray::{s, Array1, Array2, ArrayView2};
-use r_descent::IntoRDescent;
+use ndarray::{Array1, ArrayView, Ix1};
 
-use bits::EvpBits;
-use dao::{Dao, DaoMetaData, Normed};
-use std::rc::Rc;
+use half::f16;
+use hamiltonians::{get_cycle_lengths, get_cycle_lookup_table, get_vertex_number, make_pascal};
 use std::time::Instant;
 use utils::arg_sort_big_to_small_2d;
-
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+use utils::non_nan::NonNan;
 
 /// clap parser
 #[derive(Parser, Debug)]
@@ -33,34 +18,6 @@ struct Args {
     source_path: String,
     /// Path to HDF5 target
     output_path: String,
-}
-
-fn dao_from_data<C: BitsContainer, const W: usize>(
-    data: Vec<EvpBits<C, W>>,
-    name: String,
-    description: String,
-) -> anyhow::Result<Dao<EvpBits<C, W>>> {
-    let dao_meta = DaoMetaData {
-        name: name,
-        description: description,
-        data_disk_format: "".to_string(),
-        path_to_data: "".to_string(),
-        normed: Normed::L2,
-        num_records: data.len(),
-        dim: 1024, //<<<<<<<<<<<<<<<<<<<<, Hard wired for now.
-    };
-
-    let data = Array1::from(data); //<<<<<<<<<<<<<<< copy here
-
-    let dao = Dao {
-        meta: dao_meta,
-        num_data: data.len(),
-        base_addr: 0,
-        num_queries: 0,
-        embeddings: data,
-    };
-
-    Ok(dao)
 }
 
 fn main() -> Result<()> {
@@ -76,9 +33,10 @@ fn main() -> Result<()> {
     const ALL_RECORDS: usize = 0;
     const NUM_QUERIES: usize = 0;
     const CHUNK_SIZE: usize = 8192;
+    const D: usize = 1024;
     const NON_ZEROS: usize = 512;
 
-    let data_f16 = dao::generic_loader::par_load::<_, half::f16, _, _>(
+    let data_f16: Vec<Array1<f16>> = dao::generic_loader::par_load::<_, half::f16, _, _>(
         &args.source_path,
         "train",
         None,
@@ -87,39 +45,31 @@ fn main() -> Result<()> {
     )
     .unwrap();
 
-    log::info!("First row of Wikipedia data : {}", data_f16[0],); // Note 0.0335, -0.0056 first and second numbers in small and large datasets
-
-    let data = dao::generic_loader::par_load::<_, f32, _, _>(
-        &args.source_path,
-        "train",
-        None,
-        CHUNK_SIZE,
-        |embedding| EvpBits::<Simd256x4, 1024>::from_embedding(embedding, NON_ZEROS),
-    )
-    .unwrap();
-
-    let num_data = data.len();
+    let end = Instant::now();
 
     log::info!(
-        "Wikipedia data size: {} | num data: {}",
-        data.len(),
-        num_data,
+        "Wikipedia Loaded {} data in {} s",
+        data_f16.len(),
+        (end - start).as_secs()
     );
 
-    let start_post_load = Instant::now();
+    // Build Pascal triangle
+    let pas_tri: Vec<Vec<f64>> = make_pascal(D);
 
-    let num_neighbours = 18;
-    let delta = 0.01;
-    let reverse_list_size = 64;
+    // Build cycle lengths and lookup tables
+    let c_lengths: Vec<usize> = get_cycle_lengths(NON_ZEROS);
+    let mut tables: Vec<Vec<Vec<bool>>> = Vec::with_capacity(NON_ZEROS);
+    for xi in 1..=NON_ZEROS {
+        tables.push(get_cycle_lookup_table(c_lengths[xi - 1], xi, &pas_tri));
+    }
 
-    log::info!("Creating NN table");
+    let F16_ZERO: f16 = f16::from_f32(0.0);
 
-    let dao_bsp: Rc<Dao<EvpBits<Simd256x4, 1024>>> = Rc::new(
-        dao_from_data::<Simd256x4, 1024>(data, "Wikipedia".to_string(), "Wikipedia".to_string())
-            .unwrap(),
-    );
-
-    let descent = dao_bsp.into_rdescent(num_neighbours, reverse_list_size, delta);
+    for arrai in data_f16 {
+        let vertex: Vec<bool> = f16_vec_to_bool_vec(arrai, F16_ZERO);
+        let result: f64 = get_vertex_number(NON_ZEROS, D, &vertex, &c_lengths, &tables, &pas_tri);
+        println!("Vertex number: {result}");
+    }
 
     let end = Instant::now();
 
@@ -127,57 +77,21 @@ fn main() -> Result<()> {
         "Finished (including load time in {} s",
         (end - start).as_secs()
     );
-    log::info!(
-        "Finished (post load time) in {} s",
-        (end - start_post_load).as_secs()
-    );
-
-    let neighbours = &descent.neighbours;
-    let sims = &descent.similarities;
-
-    // Add 1 to all elements (preserving shape)
-    let neighbours = neighbours.mapv(|x| x + 1);
-
-    let (ords, _) = arg_sort_big_to_small_2d(&sims.view()); // sort the data
-
-    let selected_neighbours: Vec<usize> = {
-        let neighbours_ref = &neighbours; // to avoid capture of neighbours
-
-        ords.rows()
-            .into_iter()
-            .enumerate()
-            .flat_map(|(row_index, ord_row)| {
-                ord_row
-                    .iter()
-                    .map(move |&col_index| neighbours_ref[[row_index, col_index]])
-                    .collect::<Vec<_>>() // to avoid capture of row.
-            })
-            .collect()
-    };
-
-    let selected_neighbours =
-        Array2::from_shape_vec((num_data, num_neighbours), selected_neighbours)
-            .expect("Failed to create Array2 - indexing error");
-
-    let selected_neighbours = selected_neighbours.slice(s![.., 1..16]); // get the first 15 columns.
-
-    log::info!("Writing to h5 file {}", &args.output_path);
-    save_to_h5(&args.output_path, selected_neighbours)?;
-
-    println!("Data saved to h5 file");
 
     Ok(())
 }
 
-pub fn save_to_h5(f_name: &str, data: ArrayView2<usize>) -> Result<()> {
-    let file = Hdf5File::create(f_name)?; // open for writing
-    let group = file.create_group("/knns")?; // create a group
-                                             // TODO do they need the dists too?
-    let builder = group.new_dataset_builder();
+fn f16_vec_to_bool_vec(arrai: Array1<f16>, F16_ZERO: f16) -> Vec<bool> {
+    let median = arrai.iter().sum();
+    arrai.iter().map(|&x| x < F16_ZERO).collect()
+}
 
-    let _ds = builder.with_data(&data.to_owned()).create("results")?;
-
-    file.flush()?;
-
-    Ok(())
+pub fn arg_sort_big_to_small_1d(dists: Vec<f16>) -> (Vec<usize>, Vec<f32>) {
+    let mut enumerated = dists
+        .iter()
+        .enumerate()
+        .map(|(pos, dist)| (pos, dist.to_f32()))
+        .collect::<Vec<(usize, &f32)>>(); // Vec of positions (ords) and values (dists as f32 for simplicity)
+    enumerated.sort_by(|a, b| NonNan::new(*b.1).partial_cmp(&NonNan::new(*a.1)).unwrap());
+    enumerated.into_iter().unzip()
 }

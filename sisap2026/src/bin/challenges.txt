@@ -1,0 +1,16 @@
+🔹 Task 1: K-Nearest Neighbor Graph (Metric Self-Join)
+Revisiting a classic problem in high dimensions. Develop a memory-efficient index to approximate the k-NN graph (k=15) on 6.4M Wikipedia vectors (1024 dims).
+
+🔹 Task 2: Maximum Inner Product Search on LLM attention workloads
+Search under distribution shift! Solve Maximum Inner Product Search for queries where the distribution differs from the index, using a dataset retrieved from Llama-3-8B-262k (262k vectors, 128 dims) dataset.
+
+🔹 Task 3: Indexing Very Sparse High-Dimensional Vectors
+Overcoming the challenge of sparse representations. Tackle the high dimensionality and learned term distributions of SPLADE-v3 sparse embeddings on the Natural Questions (NQ) dataset (2.68M vectors, ~30k dims).
+
+
+    June 10, 2026: Code submission deadline
+    June 17, 2026: Short paper deadline
+    July 27, 2026: Paper notification
+    August 13, 2026 Camera ready
+
+ SISAP Paper deadlines: Abstract 22 June

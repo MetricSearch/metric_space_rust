@@ -100,11 +100,7 @@ fn main() -> Result<()> {
 
     let num_data = data.len();
 
-    log::info!(
-        "Wikipedia data size: {} | num data: {}",
-        data.len(),
-        num_data,
-    );
+    log::info!("Wikipedia data size: {}", num_data,);
 
     let start_post_load = Instant::now();
 

@@ -653,6 +653,9 @@ dependencies = [
 [[package]]
 name = "hamiltonians"
 version = "0.1.0"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "hashbrown"
@@ -1560,6 +1563,7 @@ dependencies = [
  "dao",
  "descent",
  "half",
+ "hamiltonians",
  "hdf5-metno",
  "jemallocator",
  "log",

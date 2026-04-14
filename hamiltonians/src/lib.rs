@@ -129,10 +129,10 @@ pub fn get_arities(
     let this_table = &tables[x]; // NO DUMMY ROW IN TABLES - This is a Matrix
     let offset = (d - x) % cycle_length;
     let cycle_row = &this_table[offset];
-    println!(
-        "call of get_arities: x: {}, d: {}, current_arities: {:?} cycle_length: {:?} this_table: {:?}",
-        x, d, current_arities, cycle_length, this_table
-    );
+    // dbg!(
+    //     "call of get_arities: x: {}, d: {}, current_arities: {:?} cycle_length: {:?} this_table: {:?}",
+    //     x, d, current_arities, cycle_length, this_table
+    // );
 
     current_arities // this is  ~(currentArities ^ cycleRow) in Python
         .iter()
@@ -175,8 +175,8 @@ fn get_vertex_number_inner(
     tables: &Vec<Vec<Vec<bool>>>,
     pas_tri: &Vec<Vec<f64>>,
 ) -> f64 {
-    println!("*** d,x,v,ars: {d} {x} {:?} {:?}", vertex, arities);
-    println!("Cycles length: {:?}", cycles.len());
+    // dbg!("*** d,x,v,ars: {d} {x} {:?} {:?}", vertex, arities);
+    // dbg!("Cycles length: {:?}", cycles.len());
 
     if x == d {
         return previous_path_index;
@@ -194,16 +194,15 @@ fn get_vertex_number_inner(
         } else {
             let rev_pos = vertex_len - set_bit;
             new_path_index = previous_path_index + rev_pos - 1f64;
-            println!(
-                "increment (final): {}",
-                new_path_index - previous_path_index
-            );
+            // dbg!(
+            //     "increment (final): {}",
+            //     new_path_index - previous_path_index
+            // );
         }
     } else {
         if vertex[0] {
             if arities[0] {
-                println!("arm 1");
-                // arm 1
+                // dbg!("arm 1");  // arm 1
                 new_path_index = get_vertex_number_inner(
                     x - 1,
                     d - 1,
@@ -215,13 +214,13 @@ fn get_vertex_number_inner(
                     pas_tri,
                 );
             } else {
-                println!("arm 2"); // arm 2
-                println!("params to call arities: {x} {:?} {:?}", d - 1, arities);
+                // dbg!("arm 2"); // arm 2
+                // dbg!("params to call arities: {x} {:?} {:?}", d - 1, arities);
                 let new_ars = get_arities(x, d - 1, arities, cycles[x], tables);
 
                 let increment = n_choose_k(d - 1, x, pas_tri);
 
-                println!("increment {:?}", increment);
+                // dbg!("increment {:?}", increment);
 
                 new_path_index = get_vertex_number_inner(
                     x - 1,
@@ -236,18 +235,18 @@ fn get_vertex_number_inner(
             }
         } else {
             if arities[0] {
-                println!("arm 3"); // arm 3
+                // dbg!("arm 3"); // arm 3
                 let new_ars = get_arities(x - 1, d - 1, &arities[1..].to_vec(), cycles[x], tables);
-                println!("new_ars: {:?}", new_ars);
-                println!("Shape of new_ars is {:?}", new_ars.len());
+                // dbg!("new_ars: {:?}", new_ars);
+                // dbg!("Shape of new_ars is {:?}", new_ars.len());
 
                 let mut comp_ars = Vec::with_capacity(new_ars.len() + 1);
                 comp_ars.push(arities[0]);
                 comp_ars.extend(new_ars);
 
-                println!("Comp ars: {:?}", comp_ars);
+                // dbg!("Comp ars: {:?}", comp_ars);
                 let increment = n_choose_k(d - 1, x - 1, pas_tri);
-                println!("increment: {:?}", increment);
+                // dbg!("increment: {:?}", increment);
 
                 new_path_index = get_vertex_number_inner(
                     x,
@@ -260,7 +259,7 @@ fn get_vertex_number_inner(
                     pas_tri,
                 );
             } else {
-                println!("arm 4"); // arm 4
+                // dbg!("arm 4"); // arm 4
                 new_path_index = get_vertex_number_inner(
                     x,
                     d - 1,

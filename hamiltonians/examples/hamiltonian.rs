@@ -14,7 +14,7 @@ fn example_usage() {
     // Build cycle lengths and lookup tables
     let cycle_lengths: Vec<usize> = get_cycle_lengths(d);
 
-    println!("Cycle lengths - {:?}", cycle_lengths);
+    // dbg!("Cycle lengths - {:?}", cycle_lengths);
 
     let mut all_tables: Vec<Vec<Vec<bool>>> = vec![vec![vec![]]];
 
@@ -22,11 +22,11 @@ fn example_usage() {
         all_tables.push(get_cycle_lookup_table(cycle_lengths[x], this_x, &pas_tri));
     }
 
-    println!("All tables:");
-    for this_x in 1..=x {
-        println!("{this_x}: entry -> {:?}", all_tables[this_x])
-    }
-    println!("End");
+    // println!("All tables:");
+    // for this_x in 1..=x {
+    //     println!("{this_x}: entry -> {:?}", all_tables[this_x])
+    // }
+    // println!("End");
 
     let arities = vec![true; x - 1];
 
@@ -39,5 +39,6 @@ fn example_usage() {
 }
 
 fn main() {
+    println!("Hamiltonian examples from hamiltonian.rs");
     example_usage();
 }

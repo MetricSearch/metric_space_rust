@@ -154,6 +154,26 @@ fn argmax(v: Vec<bool>) -> usize {
     max_idx
 }
 
+/* Start of sub range version version */
+// Only uses the first x bits starting at start_index to calculate the index
+pub fn get_sub_range_vertex_number(
+    x: usize, // number of bits to be used in the vertex
+    d: usize, // The dimension of the slice of the vertex to be used
+    start_index: usize,
+    vertex: Vec<bool>,
+    cycles: &Vec<usize>,
+    tables: &Vec<Vec<Vec<bool>>>,
+    pas_tri: &Vec<Vec<f64>>,
+) -> f64 {
+    // cut down the vertex to a sub range
+    assert!(start_index + d < vertex.len());
+    let vertex = vertex[start_index..start_index + d].to_vec(); // TODO get rid of these vecs everywhere
+
+    get_vertex_number_inner(x, d, vertex, &vec![true; x], 1f64, cycles, tables, pas_tri)
+}
+
+/* End of limited version */
+
 pub fn get_vertex_number(
     x: usize,
     d: usize,

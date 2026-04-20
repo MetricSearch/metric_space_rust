@@ -20,6 +20,7 @@ use std::{
 
 pub mod address;
 pub mod non_nan;
+pub mod non_nan_f64;
 pub mod pair;
 
 const SEED: u64 = 323 * 162;

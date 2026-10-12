@@ -56,10 +56,7 @@ fn do_experiment(num_data: usize, dims: usize) {
 
     let after = Instant::now();
 
-    eprintln!(
-        "Last distance is {:?}",
-        eight_bit_distances.iter().last()
-    );
+    eprintln!("Last distance is {:?}", eight_bit_distances.iter().last());
 
     println!(
         "Int8 {}:\t{} ns",

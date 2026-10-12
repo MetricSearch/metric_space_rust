@@ -55,10 +55,7 @@ fn do_experiment(num_data: usize, dims: usize) {
     let sixteen_bit_distances = generate_16bit_dists(query, data, num_data, dims);
 
     let after = Instant::now();
-    eprintln!(
-        "Last distance is {:?}",
-        sixteen_bit_distances.iter().last()
-    );
+    eprintln!("Last distance is {:?}", sixteen_bit_distances.iter().last());
 
     println!(
         "Int16 {}:\t{} ns",

@@ -1,7 +1,7 @@
 use anyhow::Result;
 //use std::random::random;
 use bits::container::Simd128;
-use bits::{distance, EvpBits};
+use bits::{EvpBits, distance};
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;

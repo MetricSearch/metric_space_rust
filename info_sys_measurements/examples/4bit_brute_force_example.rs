@@ -167,7 +167,6 @@ fn main() -> Result<()> {
 }
 
 fn do_experiment(num_data: usize, dims: usize) {
-
     let query_f32 = Array1::from_iter((0..dims).map(|_| random::<f32>()));
     let data_f32 = Array1::from_iter((0..dims * num_data).map(|_| random::<f32>()));
 
@@ -186,10 +185,7 @@ fn do_experiment(num_data: usize, dims: usize) {
     let four_bit_distances = generate_4bit_dists(query, data, num_data, dims);
 
     let after = Instant::now();
-    eprintln!(
-        "Last distance is {:?}",
-        four_bit_distances.iter().last()
-    );
+    eprintln!("Last distance is {:?}", four_bit_distances.iter().last());
 
     println!(
         "Int4 {}:\t{} ns",
@@ -209,5 +205,6 @@ fn generate_4bit_dists(
         .map(|data_index| {
             let d = data.slice(data_index * dims, (data_index * dims) + dims);
             euc_4bit(&q, d)
-        }).collect::<Vec<f32>>()
+        })
+        .collect::<Vec<f32>>()
 }

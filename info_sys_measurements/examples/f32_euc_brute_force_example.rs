@@ -6,22 +6,23 @@ use std::time::Instant;
 fn main() -> Result<()> {
     let num_data = 1_000_000;
 
-    for dims in [100, 384, 500, 768] {
-        do_experiment(num_data, dims)
-    }
+    do_experiment::<100>(num_data);
+    do_experiment::<384>(num_data);
+    do_experiment::<500>(num_data);
+    do_experiment::<768>(num_data);
 
     Ok(())
 }
 
-fn do_experiment(num_data: usize, dims: usize) {
-    let query = Array1::from_iter((0..dims).map(|_| random::<f32>()));
-    let data = Array1::from_iter((0..dims * num_data).map(|_| random::<f32>()));
+fn do_experiment<const DIMS: usize>(num_data: usize) {
+    let query = Array1::from_iter((0..DIMS).map(|_| random::<f32>()));
+    let data = Array1::from_iter((0..DIMS * num_data).map(|_| random::<f32>()));
 
     let now = Instant::now();
 
     // Do a brute force of queries against the data
 
-    let distances = generate_euc_dists(query, data, num_data, dims);
+    let distances = generate_euc_dists::<DIMS>(query, data);
 
     let after = Instant::now();
 
@@ -29,31 +30,27 @@ fn do_experiment(num_data: usize, dims: usize) {
 
     println!(
         "F32 {}:\t{} ns",
-        dims,
+        DIMS,
         ((after - now).as_nanos() as f64) as f64
     );
 }
 
-pub fn euc_view(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
+fn generate_euc_dists<const DIMS: usize>(query: Array1<f32>, data: Array1<f32>) -> Vec<f32> {
+    let q = query.slice(s![0..DIMS]);
+    data.exact_chunks(DIMS)
+        .into_iter()
+        .map(|d| euc_view(&q, &d))
+        .collect::<Vec<f32>>()
+}
+
+fn euc_view(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     // f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
     a.iter()
         .zip(b.iter())
-        .map(|(a, b)| (a - b).powi(2))
+        .map(|(a, b)| {
+            let sub = a.algebraic_sub(*b);
+            sub.algebraic_mul(sub)
+        })
         .sum::<f32>()
         .sqrt()
-}
-
-fn generate_euc_dists(
-    query: Array1<f32>,
-    data: Array1<f32>,
-    num_data: usize,
-    dims: usize,
-) -> Vec<f32> {
-    let q = query.slice(s![0..dims]);
-    (0..num_data)
-        .map(|data_index| {
-            let d = data.slice(s![data_index * dims..(data_index * dims) + dims]);
-            euc_view(&q, &d)
-        })
-        .collect::<Vec<f32>>()
 }

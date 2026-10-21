@@ -105,7 +105,7 @@ fn do_experiment(num_data: usize, dims: usize) {
     );
 }
 
-fn generate_4bit_dists(query: &[u8x32], data: &[u8x32], dims: usize) -> Vec<f32> {
+fn generate_4bit_dists(query: &Vec<u8x32>, data: &Vec<u8x32>, dims: usize) -> Vec<f32> {
     assert!(dims > 0);
     let blocks_per_vector = dims.div_ceil(64);
     assert_eq!(query.len(), blocks_per_vector);

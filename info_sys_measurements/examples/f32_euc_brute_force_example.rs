@@ -56,7 +56,7 @@ fn do_experiment<const DIMS: usize>(num_data: usize) {
     );
 }
 
-fn generate_euc_dists<const DIMS: usize>(query: &[f32x8], data: &[f32x8], blocks_per_vector: usize) -> Vec<f32> {
+fn generate_euc_dists<const DIMS: usize>(query: &Vec<f32x8>, data: &Vec<f32x8>, blocks_per_vector: usize) -> Vec<f32> {
     data.chunks_exact(blocks_per_vector)
         .map(|d| euc_view(query, d))
         .collect()

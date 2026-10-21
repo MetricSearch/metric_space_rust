@@ -1,0 +1,27 @@
+[package]
+name = "h_descent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hamiltonians.workspace = true
+dao.workspace = true
+utils.workspace = true
+bits.workspace = true
+metrics.workspace = true
+ndarray.workspace = true
+serde.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+bitvec_simd.workspace = true
+rand_chacha.workspace = true
+rand.workspace = true
+clap.workspace = true
+rayon.workspace = true
+chrono.workspace = true
+bincode.workspace = true
+pretty_env_logger.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+deepsize.workspace = true
+half = "2.7.1"

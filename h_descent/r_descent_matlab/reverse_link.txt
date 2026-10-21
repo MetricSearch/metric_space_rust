@@ -1,0 +1,63 @@
+Brief summary of this function.
+Detailed explanation of this function.
+function [reverseB,reverseBsims] = get_reverse_link_table(B,bSims,k)
+
+reverseB = int32(zeros(size(B,1),k));
+
+%use these to add unconditionally until the array is full, then
+%subsequently replace the smallest value with a new one
+reverseBsims = single(-ones(size(B,1),k));
+reverseBptr = int8(zeros(size(B,1),1));
+
+for forwardLinkRoot = 1 : size(B,1)
+
+    forwardLinks = nonzeros(B(forwardLinkRoot,:));
+
+    for forwardLinkLocation = 1 : length(forwardLinks)
+        thisForwardLink = forwardLinks(forwardLinkLocation);
+        forwardLinkSimilarity = bSims(forwardLinkRoot,forwardLinkLocation);
+
+        %so now we want to add the forwardLinkRoot to the thisForwardLink
+        %row of reverseB
+        %
+        %so in principle, reverseB(thisForwardLink) += forwardLinkRoot
+
+        % but first check in case thisForwardLinkRoot is already a member of the forwardLink row
+
+        if sum(B(thisForwardLink,:) == forwardLinkRoot) == 0
+
+            %how many things will be in the reverse list if this one is added
+            %useful to keep incrementing for analytic purposes
+            nextReverseBlocation = reverseBptr(thisForwardLink) + 1;
+            if nextReverseBlocation <= k
+                % if reverseBptr(thisForwardLink) <= k
+                %here it fits as the list isn't full
+                reverseBptr(thisForwardLink) = nextReverseBlocation;
+                reverseB(thisForwardLink,nextReverseBlocation) = forwardLinkRoot;
+                reverseBsims(thisForwardLink,nextReverseBlocation) = forwardLinkSimilarity;
+            else
+                %try effective random reverse links by commenting this out
+
+                %and here we need to replace the smallest one with the new one,
+                %if the new one is better than any we have so far
+                [s,wh] = min(reverseBsims(thisForwardLink,:));
+                if s < forwardLinkSimilarity
+                    reverseB(thisForwardLink,wh) = forwardLinkRoot;
+                    reverseBsims(thisForwardLink,wh) = forwardLinkSimilarity;
+                end
+
+
+                % % experimentally,try keeping the smallest sims
+                % %find the value and location of the current maxiumum similarity
+                % [s,wh] = max(reverseBsims(thisForwardLink,:));
+                % %and if this one is worse, replace it
+                % if s > forwardLinkSimilarity
+                %     reverseB(thisForwardLink,wh) = forwardLinkRoot;
+                %     reverseBsims(thisForwardLink,wh) = forwardLinkSimilarity;
+                % end
+            end
+        end
+    end
+
+end
+end

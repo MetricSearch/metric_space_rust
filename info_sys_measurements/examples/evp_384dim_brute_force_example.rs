@@ -25,7 +25,7 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let bsp_distances = generate_bsp_dists(query, data);
+    let bsp_distances = generate_bsp_dists(&query, &data);
 
     let after = Instant::now();
 
@@ -37,10 +37,10 @@ fn main() -> Result<()> {
 }
 
 fn generate_bsp_dists(
-    query: EvpBits<Simd256x2, 384>,
-    data: Array1<EvpBits<Simd256x2, 384>>,
+    query: &EvpBits<Simd256x2, 384>,
+    data: &Array1<EvpBits<Simd256x2, 384>>,
 ) -> Vec<usize> {
     data.iter()
-        .map(|datum| distance(&query, &datum))
-        .collect::<Vec<usize>>()
+        .map(|datum| distance(query, datum))
+        .collect()
 }

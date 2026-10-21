@@ -1,155 +1,63 @@
 use anyhow::Result;
 use ndarray::Array1;
 use rand::random;
-use rayon::prelude::*;
 use std::time::Instant;
+use wide::{i16x16, i32x8, u8x16, u8x32};
 
-#[inline]
-fn clamp_i4(x: u8) -> u8 {
-    x.clamp(0, 15)
-}
+pub fn euc_4bit(a: &[u8x32], b: &[u8x32]) -> f32 {
+    debug_assert_eq!(a.len(), b.len());
+    let mut sum = i32x8::ZERO;
+    let mask = i16x16::splat(15);
 
-#[inline]
-fn pack_i4_pair(a: u8, b: u8) -> u8 {
-    let a = (clamp_i4(a) & 0x0F) as u8;
-    let b = (clamp_i4(b) & 0x0F) as u8;
-    (b << 4) | a
-}
+    for (a, b) in a.iter().zip(b.iter()) {
+        for (a, b) in a
+            .as_array_ref()
+            .chunks_exact(16)
+            .zip(b.as_array_ref().chunks_exact(16))
+        {
+            // Widen packed bytes before extracting their unsigned nibbles.
+            let a = i16x16::from(u8x16::from(a));
+            let b = i16x16::from(u8x16::from(b));
+            let low_diff = (a & mask) - (b & mask);
+            let high_diff = (a >> 4_u32) - (b >> 4_u32);
 
-#[inline]
-fn unpack_i4(x: u8) -> (u8, u8) {
-    let lo = (x & 0x0F) as u8;
-    let hi = ((x >> 4) & 0x0F) as u8;
-
-    // sign extend
-    let lo = if lo & 0x08 != 0 { lo | !0x0F } else { lo };
-    let hi = if hi & 0x08 != 0 { hi | !0x0F } else { hi };
-
-    (lo, hi)
-}
-
-pub struct Array1I4View<'a> {
-    parent: &'a Array1I4,
-    start: usize,
-    len: usize,
-}
-
-#[derive(Clone)]
-pub struct Array1I4 {
-    data: Array1<u8>,
-    len: usize, // logical number of i4 elements
-}
-
-impl<'a> Array1I4View<'a> {
-    pub fn iter(&'a self) -> Array1I4Iter<'a> {
-        Array1I4Iter { view: self, pos: 0 }
-    }
-}
-
-impl<'a> Array1I4View<'a> {
-    pub fn get(&self, idx: usize) -> u8 {
-        assert!(idx < self.len);
-
-        let byte = self.parent.data[idx / 2];
-
-        let val = if idx % 2 == 0 {
-            byte & 0x0F
-        } else {
-            (byte >> 4) & 0x0F
-        };
-
-        // sign extend 4-bit value to u8
-        ((val as u8) << 4) >> 4
-    }
-}
-
-pub struct Array1I4Iter<'a> {
-    view: &'a Array1I4View<'a>,
-    pos: usize,
-}
-
-impl<'a> Iterator for Array1I4Iter<'a> {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= self.view.len {
-            return None;
-        }
-
-        let value = self.view.get(self.pos);
-        self.pos += 1;
-        Some(value)
-    }
-}
-
-impl Array1I4 {
-    pub fn slice(&self, start: usize, end: usize) -> Array1I4View<'_> {
-        assert!(start <= end);
-        assert!(end <= self.len);
-
-        Array1I4View {
-            parent: self,
-            start,
-            len: end - start,
+            sum += low_diff.dot(low_diff);
+            sum += high_diff.dot(high_diff);
         }
     }
+
+    (sum.reduce_add() as f32).sqrt()
 }
 
-impl Array1I4 {
-    pub fn from_u8(src: &Array1<u8>) -> Self {
-        let len = src.len();
-        let packed_len = (len + 1) / 2;
+fn to_packed_4bit_vectors(array: &Array1<u8>, dims: usize) -> Vec<u8x32> {
+    assert!(dims > 0);
+    assert_eq!(array.len() % dims, 0);
+    debug_assert!(array.iter().all(|&x| x <= 15));
 
-        let mut data = Array1::<u8>::zeros(packed_len);
-
-        for i in 0..packed_len {
-            let a = src[2 * i];
-            let b = if 2 * i + 1 < len { src[2 * i + 1] } else { 0 };
-            data[i] = pack_i4_pair(a, b);
-        }
-
-        Self { data, len }
-    }
+    array
+        .as_slice()
+        .expect("array must be contiguous")
+        .chunks_exact(dims)
+        .flat_map(|vector| {
+            // One 256-bit block holds 64 dimensions, two per byte.
+            vector.chunks(64).map(|chunk| {
+                let mut packed = [0; 32];
+                for (byte, pair) in packed.iter_mut().zip(chunk.chunks(2)) {
+                    *byte = pair[0] | (pair.get(1).copied().unwrap_or(0) << 4);
+                }
+                u8x32::new(packed)
+            })
+        })
+        .collect()
 }
 
-impl Array1I4 {
-    #[inline]
-    pub fn get(&self, idx: usize) -> u8 {
-        assert!(idx < self.len);
-        let byte = self.data[idx / 2];
-        let (a, b) = unpack_i4(byte);
-        if idx % 2 == 0 { a } else { b }
-    }
-}
-
-impl Array1I4 {
-    pub fn to_u8(&self) -> Array1<u8> {
-        let mut out = Array1::<u8>::zeros(self.len);
-        for i in 0..self.len {
-            out[i] = self.get(i);
-        }
-        out
-    }
-}
-
-pub fn euc_4bit(a: &Array1I4View, b: Array1I4View) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(a, b)| (a - b).pow(2) as f32)
-        .sum::<f32>()
-}
-
-pub fn to_u8_array(array: &Array1<f32>, max_f32: f32) -> Array1<u8> {
+pub fn to_u4_array(array: &Array1<f32>, max_f32: f32) -> Array1<u8> {
     array.mapv(|x| {
         let value = x / max_f32;
-
         if value.is_nan() {
-            // this will never happen
             0
         } else {
-            (value * u8::MAX as f32)
-                .round()
-                .clamp(u8::MIN as f32, u8::MAX as f32) as u8
+            (value * 15.0).round().clamp(0.0, 15.0) as u8
         }
     })
 }
@@ -176,13 +84,16 @@ fn do_experiment(num_data: usize, dims: usize) {
         .map(|x| x.abs())
         .fold(f32::NEG_INFINITY, f32::max);
 
-    let query: Array1I4 = Array1I4::from_u8(&to_u8_array(&query_f32, max_f32));
-    let data = Array1I4::from_u8(&to_u8_array(&data_f32, max_f32));
+    let query = to_u4_array(&query_f32, max_f32);
+    let data = to_u4_array(&data_f32, max_f32);
+
+    let query_wide = to_packed_4bit_vectors(&query, dims);
+    let data_wide = to_packed_4bit_vectors(&data, dims);
 
     let now = Instant::now();
 
     // Do a brute force of queries against the data
-    let four_bit_distances = generate_4bit_dists(query, data, num_data, dims);
+    let four_bit_distances = generate_4bit_dists(&query_wide, &data_wide, dims);
 
     let after = Instant::now();
     eprintln!("Last distance is {:?}", four_bit_distances.iter().last());
@@ -194,17 +105,113 @@ fn do_experiment(num_data: usize, dims: usize) {
     );
 }
 
-fn generate_4bit_dists(
-    queries: Array1I4,
-    data: Array1I4,
-    num_data: usize,
-    dims: usize,
-) -> Vec<f32> {
-    let q = queries.slice(0, dims);
-    (0..num_data)
-        .map(|data_index| {
-            let d = data.slice(data_index * dims, (data_index * dims) + dims);
-            euc_4bit(&q, d)
-        })
-        .collect::<Vec<f32>>()
+fn generate_4bit_dists(query: &[u8x32], data: &[u8x32], dims: usize) -> Vec<f32> {
+    assert!(dims > 0);
+    let blocks_per_vector = dims.div_ceil(64);
+    assert_eq!(query.len(), blocks_per_vector);
+    assert_eq!(data.len() % blocks_per_vector, 0);
+
+    data.chunks_exact(blocks_per_vector)
+        .map(|d| euc_4bit(query, d))
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quantization_uses_the_unsigned_four_bit_range() {
+        let input = Array1::from_vec(vec![
+            -1.0,
+            0.0,
+            1.0 / 15.0,
+            0.5,
+            14.0 / 15.0,
+            1.0,
+            2.0,
+            f32::NAN,
+        ]);
+        assert_eq!(
+            to_u4_array(&input, 1.0),
+            Array1::from_vec(vec![0, 0, 1, 8, 14, 15, 15, 0])
+        );
+        assert_eq!(
+            to_u4_array(&Array1::from_vec(vec![0.0, 1.0, 2.0]), 2.0),
+            Array1::from_vec(vec![0, 8, 15])
+        );
+        assert_eq!(to_u4_array(&Array1::zeros(3), 0.0), Array1::zeros(3));
+    }
+
+    #[test]
+    fn every_nibble_pair_matches_scalar_distance() {
+        let data = Array1::from_iter((0..=255_u8).flat_map(|byte| [byte & 15, byte >> 4]));
+        let packed = to_packed_4bit_vectors(&data, 2);
+        for byte in 0..=255_u8 {
+            let query = Array1::from_vec(vec![byte & 15, byte >> 4]);
+            let query = to_packed_4bit_vectors(&query, 2);
+            let distances = generate_4bit_dists(&query, &packed, 2);
+            for (index, &actual) in distances.iter().enumerate() {
+                let low_diff = i32::from(byte & 15) - (index & 15) as i32;
+                let high_diff = i32::from(byte >> 4) - (index >> 4) as i32;
+                let expected = ((low_diff * low_diff + high_diff * high_diff) as f32).sqrt();
+                assert_eq!(actual, expected, "query={byte}, data={index}");
+            }
+        }
+    }
+
+    #[test]
+    fn distinct_vectors_produce_distinct_euclidean_distances() {
+        let query = to_packed_4bit_vectors(&Array1::from_vec(vec![0, 0, 0]), 3);
+        let data = to_packed_4bit_vectors(&Array1::from_vec(vec![0, 0, 0, 3, 4, 0, 15, 0, 0]), 3);
+        assert_eq!(generate_4bit_dists(&query, &data, 3), vec![0.0, 5.0, 15.0]);
+    }
+
+    #[test]
+    fn padding_and_distances_match_scalar_across_vector_boundaries() {
+        for dims in [1, 2, 3, 31, 32, 33, 63, 64, 65, 100, 384, 500, 768] {
+            let query = Array1::from_iter((0..dims).map(|i| if i % 2 == 0 { 0 } else { 15 }));
+            let data = Array1::from_iter(
+                query
+                    .iter()
+                    .copied()
+                    .chain(query.iter().map(|&x| 15 - x))
+                    .chain((0..dims).map(|i| ((i * 7 + 3) % 16) as u8)),
+            );
+            let query_wide = to_packed_4bit_vectors(&query, dims);
+            let data_wide = to_packed_4bit_vectors(&data, dims);
+            let blocks = dims.div_ceil(64);
+            assert_eq!(data_wide.len(), 3 * blocks);
+            for (packed, expected) in data_wide
+                .chunks_exact(blocks)
+                .zip(data.as_slice().unwrap().chunks_exact(dims))
+            {
+                let unpacked: Vec<_> = packed
+                    .iter()
+                    .flat_map(|block| block.as_array_ref())
+                    .flat_map(|&byte| [byte & 15, byte >> 4])
+                    .collect();
+                assert_eq!(&unpacked[..dims], expected);
+                assert!(unpacked[dims..].iter().all(|&x| x == 0));
+            }
+
+            let distances = generate_4bit_dists(&query_wide, &data_wide, dims);
+            assert_eq!(distances.len(), 3);
+            for (&actual, vector) in distances
+                .iter()
+                .zip(data.as_slice().unwrap().chunks_exact(dims))
+            {
+                let expected = query
+                    .iter()
+                    .zip(vector)
+                    .map(|(&q, &d)| {
+                        let diff = i32::from(q) - i32::from(d);
+                        diff * diff
+                    })
+                    .sum::<i32>() as f32;
+                assert_eq!(actual, expected.sqrt(), "dims={dims}");
+            }
+            assert!(generate_4bit_dists(&query_wide, &[], dims).is_empty());
+        }
+    }
 }

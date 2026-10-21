@@ -1,13 +1,39 @@
 use anyhow::Result;
-use ndarray::{Array1, ArrayView1, s};
+use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
+use wide::{f32x8, u16x16};
 
-pub fn euc_16bit(a: &ArrayView1<u16>, b: &ArrayView1<u16>) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(a, b)| (a - b).pow(2) as f32)
-        .sum::<f32>()
+pub fn euc_16bit(a: &[u16x16], b: &[u16x16]) -> f32 {
+    let mut sum = f32x8::ZERO;
+
+    for (a, b) in a.iter().zip(b.iter()) {
+        for (a, b) in a
+            .as_array_ref()
+            .chunks_exact(8)
+            .zip(b.as_array_ref().chunks_exact(8))
+        {
+            // Widen before subtraction and squaring; u16 values fit exactly in f32.
+            let a = f32x8::new(std::array::from_fn(|lane| f32::from(a[lane])));
+            let b = f32x8::new(std::array::from_fn(|lane| f32::from(b[lane])));
+            let diff = a - b;
+            sum += diff * diff;
+        }
+    }
+
+    sum.reduce_add().sqrt()
+}
+
+fn to_u16x16_vectors(array: &Array1<u16>, dims: usize) -> Vec<u16x16> {
+    assert!(dims > 0);
+    assert_eq!(array.len() % dims, 0);
+
+    array
+        .as_slice()
+        .expect("array must be contiguous")
+        .chunks_exact(dims)
+        .flat_map(|vector| vector.chunks(16).map(u16x16::from))
+        .collect()
 }
 
 pub fn to_u16_array(array: &Array1<f32>, max_f32: f32) -> Array1<u16> {
@@ -48,11 +74,14 @@ fn do_experiment(num_data: usize, dims: usize) {
     let query = to_u16_array(&query_f32, max_f32);
     let data = to_u16_array(&data_f32, max_f32);
 
+    let query_wide = to_u16x16_vectors(&query, dims);
+    let data_wide = to_u16x16_vectors(&data, dims);
+
     let now = Instant::now();
 
     // Do a brute force of queries against the data
 
-    let sixteen_bit_distances = generate_16bit_dists(query, data, num_data, dims);
+    let sixteen_bit_distances = generate_16bit_dists(&query_wide, &data_wide, dims);
 
     let after = Instant::now();
     eprintln!("Last distance is {:?}", sixteen_bit_distances.iter().last());
@@ -64,18 +93,13 @@ fn do_experiment(num_data: usize, dims: usize) {
     );
 }
 
-fn generate_16bit_dists(
-    query: Array1<u16>,
-    data: Array1<u16>,
-    num_data: usize,
-    dims: usize,
-) -> Vec<f32> {
-    let q = query.slice(s![0..dims]);
+fn generate_16bit_dists(query: &[u16x16], data: &[u16x16], dims: usize) -> Vec<f32> {
+    assert!(dims > 0);
+    let blocks_per_vector = dims.div_ceil(16);
+    assert_eq!(query.len(), blocks_per_vector);
+    assert_eq!(data.len() % blocks_per_vector, 0);
 
-    (0..num_data)
-        .map(|data_index| {
-            let d = data.slice(s![data_index * dims..(data_index * dims) + dims]);
-            euc_16bit(&q, &d)
-        })
-        .collect::<Vec<f32>>()
+    data.chunks_exact(blocks_per_vector)
+        .map(|d| euc_16bit(query, d))
+        .collect()
 }

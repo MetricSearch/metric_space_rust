@@ -3,6 +3,8 @@ use ndarray::{Array1, ArrayView1, s};
 use rand::random;
 use std::time::Instant;
 
+use wide::f32x8;
+
 fn main() -> Result<()> {
     let num_data = 1_000_000;
 
@@ -18,11 +20,30 @@ fn do_experiment<const DIMS: usize>(num_data: usize) {
     let query = Array1::from_iter((0..DIMS).map(|_| random::<f32>()));
     let data = Array1::from_iter((0..DIMS * num_data).map(|_| random::<f32>()));
 
+    assert!(DIMS > 0);
+    assert_eq!(data.len() % DIMS, 0);
+
+    let query_wide: Vec<f32x8> = query
+        .as_slice()
+        .expect("query must be contiguous")
+        .chunks(8)
+        .map(f32x8::from)
+        .collect();
+
+    let data_wide: Vec<f32x8> = data
+        .as_slice()
+        .expect("data must be contiguous")
+        .chunks_exact(DIMS)
+        .flat_map(|vector| vector.chunks(8).map(f32x8::from))
+        .collect();
+
+    let blocks_per_vector = DIMS.div_ceil(8);
+
     let now = Instant::now();
 
     // Do a brute force of queries against the data
 
-    let distances = generate_euc_dists::<DIMS>(query, data);
+    let distances = generate_euc_dists::<DIMS>(&query_wide, &data_wide, blocks_per_vector);
 
     let after = Instant::now();
 
@@ -35,22 +56,19 @@ fn do_experiment<const DIMS: usize>(num_data: usize) {
     );
 }
 
-fn generate_euc_dists<const DIMS: usize>(query: Array1<f32>, data: Array1<f32>) -> Vec<f32> {
-    let q = query.slice(s![0..DIMS]);
-    data.exact_chunks(DIMS)
-        .into_iter()
-        .map(|d| euc_view(&q, &d))
-        .collect::<Vec<f32>>()
+fn generate_euc_dists<const DIMS: usize>(query: &[f32x8], data: &[f32x8], blocks_per_vector: usize) -> Vec<f32> {
+    data.chunks_exact(blocks_per_vector)
+        .map(|d| euc_view(query, d))
+        .collect()
 }
 
-fn euc_view(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
-    // f32::sqrt(a.iter().zip(b.iter()).map(|(a, b)| (a - b).powi(2)).sum())
-    a.iter()
-        .zip(b.iter())
-        .map(|(a, b)| {
-            let sub = a.algebraic_sub(*b);
-            sub.algebraic_mul(sub)
-        })
-        .sum::<f32>()
-        .sqrt()
+fn euc_view(a: &[f32x8], b: &[f32x8]) -> f32 {
+    let mut sum = f32x8::ZERO;
+
+    for (&a, &b) in a.iter().zip(b.iter()) {
+        let diff = a - b;
+        sum += diff * diff;
+    }
+
+    sum.reduce_add().sqrt()
 }

@@ -45,7 +45,7 @@ fn main() -> Result<()> {
 
     // Do a brute force of query bitmaps against the data bitmaps
 
-    let distances = generate_hamming_dists(query, data);
+    let distances = generate_hamming_dists(&query, &data);
 
     let after = Instant::now();
 
@@ -59,8 +59,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn generate_hamming_dists(query: Simd256x2, data: Array1<Simd256x2>) -> Vec<u32> {
+fn generate_hamming_dists(query: &Simd256x2, data: &Array1<Simd256x2>) -> Vec<u32> {
     data.iter()
-        .map(|d| one_bit_similarity_128(&query, d))
+        .map(|d| one_bit_similarity_128(query, d))
         .collect::<Vec<u32>>()
 }

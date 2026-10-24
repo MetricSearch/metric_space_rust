@@ -1,18 +1,10 @@
+use benchmarking::distances::one_bit_similarity_128 as one_bit_similarity_128;
 use anyhow::Result;
 use bits::container::BitsContainer;
 use bits::container::Simd128;
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
-
-fn one_bit_similarity_128(a: &Simd128, b: &Simd128) -> u32 {
-    // a.into_u64_iter()
-    //     .zip(b.into_u64_iter())
-    //     .map(|(x, y)| (x ^ y).count_ones())
-    //     .sum::<u32>()
-
-    a.xor(b).count_ones() as u32
-}
 
 fn to_one_bit_128(embedding: Array1<f32>) -> Simd128 {
     let mut bits = Simd128::default();

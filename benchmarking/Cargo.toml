@@ -56,6 +56,8 @@ name = "multiple_one_bit"
 harness = false
 
 [dependencies]
+anyhow.workspace = true
+wide.workspace = true
 dao.workspace = true
 bits.workspace = true
 metrics.workspace = true

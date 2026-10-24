@@ -1,3 +1,6 @@
+use benchmarking::distances::{
+    one_bit_similarity_128, one_bit_similarity_256, one_bit_similarity_768,
+};
 use bits::container::Simd256x2;
 use bits::container::{BitsContainer, Simd128, Simd256x4};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -33,31 +36,6 @@ fn to_one_bit_786(embedding: ArrayView1<f32>) -> Simd256x4 {
         }
     });
     bits
-}
-
-fn one_bit_similarity_128(a: &Simd128, b: &Simd128) -> u32 {
-    // a.into_u64_iter()
-    //     .zip(b.into_u64_iter())
-    //     .map(|(x, y)| (x ^ y).count_ones())
-    //     .sum::<u32>()
-
-    a.xor(b).count_ones() as u32
-}
-
-fn one_bit_similarity_256(a: &Simd256x2, b: &Simd256x2) -> u32 {
-    // a.into_u64_iter()
-    //     .zip(b.into_u64_iter())
-    //     .map(|(x, y)| (x ^ y).count_ones())
-    //     .sum::<u32>()
-    a.xor(b).count_ones() as u32
-}
-
-fn one_bit_similarity_768(a: &Simd256x4, b: &Simd256x4) -> u32 {
-    // a.into_u64_iter()
-    //     .zip(b.into_u64_iter())
-    //     .map(|(x, y)| (x ^ y).count_ones())
-    //     .sum::<u32>()
-    a.xor(b).count_ones() as u32
 }
 
 fn bench_one_bit(c: &mut Criterion) {

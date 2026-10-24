@@ -1,55 +1,9 @@
+use benchmarking::distances::{euc_16bit, to_u16x16_vectors, to_u16_array};
 use anyhow::Result;
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
-use wide::{f32x8, u16x16};
-
-pub fn euc_16bit(a: &[u16x16], b: &[u16x16]) -> f32 {
-    let mut sum = f32x8::ZERO;
-
-    for (a, b) in a.iter().zip(b.iter()) {
-        for (a, b) in a
-            .as_array_ref()
-            .chunks_exact(8)
-            .zip(b.as_array_ref().chunks_exact(8))
-        {
-            // Widen before subtraction and squaring; u16 values fit exactly in f32.
-            let a = f32x8::new(std::array::from_fn(|lane| f32::from(a[lane])));
-            let b = f32x8::new(std::array::from_fn(|lane| f32::from(b[lane])));
-            let diff = a - b;
-            sum += diff * diff;
-        }
-    }
-
-    sum.reduce_add().sqrt()
-}
-
-fn to_u16x16_vectors(array: &Array1<u16>, dims: usize) -> Vec<u16x16> {
-    assert!(dims > 0);
-    assert_eq!(array.len() % dims, 0);
-
-    array
-        .as_slice()
-        .expect("array must be contiguous")
-        .chunks_exact(dims)
-        .flat_map(|vector| vector.chunks(16).map(u16x16::from))
-        .collect()
-}
-
-pub fn to_u16_array(array: &Array1<f32>, max_f32: f32) -> Array1<u16> {
-    array.mapv(|x| {
-        let value = x / max_f32;
-
-        if value.is_nan() {
-            // this will never happen
-            0
-        } else {
-            (value * u16::MAX as f32)
-                .round()
-                .clamp(u16::MIN as f32, u16::MAX as f32) as u16
-        }
-    })
-}
+use wide::u16x16;
 
 fn main() -> Result<()> {
     let num_data = 1_000_000;

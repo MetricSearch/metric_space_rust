@@ -130,6 +130,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 name = "benchmarking"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bits",
  "criterion",
  "dao",
@@ -137,6 +138,7 @@ dependencies = [
  "metrics",
  "ndarray",
  "rand",
+ "wide",
 ]
 
 [[package]]
@@ -783,31 +785,6 @@ checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
 dependencies = [
  "equivalent",
  "hashbrown",
-]
-
-[[package]]
-name = "info_sys_measurements"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bits",
- "bitvec_simd",
- "clap",
- "dao",
- "descent",
- "hdf5-metno",
- "jemallocator",
- "log",
- "metrics",
- "ndarray",
- "pretty_env_logger",
- "r_descent",
- "rand",
- "rayon",
- "tracing",
- "tracing-subscriber",
- "utils",
- "wide",
 ]
 
 [[package]]

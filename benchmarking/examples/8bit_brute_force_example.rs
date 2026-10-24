@@ -1,56 +1,9 @@
+use benchmarking::distances::{euc_8bit, to_u8x32_vectors, to_u8_array};
 use anyhow::Result;
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
-use wide::{i16x16, i32x8, u8x16, u8x32};
-
-pub fn euc_8bit(a: &[u8x32], b: &[u8x32]) -> f32 {
-    let mut sum = i32x8::ZERO;
-
-    for (a, b) in a.iter().zip(b.iter()) {
-        for (a, b) in a
-            .as_array_ref()
-            .chunks_exact(16)
-            .zip(b.as_array_ref().chunks_exact(16))
-        {
-            // Need to map into 
-            let diff =
-                i16x16::from(u8x16::from(a)) -
-                i16x16::from(u8x16::from(b));
-
-            sum += diff.dot(diff);
-        }
-    }
-
-    (sum.reduce_add() as f32).sqrt()
-}
-
-fn to_u8x32_vectors(array: &Array1<u8>, dims: usize) -> Vec<u8x32> {
-    assert!(dims > 0);
-    assert_eq!(array.len() % dims, 0);
-
-    array
-        .as_slice()
-        .expect("array must be contiguous")
-        .chunks_exact(dims)
-        .flat_map(|vector| vector.chunks(32).map(u8x32::from))
-        .collect()
-}
-
-pub fn to_u8_array(array: &Array1<f32>, max_f32: f32) -> Array1<u8> {
-    array.mapv(|x| {
-        let value = x / max_f32;
-
-        if value.is_nan() {
-            // this will never happen
-            0
-        } else {
-            (value * u8::MAX as f32)
-                .round()
-                .clamp(u8::MIN as f32, u8::MAX as f32) as u8
-        }
-    })
-}
+use wide::u8x32;
 
 fn main() -> Result<()> {
     let num_data = 1_000_000;

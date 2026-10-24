@@ -1,9 +1,10 @@
+use benchmarking::distances::euc_view;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use dao::csv_dao_loader::dao_from_csv_dir;
-use metrics::euc;
 use ndarray::s;
 use std::hint::black_box;
 use std::rc::Rc;
+use wide::f32x8;
 
 fn bench_pca(c: &mut Criterion) {
     let num_queries = 10_000;
@@ -38,8 +39,21 @@ fn bench_pca(c: &mut Criterion) {
                 let query = dao.get_query(0).slice(s![0..size]).to_owned();
                 let data = dao.get_datum(1).slice(s![0..size]).to_owned();
 
+                let query: Vec<f32x8> = query
+                    .as_slice()
+                    .unwrap()
+                    .chunks(8)
+                    .map(f32x8::from)
+                    .collect();
+                let data: Vec<f32x8> = data
+                    .as_slice()
+                    .unwrap()
+                    .chunks(8)
+                    .map(f32x8::from)
+                    .collect();
+
                 bencher.iter(|| {
-                    let res = euc(black_box(&query), black_box(&data));
+                    let res = euc_view(black_box(&query), black_box(&data));
                     black_box(res);
                 });
             },

@@ -1,5 +1,6 @@
+use benchmarking::distances::{euc_view};
 use anyhow::Result;
-use ndarray::{Array1, ArrayView1, s};
+use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
 
@@ -62,13 +63,3 @@ fn generate_euc_dists<const DIMS: usize>(query: &Vec<f32x8>, data: &Vec<f32x8>, 
         .collect()
 }
 
-fn euc_view(a: &[f32x8], b: &[f32x8]) -> f32 {
-    let mut sum = f32x8::ZERO;
-
-    for (&a, &b) in a.iter().zip(b.iter()) {
-        let diff = a - b;
-        sum += diff * diff;
-    }
-
-    sum.reduce_add().sqrt()
-}

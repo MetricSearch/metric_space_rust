@@ -1,0 +1,1 @@
+/home/bc89/Documents/metric_space_rust/infosys_raw_data

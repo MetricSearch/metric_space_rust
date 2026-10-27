@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bench]]
-name = "multiple_bit_eucs"
+name = "packed_integer_quant_euc"
 harness = false
 
 [[bench]]

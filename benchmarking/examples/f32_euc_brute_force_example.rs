@@ -38,13 +38,14 @@ fn do_experiment<const DIMS: usize>(num_data: usize) {
         .flat_map(|vector| vector.chunks(8).map(f32x8::from))
         .collect();
 
-    let blocks_per_vector = DIMS.div_ceil(8);
+    // How many f32x8s are needed to store a single vector
+    let f32x8s_required_per_vec = DIMS.div_ceil(8);
 
     let now = Instant::now();
 
     // Do a brute force of queries against the data
 
-    let distances = generate_euc_dists::<DIMS>(&query_wide, &data_wide, blocks_per_vector);
+    let distances = generate_euc_dists::<DIMS>(&query_wide, &data_wide, f32x8s_required_per_vec);
 
     let after = Instant::now();
 

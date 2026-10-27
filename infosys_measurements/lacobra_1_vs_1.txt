@@ -1,0 +1,172 @@
+bench_multiple_one_bit/100
+                        time:   [928.18 ps 928.51 ps 928.88 ps]
+                        change: [+0.6130% +0.7324% +0.8493%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 9 outliers among 100 measurements (9.00%)
+  5 (5.00%) high mild
+  4 (4.00%) high severe
+bench_multiple_one_bit/384
+                        time:   [1.6143 ns 1.6156 ns 1.6170 ns]
+                        change: [−7.5001% −7.3424% −7.1930%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 16 outliers among 100 measurements (16.00%)
+  2 (2.00%) low mild
+  8 (8.00%) high mild
+  6 (6.00%) high severe
+bench_multiple_one_bit/500
+                        time:   [1.6472 ns 1.6671 ns 1.6922 ns]
+                        change: [+2.8384% +4.4420% +6.6214%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 18 outliers among 100 measurements (18.00%)
+  18 (18.00%) high severe
+bench_multiple_one_bit/768
+                        time:   [2.9604 ns 2.9655 ns 2.9712 ns]
+                        change: [−0.3814% −0.1026% +0.1733%] (p = 0.48 > 0.05)
+                        No change in performance detected.
+Found 6 outliers among 100 measurements (6.00%)
+  6 (6.00%) high mild
+
+bench_multiple_eucs/100 time:   [8.1544 ns 8.1972 ns 8.2425 ns]
+                        change: [−91.814% −91.779% −91.745%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 8 outliers among 100 measurements (8.00%)
+  8 (8.00%) high mild
+bench_multiple_eucs/384 time:   [29.612 ns 29.683 ns 29.757 ns]
+                        change: [−91.820% −91.806% −91.791%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+bench_multiple_eucs/500 time:   [37.907 ns 37.985 ns 38.068 ns]
+                        change: [−91.866% −91.853% −91.839%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 8 outliers among 100 measurements (8.00%)
+  8 (8.00%) high mild
+bench_multiple_eucs/768 time:   [59.256 ns 59.296 ns 59.345 ns]
+                        change: [−91.729% −91.664% −91.627%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 9 outliers among 100 measurements (9.00%)
+  8 (8.00%) high mild
+  1 (1.00%) high severe
+
+evp_100dim  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench    2.452 ns      │ 2.462 ns      │ 2.452 ns      │ 2.457 ns      │ 100     │ 102400
+
+evp_384dim  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench    5.615 ns      │ 5.654 ns      │ 5.635 ns      │ 5.626 ns      │ 100     │ 51200
+
+evp_500dim  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench    5.737 ns      │ 5.767 ns      │ 5.747 ns      │ 5.749 ns      │ 100     │ 102400
+
+evp_768dim  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+╰─ bench    10.67 ns      │ 16.58 ns      │ 10.7 ns       │ 10.76 ns      │ 100     │ 51200
+
+bench_multiple_bit_eucs/100/4
+                        time:   [8.6209 ns 8.6414 ns 8.6592 ns]
+                        change: [−95.914% −95.902% −95.891%] (p = 0.00 < 0.05)
+                        Performance has improved.
+bench_multiple_bit_eucs/100/8
+                        time:   [4.6945 ns 4.7024 ns 4.7124 ns]
+                        change: [−94.546% −94.537% −94.528%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+bench_multiple_bit_eucs/100/16
+                        time:   [11.008 ns 11.024 ns 11.042 ns]
+                        change: [−90.784% −90.769% −90.757%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+bench_multiple_bit_eucs/100/32
+                        time:   [86.545 ns 86.580 ns 86.619 ns]
+                        change: [−12.911% −12.869% −12.822%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 7 outliers among 100 measurements (7.00%)
+  4 (4.00%) high mild
+  3 (3.00%) high severe
+bench_multiple_bit_eucs/384/4
+                        time:   [22.744 ns 22.753 ns 22.762 ns]
+                        change: [−97.159% −97.156% −97.154%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 16 outliers among 100 measurements (16.00%)
+  2 (2.00%) low severe
+  2 (2.00%) low mild
+  4 (4.00%) high mild
+  8 (8.00%) high severe
+bench_multiple_bit_eucs/384/8
+                        time:   [11.261 ns 11.274 ns 11.288 ns]
+                        change: [−96.376% −96.372% −96.368%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 17 outliers among 100 measurements (17.00%)
+  1 (1.00%) low severe
+  8 (8.00%) low mild
+  7 (7.00%) high mild
+  1 (1.00%) high severe
+bench_multiple_bit_eucs/384/16
+                        time:   [34.067 ns 34.106 ns 34.149 ns]
+                        change: [−92.289% −92.280% −92.273%] (p = 0.00 < 0.05)
+                        Performance has improved.
+bench_multiple_bit_eucs/384/32
+                        time:   [298.03 ns 298.22 ns 298.44 ns]
+                        change: [−18.043% −17.994% −17.945%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  4 (4.00%) high mild
+  2 (2.00%) high severe
+bench_multiple_bit_eucs/500/4
+                        time:   [29.049 ns 29.074 ns 29.102 ns]
+                        change: [−97.255% −97.252% −97.249%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 19 outliers among 100 measurements (19.00%)
+  1 (1.00%) low severe
+  6 (6.00%) high mild
+  12 (12.00%) high severe
+bench_multiple_bit_eucs/500/8
+                        time:   [15.081 ns 15.115 ns 15.169 ns]
+                        change: [−96.241% −96.233% −96.223%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+bench_multiple_bit_eucs/500/16
+                        time:   [45.419 ns 45.494 ns 45.569 ns]
+                        change: [−92.225% −92.214% −92.204%] (p = 0.00 < 0.05)
+                        Performance has improved.
+bench_multiple_bit_eucs/500/32
+                        time:   [379.88 ns 380.52 ns 381.15 ns]
+                        change: [−18.458% −18.392% −18.317%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 17 outliers among 100 measurements (17.00%)
+  2 (2.00%) high mild
+  15 (15.00%) high severe
+bench_multiple_bit_eucs/768/4
+                        time:   [41.812 ns 41.833 ns 41.857 ns]
+                        change: [−97.420% −97.418% −97.416%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 12 outliers among 100 measurements (12.00%)
+  1 (1.00%) low mild
+  4 (4.00%) high mild
+  7 (7.00%) high severe
+bench_multiple_bit_eucs/768/8
+                        time:   [21.377 ns 21.402 ns 21.437 ns]
+                        change: [−96.496% −96.490% −96.482%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 23 outliers among 100 measurements (23.00%)
+  6 (6.00%) low mild
+  17 (17.00%) high severe
+bench_multiple_bit_eucs/768/16
+                        time:   [67.349 ns 67.402 ns 67.506 ns]
+                        change: [−92.428% −92.420% −92.410%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 12 outliers among 100 measurements (12.00%)
+  2 (2.00%) high mild
+  10 (10.00%) high severe
+bench_multiple_bit_eucs/768/32
+                        time:   [574.43 ns 574.76 ns 575.11 ns]
+                        change: [−19.682% −19.626% −19.571%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  3 (3.00%) high mild
+  3 (3.00%) high severe
+

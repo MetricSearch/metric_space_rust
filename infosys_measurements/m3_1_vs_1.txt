@@ -1,5 +1,4 @@
 bench_multiple_one_bit/100
-<<<<<<< HEAD
                         time:   [637.66 ps 697.42 ps 775.85 ps]
                         change: [−15.171% −3.8409% +10.033%] (p = 0.56 > 0.05)
                         No change in performance detected.
@@ -394,5 +393,4 @@ bench_multiple_bit_eucs/768/32
 Found 11 outliers among 100 measurements (11.00%)
   2 (2.00%) high mild
   9 (9.00%) high severe
->>>>>>> c98fe4d (re-run timings on m3)
 

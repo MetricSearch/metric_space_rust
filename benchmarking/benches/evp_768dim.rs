@@ -1,16 +1,14 @@
 use bits::container::Simd256x4;
-use bits::{container::Simd256x2, similarity, EvpBits};
-use dao::Dao;
-use divan::{black_box, Bencher};
+use bits::{similarity, EvpBits};
+use criterion::{criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion};
+use divan::black_box;
 use ndarray::Array1;
 use rand::random;
 
-fn main() {
-    divan::main();
-}
+fn evp_768dim(c: &mut Criterion) {
+    let mut group = c.benchmark_group("evp_768dim");
 
-#[divan::bench]
-fn bench(bencher: Bencher) {
     let query = EvpBits::<Simd256x4, 768>::from_embedding(
         Array1::from_iter((0..768).map(|_| random::<f32>())),
         420,
@@ -20,8 +18,13 @@ fn bench(bencher: Bencher) {
         420,
     );
 
-    bencher.bench(|| {
-        let res = similarity::<Simd256x4, 768>(black_box(&query), black_box(&data));
-        black_box(res);
+    group.bench_function(BenchmarkId::from_parameter(768), |bencher| {
+        bencher.iter(|| {
+            let res = similarity::<Simd256x4, 768>(black_box(&query), black_box(&data));
+            black_box(res);
+        });
     });
 }
+
+criterion_group!(benches, evp_768dim);
+criterion_main!(benches);

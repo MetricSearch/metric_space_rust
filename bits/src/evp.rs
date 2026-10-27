@@ -15,8 +15,8 @@ use utils::arg_sort;
 /// For example, an AVX512 container used to store 384 bits.
 #[derive(Debug, Clone, Default)]
 pub struct EvpBits<C, const W: usize> {
-    ones: C,
-    negative_ones: C,
+    pub ones: C,
+    pub negative_ones: C,
 }
 
 impl<C: BitsContainer, const W: usize> EvpBits<C, W> {

@@ -9,10 +9,7 @@ impl BitsContainer for Simd256x4 {
     }
 
     fn count_ones(&self) -> usize {
-        self.iter()
-            .flat_map(|a| a.as_array_ref())
-            .map(|e| e.count_ones() as usize)
-            .sum()
+        self.iter().map(|a| a.count_ones()).sum()
     }
 
     fn and_cloned(&self, other: &Self) -> Self {

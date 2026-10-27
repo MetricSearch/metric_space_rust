@@ -58,4 +58,3 @@ fn generate_4bit_dists(query: &Vec<u8x32>, data: &Vec<u8x32>, dims: usize) -> Ve
         .map(|d| euc_4bit(query, d))
         .collect()
 }
-

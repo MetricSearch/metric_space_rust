@@ -1,5 +1,5 @@
-use benchmarking::distances::{euc_view};
 use anyhow::Result;
+use benchmarking::distances::euc_view;
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
@@ -57,9 +57,12 @@ fn do_experiment<const DIMS: usize>(num_data: usize) {
     );
 }
 
-fn generate_euc_dists<const DIMS: usize>(query: &Vec<f32x8>, data: &Vec<f32x8>, blocks_per_vector: usize) -> Vec<f32> {
+fn generate_euc_dists<const DIMS: usize>(
+    query: &Vec<f32x8>,
+    data: &Vec<f32x8>,
+    blocks_per_vector: usize,
+) -> Vec<f32> {
     data.chunks_exact(blocks_per_vector)
         .map(|d| euc_view(query, d))
         .collect()
 }
-

@@ -1,5 +1,5 @@
-use benchmarking::distances::{euc_4bit, to_packed_4bit_vectors, to_u4_array};
 use anyhow::Result;
+use benchmarking::distances::{euc_4bit, to_packed_4bit_vectors, to_u4_array};
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;

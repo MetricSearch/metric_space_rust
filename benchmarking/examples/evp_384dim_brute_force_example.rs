@@ -1,7 +1,7 @@
 use anyhow::Result;
 //use std::random::random;
 use bits::container::Simd256x2;
-use bits::{EvpBits, distance};
+use bits::{distance, EvpBits};
 use ndarray::Array1;
 use rand::random;
 use std::time::Instant;
@@ -40,7 +40,5 @@ fn generate_bsp_dists(
     query: &EvpBits<Simd256x2, 384>,
     data: &Array1<EvpBits<Simd256x2, 384>>,
 ) -> Vec<usize> {
-    data.iter()
-        .map(|datum| distance(query, datum))
-        .collect()
+    data.iter().map(|datum| distance(query, datum)).collect()
 }

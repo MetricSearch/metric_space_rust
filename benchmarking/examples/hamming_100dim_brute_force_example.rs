@@ -1,5 +1,5 @@
-use benchmarking::distances::one_bit_similarity_128 as one_bit_similarity_128;
 use anyhow::Result;
+use benchmarking::distances::one_bit_similarity_128;
 use bits::container::BitsContainer;
 use bits::container::Simd128;
 use ndarray::Array1;

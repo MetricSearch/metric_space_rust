@@ -24,8 +24,8 @@ pub fn euc_4bit_scalar(a: &[u8], b: &[u8]) -> f32 {
 
     (sum as f32).sqrt()
 }
-    
-Scalar version...    
+
+Scalar version...
  */
 pub fn euc_4bit(a: &[u8x32], b: &[u8x32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
@@ -35,7 +35,6 @@ pub fn euc_4bit(a: &[u8x32], b: &[u8x32]) -> f32 {
 
     // We are going to extract the low 4 bits via XOR with 1111 (=15)
     let mask = i16x16::splat(15);
-
 
     for (a, b) in a.iter().zip(b.iter()) {
         for (x, y) in a
@@ -99,7 +98,6 @@ pub fn euc_8bit(a: &[u8x32], b: &[u8x32]) -> f32 {
     // We can fit more distances per SIMD vector than u16
     let mut sum = i32x8::ZERO;
 
-
     // Loop in lockstep each chunk of the vector
     for (a, b) in a.iter().zip(b.iter()) {
         // Grab 16 wide chunks of the vector
@@ -146,7 +144,6 @@ pub fn to_u8_array(array: &Array1<f32>, max_f32: f32) -> Array1<u8> {
     })
 }
 
-
 /*
 
 The SIMD version of this. Some type coersion is needed because u16s can overflow
@@ -168,7 +165,6 @@ pub fn euc_16bit(a: &[u16x16], b: &[u16x16]) -> f32 {
 
     // Rip blocks in lockstep from the inputs
     for (a, b) in a.iter().zip(b.iter()) {
-
         // Turn the 16 length u16x16 into two chunks of 8 values. We store each distance result in the f32x8
         for (x, y) in a
             .as_array_ref()
@@ -176,8 +172,10 @@ pub fn euc_16bit(a: &[u16x16], b: &[u16x16]) -> f32 {
             .zip(b.as_array_ref().chunks_exact(8))
         {
             // Widen before subtraction and squaring; u16 values fit exactly in f32.
-            let float_converted_a_chunk = f32x8::new(std::array::from_fn(|lane| f32::from(x[lane]))); // Converts the ints into floating points
-            let float_converted_b_chunk = f32x8::new(std::array::from_fn(|lane| f32::from(y[lane])));
+            let float_converted_a_chunk =
+                f32x8::new(std::array::from_fn(|lane| f32::from(x[lane]))); // Converts the ints into floating points
+            let float_converted_b_chunk =
+                f32x8::new(std::array::from_fn(|lane| f32::from(y[lane])));
             // Subtract the floats we've just made
             let diff = float_converted_a_chunk - float_converted_b_chunk;
 

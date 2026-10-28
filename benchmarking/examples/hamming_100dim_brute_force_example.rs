@@ -9,7 +9,7 @@ use std::time::Instant;
 fn to_one_bit_128(embedding: Array1<f32>) -> Simd128 {
     let mut bits = Simd128::default();
     (0..embedding.len()).for_each(|index| {
-        if embedding[index] > 0.0 {
+        if embedding[index] > 0.5 {
             bits.set_bit(index, true);
         }
     });

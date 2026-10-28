@@ -3,6 +3,54 @@ name = "benchmarking"
 version = "0.1.0"
 edition = "2021"
 
+[[example]]
+name = "evp_100dim_brute_force_example_shuffled"
+path = "examples/random_access/evp_100dim_brute_force_example.rs"
+
+[[example]]
+name = "evp_384dim_brute_force_example_shuffled"
+path = "examples/random_access/evp_384dim_brute_force_example.rs"
+
+[[example]]
+name = "evp_500dim_brute_force_example_shuffled"
+path = "examples/random_access/evp_500dim_brute_force_example.rs"
+
+[[example]]
+name = "evp_768dim_brute_force_example_shuffled"
+path = "examples/random_access/evp_768dim_brute_force_example.rs"
+
+[[example]]
+name = "4bit_brute_force_example_shuffled"
+path = "examples/random_access/4bit_brute_force_example.rs"
+
+[[example]]
+name = "8bit_brute_force_example_shuffled"
+path = "examples/random_access/8bit_brute_force_example.rs"
+
+[[example]]
+name = "16bit_brute_force_example_shuffled"
+path = "examples/random_access/16bit_brute_force_example.rs"
+
+[[example]]
+name = "f32_euc_brute_force_example_shuffled"
+path = "examples/random_access/f32_euc_brute_force_example.rs"
+
+[[example]]
+name = "hamming_100dim_brute_force_example_shuffled"
+path = "examples/random_access/hamming_100dim_brute_force_example.rs"
+
+[[example]]
+name = "hamming_384dim_brute_force_example_shuffled"
+path = "examples/random_access/hamming_384dim_brute_force_example.rs"
+
+[[example]]
+name = "hamming_500dim_brute_force_example_shuffled"
+path = "examples/random_access/hamming_500dim_brute_force_example.rs"
+
+[[example]]
+name = "hamming_768dim_brute_force_example_shuffled"
+path = "examples/random_access/hamming_768dim_brute_force_example.rs"
+
 [[bench]]
 name = "packed_integer_quant_euc"
 harness = false
@@ -64,6 +112,8 @@ metrics.workspace = true
 ndarray.workspace = true
 criterion = "0.8.1"
 rand = "0.9.2"
+permutation = "0.4.1"
+rand_chacha.workspace = true
 
 [dev-dependencies]
 divan.workspace = true
